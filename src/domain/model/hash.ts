@@ -6,7 +6,7 @@ export function hashBoard(board: Board): string {
   return allCoords()
     .map((coord) => {
       const signature = getCell(board, coord).checkers
-        .map((checker) => `${checker.owner[0]}${checker.frozen ? 'f' : 'a'}${checker.id}`)
+        .map((checker) => `${checker.owner[0]}${checker.frozen ? 'f' : 'a'}`)
         .join('|');
       return `${coord}:${signature}`;
     })

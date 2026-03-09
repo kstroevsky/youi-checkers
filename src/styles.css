@@ -39,6 +39,13 @@ button {
   max-width: 1380px;
 }
 
+.app-header__main {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: flex-end;
+}
+
 .app-header h1 {
   margin: 0 0 4px;
   font-size: 2rem;
@@ -47,6 +54,34 @@ button {
 .app-header p {
   margin: 0;
   color: #5c4b3c;
+}
+
+.language-switch {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.app-tabs {
+  display: flex;
+  gap: 8px;
+  margin-top: 16px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #c5b29a;
+}
+
+.tab-button {
+  padding: 10px 14px;
+  border: 1px solid transparent;
+  background: transparent;
+  color: #4f3f32;
+  border-radius: 8px;
+}
+
+.tab-button--active {
+  border-color: #a58b6f;
+  background: rgba(252, 249, 243, 0.88);
+  color: #23170f;
 }
 
 .app-layout {
@@ -215,6 +250,12 @@ button {
   margin-bottom: 12px;
 }
 
+.panel__header--with-tooltip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
 .panel__header h2 {
   margin: 0;
   font-size: 1rem;
@@ -223,6 +264,13 @@ button {
 .panel__text {
   margin: 4px 0;
   color: #513f31;
+}
+
+.panel__text--with-tooltip {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 
 .panel__error {
@@ -256,6 +304,12 @@ button {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
+}
+
+.action-chip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .button {
@@ -307,6 +361,12 @@ button {
   font-size: 0.9rem;
 }
 
+.score-grid__term {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .score-grid dd {
   margin: 0;
   font-size: 1.2rem;
@@ -318,10 +378,18 @@ button {
   gap: 10px;
 }
 
+.settings-row {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+}
+
 .settings-list label {
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
 }
 
 .history-list {
@@ -346,7 +414,6 @@ button {
   resize: vertical;
 }
 
-.dialog-backdrop,
 .pass-overlay {
   position: fixed;
   inset: 0;
@@ -357,7 +424,6 @@ button {
   padding: 24px;
 }
 
-.dialog,
 .pass-overlay__panel {
   width: min(920px, 100%);
   background: #f9f3e8;
@@ -382,40 +448,121 @@ button {
   color: #655240;
 }
 
-.dialog__header {
-  display: flex;
-  justify-content: space-between;
-  gap: 12px;
+.tooltip-anchor {
+  position: relative;
+  display: inline-flex;
   align-items: center;
-  margin-bottom: 16px;
 }
 
-.dialog__header h2,
-.dialog__section h3 {
+.tooltip-trigger {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid #b39c81;
+  border-radius: 6px;
+  background: #fffaf4;
+  color: #5c4b3c;
+  font-size: 0.78rem;
+  font-weight: 700;
+}
+
+.tooltip-trigger--open {
+  background: #e6d7c3;
+  border-color: #8c6e4c;
+}
+
+.tooltip-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: min(260px, 70vw);
+  padding: 12px;
+  border: 1px solid #bba894;
+  border-radius: 8px;
+  background: #fffaf4;
+  box-shadow: 0 6px 20px rgba(34, 20, 9, 0.18);
+  z-index: 20;
+  display: grid;
+  gap: 6px;
+}
+
+.tooltip-popover strong {
+  color: #23170f;
+}
+
+.tooltip-popover span {
+  color: #4f3f32;
+  font-size: 0.92rem;
+}
+
+.instructions-panel {
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 24px;
+  border: 1px solid #bba894;
+  background: rgba(252, 249, 243, 0.94);
+}
+
+.instructions-panel__header {
+  margin-bottom: 20px;
+}
+
+.instructions-panel__header h2 {
+  margin: 0 0 4px;
+  font-size: 1.35rem;
+}
+
+.instructions-panel__header p {
   margin: 0;
+  color: #5c4b3c;
 }
 
-.dialog__content {
+.instructions-content {
+  color: #2c2118;
+}
+
+.instructions-heading {
+  margin: 20px 0 10px;
+  color: #23170f;
+}
+
+.instructions-heading--1 {
+  font-size: 1.5rem;
+}
+
+.instructions-heading--2 {
+  font-size: 1.15rem;
+}
+
+.instructions-heading--3 {
+  font-size: 1rem;
+}
+
+.instructions-paragraph {
+  margin: 0 0 12px;
+}
+
+.instructions-list {
+  margin: 0 0 14px;
+  padding-left: 22px;
   display: grid;
-  gap: 16px;
+  gap: 6px;
 }
 
-.dialog__section {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  padding-top: 16px;
-  border-top: 1px solid #d2c2b1;
-}
-
-.dialog__section p {
-  margin: 6px 0 0;
-  color: #4e3e31;
+.instructions-divider {
+  margin: 18px 0;
+  border: none;
+  border-top: 1px solid #d4c6b6;
 }
 
 @media (max-width: 960px) {
   .app-shell {
     padding: 16px;
+  }
+
+  .app-header__main {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .app-layout {
@@ -439,7 +586,7 @@ button {
     font-size: 1.5rem;
   }
 
-  .dialog__section {
-    grid-template-columns: minmax(0, 1fr);
+  .instructions-panel {
+    padding: 18px;
   }
 }

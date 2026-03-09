@@ -1,11 +1,30 @@
+import { useState } from 'react';
+
 import { getLegalActionsForCell, getScoreSummary } from '@/domain';
 import { allCoords } from '@/domain/model/coordinates';
 import { useGameStore } from '@/app/providers/GameStoreProvider';
+import { playerLabel, text } from '@/shared/i18n/catalog';
+import type { Language } from '@/shared/i18n/types';
 import { Board } from '@/ui/board/Board';
-import { HelpDialog } from '@/ui/dialogs/HelpDialog';
 import { ControlPanel } from '@/ui/panels/ControlPanel';
+import { InstructionsView } from '@/ui/panels/InstructionsView';
+
+type AppTab = 'game' | 'instructions';
+
+function getTurnOverlayTitle(language: Language, player: 'white' | 'black'): string {
+  return language === 'russian'
+    ? `${playerLabel(language, player)} ходят`
+    : `${playerLabel(language, player)} turn`;
+}
+
+function getPassOverlayLabel(language: Language, player: 'white' | 'black'): string {
+  return language === 'russian'
+    ? `Передайте устройство: ${playerLabel(language, player).toLowerCase()}.`
+    : `Pass the device to ${playerLabel(language, player)}.`;
+}
 
 export function App() {
+  const [activeTab, setActiveTab] = useState<AppTab>('game');
   const gameState = useGameStore((state) => state.gameState);
   const ruleConfig = useGameStore((state) => state.ruleConfig);
   const preferences = useGameStore((state) => state.preferences);
@@ -20,7 +39,6 @@ export function App() {
   const exportBuffer = useGameStore((state) => state.exportBuffer);
   const importBuffer = useGameStore((state) => state.importBuffer);
   const importError = useGameStore((state) => state.importError);
-  const helpOpen = useGameStore((state) => state.helpOpen);
   const selectCell = useGameStore((state) => state.selectCell);
   const chooseActionType = useGameStore((state) => state.chooseActionType);
   const finishJumpSequence = useGameStore((state) => state.finishJumpSequence);
@@ -34,7 +52,7 @@ export function App() {
   const setImportBuffer = useGameStore((state) => state.setImportBuffer);
   const importSessionFromBuffer = useGameStore((state) => state.importSessionFromBuffer);
   const refreshExportBuffer = useGameStore((state) => state.refreshExportBuffer);
-  const toggleHelp = useGameStore((state) => state.toggleHelp);
+  const language = preferences.language;
   const availableActionKinds =
     interaction.type === 'pieceSelected'
       ? interaction.availableActions
@@ -57,65 +75,106 @@ export function App() {
     <>
       <main className="app-shell">
         <header className="app-header">
-          <div>
-            <h1>White Maybe Black</h1>
-            <p>Hot-seat local play on one screen.</p>
+          <div className="app-header__main">
+            <div>
+              <h1>{text(language, 'appTitle')}</h1>
+              <p>{text(language, 'appTagline')}</p>
+            </div>
+            <div className="language-switch" aria-label={text(language, 'languageSwitchLabel')}>
+              <button
+                type="button"
+                className={language === 'russian' ? 'button button--active' : 'button button--ghost'}
+                onClick={() => setPreference({ language: 'russian' })}
+              >
+                {text(language, 'languageRussian')}
+              </button>
+              <button
+                type="button"
+                className={language === 'english' ? 'button button--active' : 'button button--ghost'}
+                onClick={() => setPreference({ language: 'english' })}
+              >
+                {text(language, 'languageEnglish')}
+              </button>
+            </div>
+          </div>
+          <div className="app-tabs" role="tablist" aria-label={text(language, 'appSectionsLabel')}>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'game'}
+              className={activeTab === 'game' ? 'tab-button tab-button--active' : 'tab-button'}
+              onClick={() => setActiveTab('game')}
+            >
+              {text(language, 'tabGame')}
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={activeTab === 'instructions'}
+              className={activeTab === 'instructions' ? 'tab-button tab-button--active' : 'tab-button'}
+              onClick={() => setActiveTab('instructions')}
+            >
+              {text(language, 'tabInstructions')}
+            </button>
           </div>
         </header>
-        <div className="app-layout">
-          <Board
-            board={gameState.board}
-            legalTargets={legalTargets}
-            selectedCell={selectedCell}
-            selectableCoords={selectableCoords}
-            onSelectCell={selectCell}
-          />
-          <ControlPanel
-            availableActionKinds={availableActionKinds}
-            canRedo={canRedo}
-            canUndo={canUndo}
-            draftJumpPath={draftJumpPath}
-            exportBuffer={exportBuffer}
-            gameState={gameState}
-            helpOpen={helpOpen}
-            historyCursor={historyCursor}
-            importBuffer={importBuffer}
-            importError={importError}
-            interaction={interaction}
-            preferences={preferences}
-            ruleConfig={ruleConfig}
-            scoreSummary={scoreSummary}
-            selectedActionType={selectedActionType}
-            selectedCell={selectedCell}
-            onCancel={cancelInteraction}
-            onChooseAction={chooseActionType}
-            onFinishJump={finishJumpSequence}
-            onImportBufferChange={setImportBuffer}
-            onImportSession={importSessionFromBuffer}
-            onRedo={redo}
-            onRefreshExport={refreshExportBuffer}
-            onRestart={restart}
-            onSetPreference={setPreference}
-            onSetRuleConfig={setRuleConfig}
-            onToggleHelp={toggleHelp}
-            onUndo={undo}
-          />
-        </div>
+
+        {activeTab === 'game' ? (
+          <div className="app-layout">
+            <Board
+              board={gameState.board}
+              language={language}
+              legalTargets={legalTargets}
+              selectedCell={selectedCell}
+              selectableCoords={selectableCoords}
+              onSelectCell={selectCell}
+            />
+            <ControlPanel
+              availableActionKinds={availableActionKinds}
+              canRedo={canRedo}
+              canUndo={canUndo}
+              draftJumpPath={draftJumpPath}
+              exportBuffer={exportBuffer}
+              gameState={gameState}
+              historyCursor={historyCursor}
+              importBuffer={importBuffer}
+              importError={importError}
+              interaction={interaction}
+              language={language}
+              preferences={preferences}
+              ruleConfig={ruleConfig}
+              scoreSummary={scoreSummary}
+              selectedActionType={selectedActionType}
+              selectedCell={selectedCell}
+              onCancel={cancelInteraction}
+              onChooseAction={chooseActionType}
+              onFinishJump={finishJumpSequence}
+              onImportBufferChange={setImportBuffer}
+              onImportSession={importSessionFromBuffer}
+              onRedo={redo}
+              onRefreshExport={refreshExportBuffer}
+              onRestart={restart}
+              onSetPreference={setPreference}
+              onSetRuleConfig={setRuleConfig}
+              onUndo={undo}
+            />
+          </div>
+        ) : (
+          <InstructionsView language={language} />
+        )}
       </main>
 
       {(interaction.type === 'passingDevice' || interaction.type === 'turnResolved') && (
         <div className="pass-overlay" role="presentation">
           <div className="pass-overlay__panel">
-            <p>{interaction.nextPlayer === 'white' ? 'White turn' : 'Black turn'}</p>
-            <small>{interaction.nextPlayer === 'white' ? 'Передайте белым' : 'Передайте чёрным'}</small>
+            <p>{getTurnOverlayTitle(language, interaction.nextPlayer)}</p>
+            <small>{getPassOverlayLabel(language, interaction.nextPlayer)}</small>
             <button type="button" className="button" onClick={acknowledgePassScreen}>
-              Continue
+              {text(language, 'continue')}
             </button>
           </div>
         </div>
       )}
-
-      <HelpDialog open={helpOpen} onClose={() => toggleHelp(false)} />
     </>
   );
 }

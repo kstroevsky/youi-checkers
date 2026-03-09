@@ -1,4 +1,5 @@
-export { createInitialBoard, createInitialState, withRuleDefaults } from '@/domain/generators/createInitialState';
+export { createInitialBoard, createInitialState } from '@/domain/generators/createInitialState';
+export { RULE_DEFAULTS, RULE_TOGGLE_DESCRIPTORS, withRuleDefaults } from '@/domain/model/ruleConfig';
 export { applyAction } from '@/domain/reducers/gameReducer';
 export { getScoreSummary } from '@/domain/rules/scoring';
 export { deserializeSession, serializeSession } from '@/domain/serialization/session';

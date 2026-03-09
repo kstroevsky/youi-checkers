@@ -5,11 +5,12 @@ import { describe, expect, it, beforeEach } from 'vitest';
 import { App } from '@/app/App';
 import { GameStoreProvider } from '@/app/providers/GameStoreProvider';
 import { createInitialState } from '@/domain';
+import type { SerializableSession } from '@/shared/types/session';
 import { createSession, resetFactoryIds } from '@/test/factories';
 
-function renderApp() {
+function renderApp(session = createSession(createInitialState())) {
   return render(
-    <GameStoreProvider initialSession={createSession(createInitialState())}>
+    <GameStoreProvider initialSession={session}>
       <App />
     </GameStoreProvider>,
   );
@@ -20,60 +21,88 @@ describe('App', () => {
     resetFactoryIds();
   });
 
-  it('reveals legal move buttons after selecting a cell', async () => {
+  it('reveals localized legal move buttons after selecting a cell', async () => {
     const user = userEvent.setup();
     renderApp();
 
-    await user.click(screen.getByRole('button', { name: 'Cell A1' }));
+    await user.click(screen.getByRole('button', { name: 'Клетка A1' }));
 
-    expect(screen.getByRole('button', { name: 'Climb' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Восхождение' })).toBeInTheDocument();
   });
 
-  it('ignores illegal destinations and keeps the turn unchanged', async () => {
+  it('switches the interface language globally, including the instructions tab', async () => {
     const user = userEvent.setup();
     renderApp();
 
-    await user.click(screen.getByRole('button', { name: 'Cell A1' }));
-    await user.click(screen.getByRole('button', { name: 'Climb' }));
-    await user.click(screen.getByRole('button', { name: 'Cell F6' }));
+    await user.click(screen.getByRole('button', { name: 'English' }));
 
-    expect(screen.getByText('White turn')).toBeInTheDocument();
-    expect(screen.queryByText(/White: Climb/)).not.toBeInTheDocument();
+    expect(screen.getByText('Local hot-seat play on one screen.')).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Cell A1' })).toBeInTheDocument();
+
+    await user.click(screen.getByRole('tab', { name: 'Instructions' }));
+
+    expect(screen.getByRole('heading', { name: 'Canonical instructions' })).toBeInTheDocument();
+    expect(screen.getByText('Precise game instruction - English')).toBeInTheDocument();
   });
 
-  it('applies a move, updates history, and switches the turn behind the pass overlay', async () => {
+  it('keeps the game state when switching between the game and instructions tabs', async () => {
     const user = userEvent.setup();
     renderApp();
 
-    await user.click(screen.getByRole('button', { name: 'Cell A1' }));
-    await user.click(screen.getByRole('button', { name: 'Climb' }));
-    await user.click(screen.getByRole('button', { name: 'Cell B2' }));
+    await user.click(screen.getByRole('button', { name: 'Клетка A1' }));
+    await user.click(screen.getByRole('button', { name: 'Восхождение' }));
+    await user.click(screen.getByRole('button', { name: 'Клетка B2' }));
+    await user.click(screen.getByRole('button', { name: 'Продолжить' }));
+    await user.click(screen.getByRole('tab', { name: 'Инструкция' }));
 
-    expect(screen.getAllByText('Black turn')).toHaveLength(2);
-    expect(screen.getByText(/White: Climb A1 -> B2/)).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Каноническая инструкция' })).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Continue' }));
+    await user.click(screen.getByRole('tab', { name: 'Игра' }));
 
-    expect(screen.getByText('Black turn')).toBeInTheDocument();
+    expect(screen.getByText('Белые: Восхождение A1 -> B2')).toBeInTheDocument();
+    expect(screen.getByText('Чёрные ходят')).toBeInTheDocument();
+  });
+
+  it('shows clickable glossary tooltips for gameplay terms', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByRole('button', { name: 'Клетка A1' }));
+    await user.click(screen.getByRole('button', { name: 'Подробнее: Восхождение' }));
+
+    expect(
+      screen.getByText(/Перенести одну активную верхнюю шашку на соседнюю занятую активную клетку/i),
+    ).toBeInTheDocument();
+  });
+
+  it('clears the current move selection when rule toggles change', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByRole('button', { name: 'Клетка A1' }));
+    await user.click(screen.getByRole('button', { name: 'Восхождение' }));
+    await user.click(screen.getByRole('checkbox', { name: 'Базовый подсчёт' }));
+
+    expect(screen.queryByText(/Выбранная клетка/i)).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Восхождение' })).not.toBeInTheDocument();
+    expect(
+      screen.getByText('Выберите шашку или свою горку, чтобы увидеть ходы.'),
+    ).toBeInTheDocument();
   });
 
   it('locks move input when the game is over', async () => {
     const user = userEvent.setup();
-    render(
-      <GameStoreProvider
-        initialSession={createSession({
-          ...createInitialState(),
-          status: 'gameOver',
-          victory: { type: 'threefoldDraw' },
-        })}
-      >
-        <App />
-      </GameStoreProvider>,
-    );
+    const session: SerializableSession = createSession({
+      ...createInitialState(),
+      status: 'gameOver',
+      victory: { type: 'threefoldDraw' },
+    });
 
-    await user.click(screen.getByRole('button', { name: 'Cell A1' }));
+    renderApp(session);
 
-    expect(screen.getByText('Draw by threefold repetition')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Climb' })).not.toBeInTheDocument();
+    await user.click(screen.getByRole('button', { name: 'Клетка A1' }));
+
+    expect(screen.getAllByText('Ничья по трёхкратному повторению')).not.toHaveLength(0);
+    expect(screen.queryByRole('button', { name: 'Восхождение' })).not.toBeInTheDocument();
   });
 });

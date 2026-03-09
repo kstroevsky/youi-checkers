@@ -1,5 +1,7 @@
 import { createEmptyBoard } from '@/domain/model/board';
 import { allCoords } from '@/domain/model/coordinates';
+import { hashPosition } from '@/domain/model/hash';
+import { withRuleDefaults } from '@/domain/model/ruleConfig';
 import type {
   Board,
   Checker,
@@ -15,7 +17,6 @@ import type {
 import { validateGameState } from '@/domain/validators/stateValidators';
 import type { AppPreferences, SerializableSession } from '@/shared/types/session';
 import { isRecord } from '@/shared/utils/collections';
-import { withRuleDefaults } from '@/domain/generators/createInitialState';
 
 function assertPlayer(value: unknown, label: string): Player {
   if (value !== 'white' && value !== 'black') {
@@ -80,17 +81,24 @@ function assertPreferences(value: unknown): AppPreferences {
     throw new Error('Invalid preferences.');
   }
 
+  const legacyLanguageMode =
+    value.languageMode === 'english' ||
+    value.languageMode === 'russian' ||
+    value.languageMode === 'bilingual'
+      ? value.languageMode
+      : null;
+
   return {
     passDeviceOverlayEnabled:
       typeof value.passDeviceOverlayEnabled === 'boolean'
         ? value.passDeviceOverlayEnabled
         : true,
-    languageMode:
-      value.languageMode === 'english' ||
-      value.languageMode === 'russian' ||
-      value.languageMode === 'bilingual'
-        ? value.languageMode
-        : 'bilingual',
+    language:
+      value.language === 'english' || value.language === 'russian'
+        ? value.language
+        : legacyLanguageMode === 'english'
+          ? 'english'
+          : 'russian',
   };
 }
 
@@ -209,16 +217,48 @@ function assertPositionCounts(value: unknown): Record<string, number> {
   }, {});
 }
 
+function incrementPositionCount(
+  counts: Record<string, number>,
+  state: Pick<StateSnapshot, 'board' | 'currentPlayer'>,
+): void {
+  const positionHash = hashPosition(state);
+  counts[positionHash] = (counts[positionHash] ?? 0) + 1;
+}
+
+function normalizeGameState(gameState: GameState): GameState {
+  const history = gameState.history.map((record) => ({
+    ...record,
+    positionHash: hashPosition(record.afterState),
+  }));
+  const positionCounts: Record<string, number> = {};
+
+  if (history.length) {
+    incrementPositionCount(positionCounts, history[0].beforeState);
+
+    for (const record of history) {
+      incrementPositionCount(positionCounts, record.afterState);
+    }
+  } else {
+    incrementPositionCount(positionCounts, gameState);
+  }
+
+  return {
+    ...gameState,
+    history,
+    positionCounts,
+  };
+}
+
 function assertGameState(value: unknown): GameState {
   if (!isRecord(value) || !Array.isArray(value.history)) {
     throw new Error('Invalid game state.');
   }
 
-  const gameState: GameState = {
+  const gameState = normalizeGameState({
     ...assertStateSnapshot(value),
     history: value.history.map(assertTurnRecord),
     positionCounts: assertPositionCounts(value.positionCounts),
-  };
+  });
   const validation = validateGameState(gameState);
 
   if (!validation.valid) {

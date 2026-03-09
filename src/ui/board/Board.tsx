@@ -1,10 +1,13 @@
 import { allCoords, parseCoord } from '@/domain/model/coordinates';
 import type { Board as GameBoard, Coord } from '@/domain';
+import { text } from '@/shared/i18n/catalog';
+import type { Language } from '@/shared/i18n/types';
 
 import { BoardCell } from '@/ui/cells/BoardCell';
 
 type BoardProps = {
   board: GameBoard;
+  language: Language;
   legalTargets: Coord[];
   selectedCell: Coord | null;
   selectableCoords: Coord[];
@@ -13,6 +16,7 @@ type BoardProps = {
 
 export function Board({
   board,
+  language,
   legalTargets,
   selectedCell,
   selectableCoords,
@@ -22,7 +26,7 @@ export function Board({
   const targets = new Set(legalTargets);
 
   return (
-    <section className="board-panel" aria-label="Game board">
+    <section className="board-panel" aria-label={text(language, 'boardAriaLabel')}>
       <div className="board-frame">
         <div className="board-layout">
           <div className="board-axis board-axis--rows">
@@ -51,6 +55,7 @@ export function Board({
                       cell={board[coord]}
                       coord={coord}
                       isDarkField={row <= 3}
+                      language={language}
                       isLegalTarget={targets.has(coord)}
                       isSelected={selectedCell === coord}
                       isSelectable={selectable.has(coord)}

@@ -17,6 +17,7 @@ import {
   getJumpLandingCoord,
 } from '@/domain/model/coordinates';
 import { hashBoard } from '@/domain/model/hash';
+import { withRuleDefaults } from '@/domain/model/ruleConfig';
 import type {
   ActionKind,
   Board,
@@ -36,14 +37,18 @@ import {
   isMovableSingle,
   validateBoard,
 } from '@/domain/validators/stateValidators';
-import { withRuleDefaults } from '@/domain/generators/createInitialState';
 
 type PartialJumpResolution = {
   board: Board;
   currentCoord: Coord;
+  visited: Set<string>;
 };
 
 type TargetMap = Record<ActionKind, Coord[]>;
+
+function createJumpStateKey(coord: Coord, board: Board): string {
+  return `${coord}::${hashBoard(board)}`;
+}
 
 function getMovingPlayer(board: Board, source: Coord): Player | null {
   return getTopChecker(board, source)?.owner ?? null;
@@ -99,9 +104,15 @@ function resolveJumpPath(
   source: Coord,
   path: Coord[],
   movingPlayer: Player,
+  visitedSeed?: Set<string>,
 ): ValidationResult | PartialJumpResolution {
   const nextBoard = cloneBoard(board);
   let currentCoord = source;
+  const visited = new Set(visitedSeed ?? []);
+
+  if (!visited.size) {
+    visited.add(createJumpStateKey(source, board));
+  }
 
   for (const landing of path) {
     const stepResult = applySingleJumpSegment(nextBoard, currentCoord, landing, movingPlayer);
@@ -111,11 +122,22 @@ function resolveJumpPath(
     }
 
     currentCoord = landing;
+    const stateKey = createJumpStateKey(currentCoord, nextBoard);
+
+    if (visited.has(stateKey)) {
+      return {
+        valid: false,
+        reason: `Jump path repeats a previous position at ${landing}.`,
+      };
+    }
+
+    visited.add(stateKey);
   }
 
   return {
     board: nextBoard,
     currentCoord,
+    visited,
   };
 }
 
@@ -201,22 +223,14 @@ function collectJumpSequences(
   const targets = getJumpTargetsOnBoard(board, currentCoord, movingPlayer);
 
   for (const target of targets) {
-    const result = resolveJumpPath(board, currentCoord, [target], movingPlayer);
+    const result = resolveJumpPath(board, currentCoord, [target], movingPlayer, visited);
 
     if (!('board' in result)) {
       continue;
     }
 
-    const nextHash = `${target}::${hashBoard(result.board)}`;
-
-    if (visited.has(nextHash)) {
-      continue;
-    }
-
-    const nextVisited = new Set(visited);
-    nextVisited.add(nextHash);
     actions.push(
-      ...collectJumpSequences(result.board, source, movingPlayer, [...path, target], nextVisited),
+      ...collectJumpSequences(result.board, source, movingPlayer, [...path, target], result.visited),
     );
   }
 
@@ -236,10 +250,10 @@ export function getJumpContinuationTargets(
 
   let currentCoord = source;
   let currentBoard = cloneBoard(state.board);
-  const visited = new Set<string>([`${source}::${hashBoard(state.board)}`]);
+  let visited = new Set<string>([createJumpStateKey(source, state.board)]);
 
   for (const landing of draftPath) {
-    const partial = resolveJumpPath(currentBoard, currentCoord, [landing], movingPlayer);
+    const partial = resolveJumpPath(currentBoard, currentCoord, [landing], movingPlayer, visited);
 
     if (!('board' in partial)) {
       return [];
@@ -247,17 +261,17 @@ export function getJumpContinuationTargets(
 
     currentBoard = partial.board;
     currentCoord = partial.currentCoord;
-    visited.add(`${currentCoord}::${hashBoard(currentBoard)}`);
+    visited = partial.visited;
   }
 
   return getJumpTargetsOnBoard(currentBoard, currentCoord, movingPlayer).filter((target) => {
-    const resolution = resolveJumpPath(currentBoard, currentCoord, [target], movingPlayer);
+    const resolution = resolveJumpPath(currentBoard, currentCoord, [target], movingPlayer, visited);
 
     if (!('board' in resolution)) {
       return false;
     }
 
-    return !visited.has(`${target}::${hashBoard(resolution.board)}`);
+    return true;
   });
 }
 
@@ -321,7 +335,15 @@ export function getLegalActionsForCell(
   const movingPlayer = getMovingPlayer(state.board, coord);
 
   if (movingPlayer) {
-    actions.push(...collectJumpSequences(state.board, coord, movingPlayer, [], new Set()));
+    actions.push(
+      ...collectJumpSequences(
+        state.board,
+        coord,
+        movingPlayer,
+        [],
+        new Set([createJumpStateKey(coord, state.board)]),
+      ),
+    );
   }
 
   actions.push(
@@ -431,7 +453,13 @@ export function validateAction(
       }
 
       const movingPlayer = sourceTopChecker.owner;
-      const resolution = resolveJumpPath(state.board, action.source, action.path, movingPlayer);
+      const resolution = resolveJumpPath(
+        state.board,
+        action.source,
+        action.path,
+        movingPlayer,
+        new Set([createJumpStateKey(action.source, state.board)]),
+      );
 
       if (!('board' in resolution)) {
         return resolution;

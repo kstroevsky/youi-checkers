@@ -8,8 +8,8 @@ import {
 import { FRONT_HOME_ROW, HOME_ROWS } from '@/domain/model/constants';
 import { allCoords, createCoord, parseCoord } from '@/domain/model/coordinates';
 import { hashPosition } from '@/domain/model/hash';
+import { withRuleDefaults } from '@/domain/model/ruleConfig';
 import type { Coord, GameState, Player, RuleConfig, Victory } from '@/domain/model/types';
-import { withRuleDefaults } from '@/domain/generators/createInitialState';
 
 function getHomeFieldFrontCoords(player: Player): Coord[] {
   const homeRow = FRONT_HOME_ROW[player];

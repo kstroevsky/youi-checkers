@@ -1,4 +1,6 @@
 import type { Cell, Coord } from '@/domain';
+import { text } from '@/shared/i18n/catalog';
+import type { Language } from '@/shared/i18n/types';
 
 import { CheckerStack } from '@/ui/pieces/CheckerStack';
 
@@ -9,6 +11,7 @@ type BoardCellProps = {
   isLegalTarget: boolean;
   isSelected: boolean;
   isSelectable: boolean;
+  language: Language;
   onClick: (coord: Coord) => void;
 };
 
@@ -19,6 +22,7 @@ export function BoardCell({
   isLegalTarget,
   isSelected,
   isSelectable,
+  language,
   onClick,
 }: BoardCellProps) {
   return (
@@ -34,7 +38,7 @@ export function BoardCell({
         .filter(Boolean)
         .join(' ')}
       onClick={() => onClick(coord)}
-      aria-label={`Cell ${coord}`}
+      aria-label={`${text(language, 'cellLabel')} ${coord}`}
     >
       {cell.checkers.length ? (
         <CheckerStack checkers={cell.checkers} emphasized={isSelected || isLegalTarget} />

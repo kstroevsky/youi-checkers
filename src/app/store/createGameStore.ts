@@ -31,7 +31,6 @@ type GameStoreData = {
   importBuffer: string;
   importError: string | null;
   exportBuffer: string;
-  helpOpen: boolean;
 };
 
 export type GameStoreState = GameStoreData & {
@@ -47,7 +46,6 @@ export type GameStoreState = GameStoreData & {
   setImportBuffer: (value: string) => void;
   setPreference: (partial: Partial<AppPreferences>) => void;
   setRuleConfig: (partial: Partial<RuleConfig>) => void;
-  toggleHelp: (open?: boolean) => void;
   undo: () => void;
 };
 
@@ -55,7 +53,7 @@ export type GameStore = ReturnType<typeof createGameStore>;
 
 const DEFAULT_PREFERENCES: AppPreferences = {
   passDeviceOverlayEnabled: true,
-  languageMode: 'bilingual',
+  language: 'russian',
 };
 
 function cloneGameState(state: GameState): GameState {
@@ -257,7 +255,6 @@ export function createGameStore(options: StoreOptions = {}) {
       importBuffer: '',
       importError: null,
       exportBuffer: serializeSession(initialSession),
-      helpOpen: false,
       acknowledgePassScreen: () => {
         const state = get();
 
@@ -351,9 +348,9 @@ export function createGameStore(options: StoreOptions = {}) {
         try {
           const session = deserializeSession(state.importBuffer);
           applySession(session);
-        } catch (error) {
+        } catch {
           set({
-            importError: error instanceof Error ? error.message : 'Failed to import session.',
+            importError: 'importFailed',
           });
         }
       },
@@ -536,16 +533,10 @@ export function createGameStore(options: StoreOptions = {}) {
         set({
           ruleConfig,
           gameState: nextGameState,
-          interaction: nextGameState.status === 'gameOver' ? { type: 'gameOver' } : state.interaction,
+          ...createIdleSelection(nextGameState),
           exportBuffer: deriveExportBuffer(nextData),
         });
         persistCurrentState(nextData);
-      },
-      toggleHelp: (open) => {
-        const state = get();
-        set({
-          helpOpen: typeof open === 'boolean' ? open : !state.helpOpen,
-        });
       },
       undo: () => {
         const state = get();

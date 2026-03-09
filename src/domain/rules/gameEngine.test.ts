@@ -53,6 +53,43 @@ describe('game engine', () => {
     expect(getJumpContinuationTargets(state, 'A1', ['C3'])).toEqual(['E5']);
   });
 
+  it('rejects jump chains that repeat an earlier in-chain position', () => {
+    const state = gameStateWithBoard(
+      boardWithPieces({
+        A1: [checker('white')],
+        B2: [checker('white')],
+      }),
+    );
+
+    expect(getJumpContinuationTargets(state, 'A1', ['C3'])).toEqual([]);
+    expect(
+      getLegalActionsForCell(state, 'A1', withConfig()).filter(
+        (action) => action.type === 'jumpSequence',
+      ),
+    ).toEqual([
+      {
+        type: 'jumpSequence',
+        source: 'A1',
+        path: ['C3'],
+      },
+    ]);
+
+    expect(
+      validateAction(
+        state,
+        {
+          type: 'jumpSequence',
+          source: 'A1',
+          path: ['C3', 'A1'],
+        },
+        withConfig(),
+      ),
+    ).toEqual({
+      valid: false,
+      reason: 'Jump path repeats a previous position at A1.',
+    });
+  });
+
   it('freezes an opponent when jumping and unfreezes own frozen checker when jumping', () => {
     const freezeState = gameStateWithBoard(
       boardWithPieces({
@@ -321,6 +358,28 @@ describe('game engine', () => {
     expect(checkVictory(repeatedState, withConfig())).toEqual({ type: 'threefoldDraw' });
   });
 
+  it('treats equivalent boards with different checker ids as the same repetition position', () => {
+    const boardA = boardWithPieces({
+      A1: [checker('white', false, 'white-a')],
+      B2: [checker('black', true, 'black-a')],
+    });
+    const boardB = boardWithPieces({
+      A1: [checker('white', false, 'white-b')],
+      B2: [checker('black', true, 'black-b')],
+    });
+    const hashA = hashPosition({ board: boardA, currentPlayer: 'white' });
+    const hashB = hashPosition({ board: boardB, currentPlayer: 'white' });
+    const stateB: GameState = {
+      ...gameStateWithBoard(boardB),
+      positionCounts: {
+        [hashA]: 3,
+      },
+    };
+
+    expect(hashA).toBe(hashB);
+    expect(checkVictory(stateB, withConfig())).toEqual({ type: 'threefoldDraw' });
+  });
+
   it('serializes and deserializes sessions', () => {
     const session = createSession(createInitialState());
     const serialized = serializeSession(session);
@@ -328,6 +387,33 @@ describe('game engine', () => {
 
     expect(restored.present.currentPlayer).toBe(session.present.currentPlayer);
     expect(() => deserializeSession('{"version":1,"present":{}}')).toThrow();
+  });
+
+  it('migrates legacy bilingual preferences and normalizes stale position counts on deserialize', () => {
+    const state = createInitialState();
+    const legacySerialized = JSON.stringify({
+      version: 1,
+      ruleConfig: withConfig(),
+      preferences: {
+        passDeviceOverlayEnabled: true,
+        languageMode: 'bilingual',
+      },
+      present: {
+        ...state,
+        positionCounts: {
+          staleHash: 9,
+        },
+      },
+      past: [],
+      future: [],
+    });
+    const restored = deserializeSession(legacySerialized);
+    const currentHash = hashPosition(restored.present);
+
+    expect(restored.preferences.language).toBe('russian');
+    expect(restored.present.positionCounts).toEqual({
+      [currentHash]: 1,
+    });
   });
 
   it('computes score summaries and maintains invariants over random playouts', () => {

@@ -1,7 +1,7 @@
 import { createSnapshot } from '@/domain/model/board';
 import { hashPosition } from '@/domain/model/hash';
+import { withRuleDefaults } from '@/domain/model/ruleConfig';
 import type { Board, GameState, Player, RuleConfig, TurnAction, ValidationResult } from '@/domain/model/types';
-import { withRuleDefaults } from '@/domain/generators/createInitialState';
 import { applyActionToBoard, getLegalActions, validateAction } from '@/domain/rules/moveGeneration';
 import { checkVictory } from '@/domain/rules/victory';
 

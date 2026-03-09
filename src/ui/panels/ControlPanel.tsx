@@ -1,8 +1,17 @@
-import type { ActionKind, Coord, GameState, RuleConfig, ScoreSummary } from '@/domain';
+import { RULE_TOGGLE_DESCRIPTORS } from '@/domain';
+import type { ActionKind, Coord, GameState, RuleConfig, ScoreSummary, Victory } from '@/domain';
+import type { GlossaryTermId } from '@/features/glossary/terms';
+import {
+  actionLabel,
+  describeInteraction,
+  formatTurnRecord,
+  formatVictory,
+  playerLabel,
+  text,
+} from '@/shared/i18n/catalog';
+import type { Language } from '@/shared/i18n/types';
 import type { AppPreferences, InteractionState } from '@/shared/types/session';
-
-import { actionLabel, describeInteraction, playerLabel, playerLabelRu } from '@/features/game-session/labels';
-import { formatTurnRecord, formatVictory } from '@/features/history/formatters';
+import { GlossaryTooltip } from '@/ui/tooltips/GlossaryTooltip';
 
 type ControlPanelProps = {
   availableActionKinds: ActionKind[];
@@ -11,11 +20,11 @@ type ControlPanelProps = {
   draftJumpPath: Coord[];
   exportBuffer: string;
   gameState: GameState;
-  helpOpen: boolean;
   historyCursor: number;
   importBuffer: string;
   importError: string | null;
   interaction: InteractionState;
+  language: Language;
   preferences: AppPreferences;
   ruleConfig: RuleConfig;
   scoreSummary: ScoreSummary | null;
@@ -31,12 +40,30 @@ type ControlPanelProps = {
   onRestart: () => void;
   onSetPreference: (preferences: Partial<AppPreferences>) => void;
   onSetRuleConfig: (config: Partial<RuleConfig>) => void;
-  onToggleHelp: (open?: boolean) => void;
   onUndo: () => void;
 };
 
 function checkboxId(section: string, name: string): string {
   return `${section}-${name}`;
+}
+
+function getTurnLabel(language: Language, currentPlayer: GameState['currentPlayer']): string {
+  return language === 'russian'
+    ? `${playerLabel(language, currentPlayer)} ходят`
+    : `${playerLabel(language, currentPlayer)} turn`;
+}
+
+function getVictoryTermId(victory: Victory): GlossaryTermId | null {
+  switch (victory.type) {
+    case 'homeField':
+      return 'homeFieldVictory';
+    case 'sixStacks':
+      return 'sixStacksVictory';
+    case 'threefoldDraw':
+      return 'threefoldDraw';
+    default:
+      return null;
+  }
 }
 
 export function ControlPanel({
@@ -50,6 +77,7 @@ export function ControlPanel({
   importBuffer,
   importError,
   interaction,
+  language,
   preferences,
   ruleConfig,
   scoreSummary,
@@ -65,199 +93,213 @@ export function ControlPanel({
   onRestart,
   onSetPreference,
   onSetRuleConfig,
-  onToggleHelp,
   onUndo,
 }: ControlPanelProps) {
+  const victoryTermId = getVictoryTermId(gameState.victory);
+  const scoreItems = scoreSummary
+    ? [
+        {
+          label: text(language, 'whiteHomeSingles'),
+          termId: 'homeFieldSingles' as const,
+          value: scoreSummary.homeFieldSingles.white,
+        },
+        {
+          label: text(language, 'blackHomeSingles'),
+          termId: 'homeFieldSingles' as const,
+          value: scoreSummary.homeFieldSingles.black,
+        },
+        {
+          label: text(language, 'whiteStacks'),
+          termId: 'controlledStacks' as const,
+          value: scoreSummary.controlledStacks.white,
+        },
+        {
+          label: text(language, 'blackStacks'),
+          termId: 'controlledStacks' as const,
+          value: scoreSummary.controlledStacks.black,
+        },
+        {
+          label: text(language, 'whiteFrontRowStacks'),
+          termId: 'frontRowStacks' as const,
+          value: scoreSummary.controlledHomeRowHeightThreeStacks.white,
+        },
+        {
+          label: text(language, 'blackFrontRowStacks'),
+          termId: 'frontRowStacks' as const,
+          value: scoreSummary.controlledHomeRowHeightThreeStacks.black,
+        },
+        {
+          label: text(language, 'whiteFrozenEnemySingles'),
+          termId: 'frozenEnemySingles' as const,
+          value: scoreSummary.frozenEnemySingles.white,
+        },
+        {
+          label: text(language, 'blackFrozenEnemySingles'),
+          termId: 'frozenEnemySingles' as const,
+          value: scoreSummary.frozenEnemySingles.black,
+        },
+      ]
+    : [];
+
   return (
     <aside className="side-panel">
       <section className="panel">
         <div className="turn-banner">
-          <p>{playerLabel(gameState.currentPlayer)} turn</p>
-          <small>{playerLabelRu(gameState.currentPlayer)} ходят</small>
+          <p>{getTurnLabel(language, gameState.currentPlayer)}</p>
+          <small>{describeInteraction(language, interaction)}</small>
         </div>
-        <p className="panel__text">{describeInteraction(interaction)}</p>
-        <p className="panel__text">Move {gameState.moveNumber}</p>
-        <p className="panel__text">{formatVictory(gameState.victory)}</p>
-        {selectedCell ? <p className="panel__text">Selected: {selectedCell}</p> : null}
+        <p className="panel__text">
+          <strong>{text(language, 'moveNumberLabel')}:</strong> {gameState.moveNumber}
+        </p>
+        <p className="panel__text panel__text--with-tooltip">
+          <strong>{text(language, 'statusLabel')}:</strong> {formatVictory(language, gameState.victory)}
+          {victoryTermId ? <GlossaryTooltip language={language} termId={victoryTermId} /> : null}
+        </p>
+        {selectedCell ? (
+          <p className="panel__text">
+            <strong>{text(language, 'selectedCellLabel')}:</strong> {selectedCell}
+          </p>
+        ) : null}
       </section>
 
       <section className="panel">
         <div className="panel__header">
-          <h2>Move input</h2>
+          <h2>{text(language, 'moveInput')}</h2>
         </div>
         <div className="action-grid">
           {availableActionKinds.length ? (
             availableActionKinds.map((actionKind) => (
-              <button
-                key={actionKind}
-                type="button"
-                className={selectedActionType === actionKind ? 'button button--active' : 'button'}
-                onClick={() => onChooseAction(actionKind)}
-              >
-                {actionLabel(actionKind)}
-              </button>
+              <div key={actionKind} className="action-chip">
+                <button
+                  type="button"
+                  className={selectedActionType === actionKind ? 'button button--active' : 'button'}
+                  onClick={() => onChooseAction(actionKind)}
+                >
+                  {actionLabel(language, actionKind)}
+                </button>
+                <GlossaryTooltip language={language} termId={actionKind} />
+              </div>
             ))
           ) : (
-            <p className="panel__text">No actions selected.</p>
+            <p className="panel__text">{text(language, 'noActionsSelected')}</p>
           )}
         </div>
         {selectedActionType === 'jumpSequence' && draftJumpPath.length ? (
           <div className="inline-actions">
             <button type="button" className="button" onClick={onFinishJump}>
-              Finish jump
+              {text(language, 'finishJump')}
             </button>
           </div>
         ) : null}
         <div className="inline-actions">
           <button type="button" className="button button--ghost" onClick={onCancel}>
-            Clear
+            {text(language, 'clear')}
           </button>
         </div>
       </section>
 
       {scoreSummary ? (
         <section className="panel">
-          <div className="panel__header">
-            <h2>Score mode</h2>
+          <div className="panel__header panel__header--with-tooltip">
+            <h2>{text(language, 'scoreMode')}</h2>
+            <GlossaryTooltip language={language} termId="scoreMode" />
           </div>
           <dl className="score-grid">
-            <div>
-              <dt>White home singles</dt>
-              <dd>{scoreSummary.homeFieldSingles.white}</dd>
-            </div>
-            <div>
-              <dt>Black home singles</dt>
-              <dd>{scoreSummary.homeFieldSingles.black}</dd>
-            </div>
-            <div>
-              <dt>White stacks</dt>
-              <dd>{scoreSummary.controlledStacks.white}</dd>
-            </div>
-            <div>
-              <dt>Black stacks</dt>
-              <dd>{scoreSummary.controlledStacks.black}</dd>
-            </div>
-            <div>
-              <dt>White front-row 3-stacks</dt>
-              <dd>{scoreSummary.controlledHomeRowHeightThreeStacks.white}</dd>
-            </div>
-            <div>
-              <dt>Black front-row 3-stacks</dt>
-              <dd>{scoreSummary.controlledHomeRowHeightThreeStacks.black}</dd>
-            </div>
-            <div>
-              <dt>White frozen enemy singles</dt>
-              <dd>{scoreSummary.frozenEnemySingles.white}</dd>
-            </div>
-            <div>
-              <dt>Black frozen enemy singles</dt>
-              <dd>{scoreSummary.frozenEnemySingles.black}</dd>
-            </div>
+            {scoreItems.map((item) => (
+              <div key={`${item.label}-${item.value}`}>
+                <dt className="score-grid__term">
+                  <span>{item.label}</span>
+                  <GlossaryTooltip language={language} termId={item.termId} />
+                </dt>
+                <dd>{item.value}</dd>
+              </div>
+            ))}
           </dl>
         </section>
       ) : null}
 
       <section className="panel">
         <div className="panel__header">
-          <h2>Rules and session</h2>
+          <h2>{text(language, 'rulesAndSession')}</h2>
         </div>
         <div className="settings-list">
-          <label htmlFor={checkboxId('rules', 'transfer')}>
-            <input
-              id={checkboxId('rules', 'transfer')}
-              type="checkbox"
-              checked={ruleConfig.allowNonAdjacentFriendlyStackTransfer}
-              onChange={(event) =>
-                onSetRuleConfig({
-                  allowNonAdjacentFriendlyStackTransfer: event.target.checked,
-                })
-              }
-            />
-            Non-adjacent friendly transfer
-          </label>
-          <label htmlFor={checkboxId('rules', 'draw')}>
-            <input
-              id={checkboxId('rules', 'draw')}
-              type="checkbox"
-              checked={ruleConfig.drawRule === 'threefold'}
-              onChange={(event) =>
-                onSetRuleConfig({
-                  drawRule: event.target.checked ? 'threefold' : 'none',
-                })
-              }
-            />
-            Threefold repetition draw
-          </label>
-          <label htmlFor={checkboxId('rules', 'score')}>
-            <input
-              id={checkboxId('rules', 'score')}
-              type="checkbox"
-              checked={ruleConfig.scoringMode === 'basic'}
-              onChange={(event) =>
-                onSetRuleConfig({
-                  scoringMode: event.target.checked ? 'basic' : 'off',
-                })
-              }
-            />
-            Basic score summary
-          </label>
-          <label htmlFor={checkboxId('session', 'overlay')}>
-            <input
-              id={checkboxId('session', 'overlay')}
-              type="checkbox"
-              checked={preferences.passDeviceOverlayEnabled}
-              onChange={(event) =>
-                onSetPreference({
-                  passDeviceOverlayEnabled: event.target.checked,
-                })
-              }
-            />
-            Pass-device overlay
-          </label>
+          {RULE_TOGGLE_DESCRIPTORS.map((descriptor) => {
+            const inputId = checkboxId('rules', descriptor.key);
+
+            return (
+              <div key={descriptor.key} className="settings-row">
+                <label htmlFor={inputId}>
+                  <input
+                    id={inputId}
+                    type="checkbox"
+                    checked={descriptor.isEnabled(ruleConfig)}
+                    onChange={(event) => onSetRuleConfig(descriptor.getPatch(event.target.checked))}
+                  />
+                  <span>{text(language, descriptor.labelKey)}</span>
+                </label>
+                <GlossaryTooltip language={language} termId={descriptor.glossaryTermId} />
+              </div>
+            );
+          })}
+          <div className="settings-row">
+            <label htmlFor={checkboxId('session', 'overlay')}>
+              <input
+                id={checkboxId('session', 'overlay')}
+                type="checkbox"
+                checked={preferences.passDeviceOverlayEnabled}
+                onChange={(event) =>
+                  onSetPreference({
+                    passDeviceOverlayEnabled: event.target.checked,
+                  })
+                }
+              />
+              <span>{text(language, 'passDeviceOverlay')}</span>
+            </label>
+            <GlossaryTooltip language={language} termId="passDeviceOverlay" />
+          </div>
         </div>
         <div className="inline-actions">
           <button type="button" className="button button--ghost" onClick={onUndo} disabled={!canUndo}>
-            Undo
+            {text(language, 'undo')}
           </button>
           <button type="button" className="button button--ghost" onClick={onRedo} disabled={!canRedo}>
-            Redo
+            {text(language, 'redo')}
           </button>
           <button type="button" className="button" onClick={onRestart}>
-            Restart
-          </button>
-          <button type="button" className="button button--ghost" onClick={() => onToggleHelp(true)}>
-            Help
+            {text(language, 'restart')}
           </button>
         </div>
-        <p className="panel__text">History cursor: {historyCursor}</p>
+        <p className="panel__text">
+          <strong>{text(language, 'historyCursor')}:</strong> {historyCursor}
+        </p>
       </section>
 
       <section className="panel">
         <div className="panel__header">
-          <h2>History</h2>
+          <h2>{text(language, 'history')}</h2>
         </div>
         <ol className="history-list">
           {[...gameState.history].reverse().map((record, index) => (
-            <li key={`${record.positionHash}-${index}`}>{formatTurnRecord(record)}</li>
+            <li key={`${record.positionHash}-${index}`}>{formatTurnRecord(language, record)}</li>
           ))}
         </ol>
       </section>
 
       <section className="panel">
         <div className="panel__header">
-          <h2>Export / Import</h2>
+          <h2>{text(language, 'exportImport')}</h2>
         </div>
         <div className="inline-actions">
           <button type="button" className="button button--ghost" onClick={onRefreshExport}>
-            Refresh export
+            {text(language, 'refreshExport')}
           </button>
         </div>
         <label className="field-label" htmlFor="export-session">
-          Current session JSON
+          {text(language, 'currentSessionJson')}
         </label>
         <textarea id="export-session" className="session-textarea" readOnly value={exportBuffer} />
         <label className="field-label" htmlFor="import-session">
-          Import JSON
+          {text(language, 'importJson')}
         </label>
         <textarea
           id="import-session"
@@ -265,10 +307,10 @@ export function ControlPanel({
           value={importBuffer}
           onChange={(event) => onImportBufferChange(event.target.value)}
         />
-        {importError ? <p className="panel__error">{importError}</p> : null}
+        {importError ? <p className="panel__error">{text(language, 'importFailed')}</p> : null}
         <div className="inline-actions">
           <button type="button" className="button" onClick={onImportSession}>
-            Import session
+            {text(language, 'importSession')}
           </button>
         </div>
       </section>

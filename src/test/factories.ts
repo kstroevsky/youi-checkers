@@ -1,5 +1,6 @@
 import { createEmptyBoard } from '@/domain/model/board';
 import { hashPosition } from '@/domain/model/hash';
+import { withRuleDefaults } from '@/domain/model/ruleConfig';
 import type {
   Board,
   Checker,
@@ -8,7 +9,6 @@ import type {
   Player,
   RuleConfig,
 } from '@/domain/model/types';
-import { withRuleDefaults } from '@/domain/generators/createInitialState';
 import type { AppPreferences, SerializableSession } from '@/shared/types/session';
 
 let checkerIndex = 1;
@@ -74,7 +74,7 @@ export function createSession(
   const preferences: AppPreferences =
     overrides.preferences ?? {
       passDeviceOverlayEnabled: true,
-      languageMode: 'bilingual',
+      language: 'russian',
     };
 
   return {

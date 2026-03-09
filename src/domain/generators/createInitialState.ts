@@ -1,4 +1,3 @@
-import { INITIAL_RULE_CONFIG } from '@/domain/model/constants';
 import { createEmptyBoard, createSnapshot } from '@/domain/model/board';
 import { allCoords, parseCoord } from '@/domain/model/coordinates';
 import { hashPosition } from '@/domain/model/hash';
@@ -31,16 +30,8 @@ export function createInitialBoard(): Board {
   return board;
 }
 
-export function withRuleDefaults(overrides: Partial<RuleConfig> = {}): RuleConfig {
-  return {
-    ...INITIAL_RULE_CONFIG,
-    ...overrides,
-  };
-}
-
-export function createInitialState(config: Partial<RuleConfig> = {}): GameState {
+export function createInitialState(_config: Partial<RuleConfig> = {}): GameState {
   const board = createInitialBoard();
-  withRuleDefaults(config);
   const baseState: GameState = {
     board,
     currentPlayer: 'white',

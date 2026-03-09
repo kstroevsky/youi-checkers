@@ -1,10 +1,9 @@
 import type { ActionKind, Coord, GameState, Player, RuleConfig } from '@/domain/model/types';
-
-export type LanguageMode = 'english' | 'russian' | 'bilingual';
+import type { Language } from '@/shared/i18n/types';
 
 export type AppPreferences = {
   passDeviceOverlayEnabled: boolean;
-  languageMode: LanguageMode;
+  language: Language;
 };
 
 export type InteractionState =
