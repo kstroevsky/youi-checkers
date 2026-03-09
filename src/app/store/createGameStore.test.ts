@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createGameStore } from '@/app/store/createGameStore';
-import { applyAction, createInitialState, getLegalActions } from '@/domain';
+import { applyAction, createInitialState, deserializeSession, getLegalActions } from '@/domain';
 import {
   boardWithPieces,
   checker,
@@ -15,6 +15,36 @@ import {
 describe('createGameStore', () => {
   beforeEach(() => {
     resetFactoryIds();
+  });
+
+  it('uses updated default rule toggles and pass-device preference in a fresh store', () => {
+    const store = createGameStore({
+      storage: undefined,
+    });
+
+    expect(store.getState().ruleConfig).toEqual({
+      allowNonAdjacentFriendlyStackTransfer: false,
+      drawRule: 'none',
+      scoringMode: 'basic',
+    });
+    expect(store.getState().preferences.passDeviceOverlayEnabled).toBe(true);
+  });
+
+  it('applies missing rule fields from defaults while deserializing sessions', () => {
+    const baseSession = createSession(createInitialState());
+    const sessionWithPartialRuleConfig = {
+      ...baseSession,
+      ruleConfig: {
+        scoringMode: 'off',
+      },
+    };
+    const deserialized = deserializeSession(JSON.stringify(sessionWithPartialRuleConfig));
+
+    expect(deserialized.ruleConfig).toEqual({
+      allowNonAdjacentFriendlyStackTransfer: false,
+      drawRule: 'none',
+      scoringMode: 'off',
+    });
   });
 
   it('keeps export JSON stale until explicitly refreshed', () => {

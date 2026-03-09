@@ -583,7 +583,11 @@ describe('game engine', () => {
       }),
     );
 
-    const actions = getLegalActionsForCell(state, 'A1', withConfig());
+    const actions = getLegalActionsForCell(
+      state,
+      'A1',
+      withConfig({ allowNonAdjacentFriendlyStackTransfer: true }),
+    );
 
     expect(actions).toContainEqual({
       type: 'friendlyStackTransfer',
@@ -692,7 +696,7 @@ describe('game engine', () => {
       },
     };
 
-    expect(checkVictory(repeatedState, withConfig())).toEqual({ type: 'threefoldDraw' });
+    expect(checkVictory(repeatedState, withConfig({ drawRule: 'threefold' }))).toEqual({ type: 'threefoldDraw' });
   });
 
   it('treats equivalent boards with different checker ids as the same repetition position', () => {
@@ -714,7 +718,7 @@ describe('game engine', () => {
     };
 
     expect(hashA).toBe(hashB);
-    expect(checkVictory(stateB, withConfig())).toEqual({ type: 'threefoldDraw' });
+    expect(checkVictory(stateB, withConfig({ drawRule: 'threefold' }))).toEqual({ type: 'threefoldDraw' });
   });
 
   it('serializes and deserializes sessions', () => {
