@@ -25,9 +25,8 @@
 }
 
 .popover {
-  position: absolute;
-  top: calc(100% + 6px);
-  right: 0;
+  position: fixed;
+  transform: translateX(-100%);
   z-index: 1200;
   display: grid;
   gap: 5px;

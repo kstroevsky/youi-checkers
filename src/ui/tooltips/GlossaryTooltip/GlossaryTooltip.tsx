@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 import { getGlossaryEntry } from '@/features/glossary/terms';
 import type { GlossaryTermId } from '@/features/glossary/terms';
@@ -16,7 +17,9 @@ const TOOLTIP_OPEN_EVENT = 'wmbl:tooltip-open';
 export function GlossaryTooltip({ language, termId }: GlossaryTooltipProps) {
   const id = useId();
   const [open, setOpen] = useState(false);
+  const [position, setPosition] = useState({ left: 0, top: 0 });
   const anchorRef = useRef<HTMLSpanElement | null>(null);
+  const popoverRef = useRef<HTMLSpanElement | null>(null);
   const entry = getGlossaryEntry(termId, language);
   const buttonLabel =
     language === 'russian' ? `Подробнее: ${entry.title}` : `More about ${entry.title}`;
@@ -27,7 +30,11 @@ export function GlossaryTooltip({ language, termId }: GlossaryTooltipProps) {
     }
 
     function handlePointerDown(event: PointerEvent) {
-      if (!anchorRef.current?.contains(event.target as Node)) {
+      const target = event.target as Node;
+      const isInsideAnchor = anchorRef.current?.contains(target);
+      const isInsidePopover = popoverRef.current?.contains(target);
+
+      if (!isInsideAnchor && !isInsidePopover) {
         setOpen(false);
       }
     }
@@ -73,6 +80,37 @@ export function GlossaryTooltip({ language, termId }: GlossaryTooltipProps) {
     };
   }, [open]);
 
+  useEffect(() => {
+    if (!open) {
+      return undefined;
+    }
+
+    function updatePosition() {
+      const anchor = anchorRef.current;
+
+      if (!anchor) {
+        return;
+      }
+
+      const rect = anchor.getBoundingClientRect();
+
+      setPosition({
+        top: rect.bottom + 6,
+        left: rect.right,
+      });
+    }
+
+    updatePosition();
+
+    window.addEventListener('resize', updatePosition);
+    window.addEventListener('scroll', updatePosition, true);
+
+    return () => {
+      window.removeEventListener('resize', updatePosition);
+      window.removeEventListener('scroll', updatePosition, true);
+    };
+  }, [open]);
+
   function toggleOpen() {
     setOpen((value) => {
       const next = !value;
@@ -98,17 +136,22 @@ export function GlossaryTooltip({ language, termId }: GlossaryTooltipProps) {
       >
         ?
       </button>
-      {open ? (
-        <span
-          id={`tooltip-${id}`}
-          className={styles.popover}
-          role="tooltip"
-          aria-label={entry.title}
-        >
-          <strong>{entry.title}</strong>
-          <span>{entry.description}</span>
-        </span>
-      ) : null}
+      {open
+        ? createPortal(
+            <span
+              ref={popoverRef}
+              id={`tooltip-${id}`}
+              className={styles.popover}
+              role="tooltip"
+              aria-label={entry.title}
+              style={{ top: position.top, left: position.left }}
+            >
+              <strong>{entry.title}</strong>
+              <span>{entry.description}</span>
+            </span>,
+            document.body,
+          )
+        : null}
     </span>
   );
 }
