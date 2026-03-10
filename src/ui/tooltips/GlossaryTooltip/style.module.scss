@@ -48,3 +48,37 @@
     font-size: 0.92rem;
   }
 }
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(16, 11, 7, 0.52);
+}
+
+.modalPanel {
+  display: grid;
+  gap: 12px;
+  width: min(360px, 100%);
+  max-height: min(420px, calc(100dvh - 48px));
+  overflow: auto;
+  padding: 20px;
+  border: 1px solid tokens.$color-brown-850;
+  background: tokens.$color-cream-50;
+  box-shadow: tokens.$shadow-tooltip;
+  line-height: 1.35;
+
+  strong {
+    color: tokens.$color-heading;
+    font-size: 1.05rem;
+  }
+
+  span {
+    color: tokens.$color-subtle-strong;
+    font-size: 0.98rem;
+  }
+}

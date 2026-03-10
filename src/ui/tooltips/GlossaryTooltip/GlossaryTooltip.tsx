@@ -3,7 +3,9 @@ import { createPortal } from 'react-dom';
 
 import { getGlossaryEntry } from '@/features/glossary/terms';
 import type { GlossaryTermId } from '@/features/glossary/terms';
+import { text } from '@/shared/i18n/catalog';
 import type { Language } from '@/shared/i18n/types';
+import { Button } from '@/ui/primitives/Button';
 
 import styles from './style.module.scss';
 
@@ -15,10 +17,12 @@ type GlossaryTooltipProps = {
 const TOOLTIP_OPEN_EVENT = 'wmbl:tooltip-open';
 const VIEWPORT_PADDING = 12;
 const TOOLTIP_GAP = 8;
+const MOBILE_BREAKPOINT = 720;
 
 export function GlossaryTooltip({ language, termId }: GlossaryTooltipProps) {
   const id = useId();
   const [open, setOpen] = useState(false);
+  const [isMobileViewport, setIsMobileViewport] = useState(false);
   const [position, setPosition] = useState({
     left: VIEWPORT_PADDING,
     top: VIEWPORT_PADDING,
@@ -26,10 +30,22 @@ export function GlossaryTooltip({ language, termId }: GlossaryTooltipProps) {
     ready: false,
   });
   const anchorRef = useRef<HTMLSpanElement | null>(null);
-  const popoverRef = useRef<HTMLSpanElement | null>(null);
+  const popoverRef = useRef<HTMLElement | null>(null);
   const entry = getGlossaryEntry(termId, language);
   const buttonLabel =
     language === 'russian' ? `Подробнее: ${entry.title}` : `More about ${entry.title}`;
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`);
+    const syncViewportMode = () => setIsMobileViewport(mediaQuery.matches);
+
+    syncViewportMode();
+    mediaQuery.addEventListener('change', syncViewportMode);
+
+    return () => {
+      mediaQuery.removeEventListener('change', syncViewportMode);
+    };
+  }, []);
 
   useEffect(() => {
     if (!open) {
@@ -88,7 +104,7 @@ export function GlossaryTooltip({ language, termId }: GlossaryTooltipProps) {
   }, [open]);
 
   useLayoutEffect(() => {
-    if (!open) {
+    if (!open || isMobileViewport) {
       setPosition((current) => ({ ...current, ready: false }));
       return undefined;
     }
@@ -139,7 +155,7 @@ export function GlossaryTooltip({ language, termId }: GlossaryTooltipProps) {
       window.removeEventListener('resize', updatePosition);
       window.removeEventListener('scroll', updatePosition, true);
     };
-  }, [open]);
+  }, [isMobileViewport, open]);
 
   function toggleOpen() {
     const next = !open;
@@ -149,6 +165,10 @@ export function GlossaryTooltip({ language, termId }: GlossaryTooltipProps) {
     }
 
     setOpen(next);
+  }
+
+  function setPopoverElement(node: HTMLDivElement | HTMLSpanElement | null) {
+    popoverRef.current = node;
   }
 
   return (
@@ -166,22 +186,41 @@ export function GlossaryTooltip({ language, termId }: GlossaryTooltipProps) {
       </button>
       {open
         ? createPortal(
-            <span
-              ref={popoverRef}
-              id={`tooltip-${id}`}
-              className={styles.popover}
-              role="tooltip"
-              aria-label={entry.title}
-              style={{
-                top: position.top,
-                left: position.left,
-                maxHeight: position.maxHeight,
-                visibility: position.ready ? 'visible' : 'hidden',
-              }}
-            >
-              <strong>{entry.title}</strong>
-              <span>{entry.description}</span>
-            </span>,
+            isMobileViewport ? (
+              <div className={styles.modalOverlay} role="presentation">
+                <div
+                  ref={setPopoverElement}
+                  id={`tooltip-${id}`}
+                  className={styles.modalPanel}
+                  role="dialog"
+                  aria-modal="true"
+                  aria-label={entry.title}
+                >
+                  <strong>{entry.title}</strong>
+                  <span>{entry.description}</span>
+                  <Button fullWidth onClick={() => setOpen(false)}>
+                    {text(language, 'continue')}
+                  </Button>
+                </div>
+              </div>
+            ) : (
+              <span
+                ref={setPopoverElement}
+                id={`tooltip-${id}`}
+                className={styles.popover}
+                role="tooltip"
+                aria-label={entry.title}
+                style={{
+                  top: position.top,
+                  left: position.left,
+                  maxHeight: position.maxHeight,
+                  visibility: position.ready ? 'visible' : 'hidden',
+                }}
+              >
+                <strong>{entry.title}</strong>
+                <span>{entry.description}</span>
+              </span>
+            ),
             document.body,
           )
         : null}
