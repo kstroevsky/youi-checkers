@@ -1,0 +1,61 @@
+@use '../../../styles/tokens' as tokens;
+@use '../../../styles/mixins' as mixins;
+
+.root {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px 10px;
+}
+
+.titleRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.actionGrid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.actionChip {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1 1 148px;
+}
+
+.empty {
+  color: tokens.$color-brown-600;
+  font-size: 0.9rem;
+}
+
+.hint,
+.hintSecondary {
+  margin: 0;
+  font-size: 0.86rem;
+}
+
+.hint {
+  color: #5a4a3c;
+}
+
+.hintSecondary {
+  color: tokens.$color-brown-600;
+}
+
+@include mixins.max-width(tokens.$bp-md) {
+  .actionChip {
+    flex-basis: calc(50% - 3px);
+  }
+}
+
+@include mixins.max-width(tokens.$bp-sm) {
+  .actionChip {
+    flex-basis: 100%;
+  }
+}

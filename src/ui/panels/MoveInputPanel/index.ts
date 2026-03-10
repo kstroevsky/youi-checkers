@@ -1,0 +1,1 @@
+export { MoveInputPanel } from './MoveInputPanel';

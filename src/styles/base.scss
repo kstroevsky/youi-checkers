@@ -1,0 +1,40 @@
+@use './tokens' as tokens;
+
+:root {
+  color: tokens.$color-text;
+  background: tokens.$color-shell;
+  font-family: tokens.$font-family;
+  line-height: 1.35;
+  font-weight: 500;
+  color-scheme: light;
+  text-rendering: optimizeLegibility;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100dvh;
+  overflow: hidden;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  background: linear-gradient(180deg, tokens.$color-shell-top 0%, tokens.$color-shell-bottom 100%);
+}
+
+button,
+textarea,
+input {
+  font: inherit;
+}
+
+button {
+  cursor: pointer;
+}

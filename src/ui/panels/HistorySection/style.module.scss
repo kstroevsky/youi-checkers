@@ -1,0 +1,76 @@
+@use '../../../styles/tokens' as tokens;
+
+.root {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 10px;
+
+  h2 {
+    margin: 0;
+    font-size: 0.98rem;
+  }
+
+  small {
+    color: #695644;
+    font-size: 0.78rem;
+  }
+}
+
+.list {
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 0;
+  padding-left: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  overflow-y: auto;
+
+  li {
+    min-width: 0;
+  }
+}
+
+.historyButton {
+  display: block;
+  width: 100%;
+  overflow: hidden;
+  padding: 2px 0;
+  border: none;
+  background: transparent;
+  color: tokens.$color-brown-900;
+  font: inherit;
+  line-height: 1.2;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+
+  &[data-state='future'] {
+    color: #8a8073;
+  }
+
+  &[data-state='current'] {
+    color: #1f1610;
+    font-weight: 700;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.meta {
+  margin: 4px 0 0;
+  color: tokens.$color-panel-text;
+}

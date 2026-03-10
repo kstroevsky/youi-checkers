@@ -1,7 +1,14 @@
 import { beforeEach, describe, expect, it } from 'vitest';
 
 import { createGameStore } from '@/app/store/createGameStore';
-import { applyAction, createInitialState, deserializeSession, getLegalActions } from '@/domain';
+import {
+  applyAction,
+  createInitialState,
+  deserializeSession,
+  getLegalActions,
+  serializeSession,
+} from '@/domain';
+import { SESSION_STORAGE_KEY } from '@/shared/constants/storage';
 import {
   boardWithPieces,
   checker,
@@ -11,6 +18,25 @@ import {
   undoFrame,
   withConfig,
 } from '@/test/factories';
+
+function createMemoryStorage(initialEntries: Record<string, string> = {}): Storage {
+  const store = new Map(Object.entries(initialEntries));
+
+  return {
+    clear: () => store.clear(),
+    getItem: (key) => store.get(key) ?? null,
+    key: (index) => Array.from(store.keys())[index] ?? null,
+    get length() {
+      return store.size;
+    },
+    removeItem: (key) => {
+      store.delete(key);
+    },
+    setItem: (key, value) => {
+      store.set(key, value);
+    },
+  };
+}
 
 describe('createGameStore', () => {
   beforeEach(() => {
@@ -45,6 +71,54 @@ describe('createGameStore', () => {
       drawRule: 'none',
       scoringMode: 'off',
     });
+  });
+
+  it('migrates untouched legacy persisted defaults to updated OFF/OFF/ON defaults', () => {
+    const legacySession = createSession(createInitialState(), {
+      ruleConfig: {
+        allowNonAdjacentFriendlyStackTransfer: true,
+        drawRule: 'threefold',
+        scoringMode: 'basic',
+      },
+    });
+    const storage = createMemoryStorage({
+      [SESSION_STORAGE_KEY]: serializeSession(legacySession),
+    });
+    const store = createGameStore({ storage });
+    const persisted = storage.getItem(SESSION_STORAGE_KEY);
+
+    expect(store.getState().ruleConfig).toEqual({
+      allowNonAdjacentFriendlyStackTransfer: false,
+      drawRule: 'none',
+      scoringMode: 'basic',
+    });
+    expect(persisted).not.toBeNull();
+    expect(deserializeSession(String(persisted)).ruleConfig).toEqual({
+      allowNonAdjacentFriendlyStackTransfer: false,
+      drawRule: 'none',
+      scoringMode: 'basic',
+    });
+  });
+
+  it('keeps legacy rule choices when session already has game history', () => {
+    const config = withConfig({
+      allowNonAdjacentFriendlyStackTransfer: true,
+      drawRule: 'threefold',
+      scoringMode: 'basic',
+    });
+    const state0 = createInitialState(config);
+    const state1 = applyAction(state0, { type: 'climbOne', source: 'A1', target: 'B2' }, config);
+    const legacySession = createSession(state1, {
+      ruleConfig: config,
+      turnLog: state1.history,
+      past: [undoFrame(state0)],
+    });
+    const storage = createMemoryStorage({
+      [SESSION_STORAGE_KEY]: serializeSession(legacySession),
+    });
+    const store = createGameStore({ storage });
+
+    expect(store.getState().ruleConfig).toEqual(config);
   });
 
   it('keeps export JSON stale until explicitly refreshed', () => {

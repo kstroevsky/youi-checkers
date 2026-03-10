@@ -1,0 +1,70 @@
+@use '../../../styles/tokens' as tokens;
+@use '../../../styles/mixins' as mixins;
+
+.root {
+  width: 100%;
+  max-width: 1320px;
+  margin: 0 auto;
+  flex: 0 0 auto;
+}
+
+.main {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px;
+}
+
+.title {
+  min-width: 0;
+  flex: 0 1 260px;
+
+  h1 {
+    margin: 0 0 2px;
+    font-size: 1.75rem;
+  }
+
+  p {
+    margin: 0;
+    color: tokens.$color-subtle;
+  }
+}
+
+.tabs {
+  flex: 1 1 320px;
+  min-width: 0;
+}
+
+.switcher {
+  flex: 0 0 auto;
+  margin-left: auto;
+}
+
+@include mixins.max-width(tokens.$bp-lg) {
+  .main {
+    align-items: flex-start;
+    gap: 8px;
+  }
+
+  .tabs {
+    order: 2;
+    flex-basis: 100%;
+  }
+
+  .switcher {
+    order: 3;
+    margin-left: 0;
+  }
+}
+
+@include mixins.max-width(tokens.$bp-md) {
+  .title {
+    h1 {
+      font-size: 1.45rem;
+    }
+
+    p {
+      font-size: 0.9rem;
+    }
+  }
+}

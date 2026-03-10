@@ -1,0 +1,103 @@
+@use '../../../styles/tokens' as tokens;
+@use '../../../styles/mixins' as mixins;
+
+.root {
+  min-width: 0;
+  min-height: 0;
+  display: flex;
+  flex: 1 1 auto;
+}
+
+.frame {
+  width: 100%;
+  min-height: 0;
+  padding: 14px;
+  border: 1px solid #26170a;
+  background: tokens.$color-brown-800;
+}
+
+.layout {
+  --axis-col-size: 34px;
+  --axis-gap: 8px;
+  --board-size: 62vh;
+
+  height: 100%;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: var(--axis-col-size) minmax(0, 1fr);
+  align-items: center;
+  gap: var(--axis-gap);
+}
+
+.axisRows,
+.axisColumns {
+  display: grid;
+  color: tokens.$color-cream-300;
+  font-weight: 700;
+}
+
+.axisRows {
+  height: min(100%, var(--board-size));
+  grid-template-rows: repeat(6, 1fr);
+  align-items: center;
+  justify-items: center;
+  font-size: 1.35rem;
+}
+
+.gridWrap {
+  min-width: 0;
+  min-height: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  align-content: center;
+  justify-items: center;
+  gap: 6px;
+}
+
+.grid {
+  width: min(100%, var(--board-size));
+  aspect-ratio: 1;
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-template-rows: repeat(6, minmax(0, 1fr));
+  border: 1px solid #8d8379;
+}
+
+.axisColumns {
+  width: min(100%, var(--board-size));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  justify-items: center;
+  font-size: 1.1rem;
+}
+
+@include mixins.max-width(tokens.$bp-lg) {
+  .layout {
+    --board-size: 58vh;
+  }
+}
+
+@include mixins.max-width(tokens.$bp-md) {
+  .frame {
+    padding: 8px;
+  }
+
+  .layout {
+    --axis-col-size: 28px;
+    --axis-gap: 6px;
+    --board-size: 42vh;
+  }
+
+  .axisRows {
+    font-size: 1.05rem;
+  }
+
+  .axisColumns {
+    font-size: 0.95rem;
+  }
+}
+
+@include mixins.max-width(tokens.$bp-sm) {
+  .layout {
+    --board-size: 34vh;
+  }
+}

@@ -1,0 +1,51 @@
+@use '../../../styles/tokens' as tokens;
+
+.root {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 1;
+  min-width: 0;
+  min-height: 0;
+  padding: 7px;
+  border: 1px solid #8d8379;
+  background: transparent;
+  transition:
+    background-color 160ms ease,
+    outline-color 160ms ease;
+
+  &[data-tone='light'] {
+    background: tokens.$color-cream-400;
+  }
+
+  &[data-tone='dark'] {
+    background: tokens.$color-black;
+  }
+
+  &[data-selectable='true']:not([data-selected='true'])::after {
+    content: '';
+    position: absolute;
+    inset: 5px;
+    border: 2px dashed rgba(161, 118, 65, 0.4);
+    pointer-events: none;
+  }
+
+  &[data-selected='true'] {
+    outline: 3px solid tokens.$color-accent;
+    outline-offset: -3px;
+  }
+
+  &[data-target='true'] {
+    outline: 3px solid tokens.$color-success;
+    outline-offset: -3px;
+  }
+}
+
+.marker {
+  position: absolute;
+  width: 20%;
+  aspect-ratio: 1;
+  border-radius: 999px;
+  background: rgba(120, 145, 74, 0.88);
+}

@@ -1,0 +1,50 @@
+@use '../../../styles/tokens' as tokens;
+@use '../../../styles/mixins' as mixins;
+
+.root {
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  margin-bottom: 10px;
+
+  h2 {
+    margin: 0;
+    font-size: 0.98rem;
+  }
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.fieldLabel {
+  display: block;
+  margin: 8px 0 4px;
+  color: #5d4a39;
+}
+
+.textarea {
+  width: 100%;
+  min-height: 96px;
+  max-height: 220px;
+  padding: 8px;
+  border: 1px solid tokens.$color-panel-border;
+  background: tokens.$color-panel-bg-strong;
+  resize: vertical;
+}
+
+.error {
+  margin: 8px 0 0;
+  color: tokens.$color-error;
+}
+
+@include mixins.max-width(tokens.$bp-md) {
+  .textarea {
+    min-height: 84px;
+  }
+}

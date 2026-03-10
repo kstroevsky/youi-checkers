@@ -1,0 +1,33 @@
+@use '../../../styles/tokens' as tokens;
+@use '../../../styles/mixins' as mixins;
+
+.root {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.tabButton {
+  flex: 0 0 auto;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: tokens.$radius-md;
+  background: transparent;
+  color: tokens.$color-subtle-strong;
+  white-space: nowrap;
+
+  &[aria-selected='true'] {
+    border-color: tokens.$color-brown-400;
+    background: rgba(252, 249, 243, 0.92);
+    color: tokens.$color-heading;
+  }
+}
+
+@include mixins.max-width(tokens.$bp-lg) {
+  .root {
+    justify-content: flex-start;
+  }
+}

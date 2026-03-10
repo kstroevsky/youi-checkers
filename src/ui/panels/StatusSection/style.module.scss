@@ -1,0 +1,41 @@
+@use '../../../styles/tokens' as tokens;
+
+.root {
+  display: flex;
+  flex-direction: column;
+}
+
+.turnBanner {
+  padding: 8px;
+  border: 1px solid tokens.$color-brown-950;
+  background: #2a1708;
+  color: tokens.$color-cream-200;
+
+  p,
+  small {
+    display: block;
+  }
+
+  p {
+    margin: 0 0 4px;
+    font-size: 1rem;
+    font-weight: 700;
+  }
+
+  small {
+    color: tokens.$color-brown-100;
+  }
+}
+
+.textRow,
+.textRowInline {
+  margin: 4px 0;
+  color: tokens.$color-panel-text;
+}
+
+.textRowInline {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}

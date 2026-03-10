@@ -3,7 +3,7 @@ import { createRoot } from 'react-dom/client';
 
 import { App } from '@/app/App';
 import { GameStoreProvider } from '@/app/providers/GameStoreProvider';
-import '@/styles.css';
+import '@/styles/base.scss';
 
 const container = document.getElementById('root');
 

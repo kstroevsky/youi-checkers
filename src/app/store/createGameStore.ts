@@ -80,6 +80,12 @@ const DEFAULT_PREFERENCES: AppPreferences = {
   language: 'russian',
 };
 
+const LEGACY_RULE_DEFAULTS: RuleConfig = {
+  allowNonAdjacentFriendlyStackTransfer: true,
+  drawRule: 'threefold',
+  scoringMode: 'basic',
+};
+
 /** Returns stable rule-config cache key used for store-side derivation memoization. */
 function ruleConfigKey(config: RuleConfig): string {
   return [
@@ -122,6 +128,43 @@ function persistSession(session: SerializableSession, storage?: Storage): void {
   }
 }
 
+/** Detects the former default rule set persisted before default-policy change. */
+function hasLegacyRuleDefaults(ruleConfig: RuleConfig): boolean {
+  return (
+    ruleConfig.allowNonAdjacentFriendlyStackTransfer ===
+      LEGACY_RULE_DEFAULTS.allowNonAdjacentFriendlyStackTransfer &&
+    ruleConfig.drawRule === LEGACY_RULE_DEFAULTS.drawRule &&
+    ruleConfig.scoringMode === LEGACY_RULE_DEFAULTS.scoringMode
+  );
+}
+
+/** Limits auto-migration to untouched sessions to avoid overriding active games. */
+function isUntouchedSession(session: SerializableSession): boolean {
+  return (
+    session.turnLog.length === 0 &&
+    session.past.length === 0 &&
+    session.future.length === 0 &&
+    session.present.historyCursor === 0
+  );
+}
+
+/** Applies new rule defaults to stale untouched sessions saved with legacy defaults. */
+function migrateLegacyRuleDefaults(
+  session: SerializableSession,
+): { session: SerializableSession; migrated: boolean } {
+  if (!hasLegacyRuleDefaults(session.ruleConfig) || !isUntouchedSession(session)) {
+    return { session, migrated: false };
+  }
+
+  return {
+    session: {
+      ...session,
+      ruleConfig: withRuleDefaults(),
+    },
+    migrated: true,
+  };
+}
+
 /** Loads session from browser storage and drops corrupted payloads. */
 function loadSession(storage?: Storage): SerializableSession | null {
   if (!storage) {
@@ -138,9 +181,10 @@ function loadSession(storage?: Storage): SerializableSession | null {
     }
 
     try {
-      const session = deserializeSession(serialized);
+      const deserialized = deserializeSession(serialized);
+      const { session, migrated } = migrateLegacyRuleDefaults(deserialized);
 
-      if (storageKey !== SESSION_STORAGE_KEY) {
+      if (storageKey !== SESSION_STORAGE_KEY || migrated) {
         persistSession(session, storage);
       }
 

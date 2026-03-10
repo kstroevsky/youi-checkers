@@ -1,0 +1,31 @@
+@use '../../../styles/tokens' as tokens;
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background: rgba(16, 11, 7, 0.52);
+}
+
+.panel {
+  width: min(360px, 100%);
+  padding: 20px;
+  border: 1px solid tokens.$color-brown-850;
+  background: tokens.$color-cream-50;
+  text-align: center;
+
+  p {
+    margin: 0 0 6px;
+    font-size: 1.2rem;
+    font-weight: 700;
+  }
+
+  small {
+    display: block;
+    margin-bottom: 16px;
+    color: tokens.$color-brown-700;
+  }
+}

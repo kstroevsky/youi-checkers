@@ -1,0 +1,75 @@
+@use '../../../styles/tokens' as tokens;
+@use '../../../styles/mixins' as mixins;
+
+.root {
+  width: 100%;
+  max-width: 1040px;
+  margin: 0 auto;
+  padding: 16px;
+  border: 1px solid tokens.$color-panel-border;
+  background: tokens.$color-panel-bg;
+}
+
+.header {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 14px;
+
+  h2 {
+    margin: 0;
+    font-size: 1.25rem;
+  }
+
+  p {
+    margin: 0;
+    color: tokens.$color-subtle;
+  }
+}
+
+.content {
+  color: #2c2118;
+}
+
+.heading {
+  margin: 18px 0 8px;
+  color: tokens.$color-heading;
+}
+
+.headingLevel1 {
+  font-size: 1.4rem;
+}
+
+.headingLevel2 {
+  font-size: 1.1rem;
+}
+
+.headingLevel3,
+.headingLevel4,
+.headingLevel5,
+.headingLevel6 {
+  font-size: 1rem;
+}
+
+.paragraph {
+  margin: 0 0 10px;
+}
+
+.list {
+  display: grid;
+  gap: 5px;
+  margin: 0 0 12px;
+  padding-left: 20px;
+}
+
+.divider {
+  margin: 16px 0;
+  border: none;
+  border-top: 1px solid tokens.$color-panel-border-soft;
+}
+
+@include mixins.max-width(tokens.$bp-md) {
+  .root {
+    padding: 12px;
+  }
+}

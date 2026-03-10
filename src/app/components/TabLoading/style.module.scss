@@ -1,0 +1,8 @@
+@use '../../../styles/tokens' as tokens;
+
+.root {
+  height: 100%;
+  width: 100%;
+  border: 1px solid tokens.$color-brown-200;
+  background: tokens.$color-panel-bg-soft;
+}

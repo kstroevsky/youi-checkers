@@ -1,0 +1,8 @@
+@use '../../../styles/tokens' as tokens;
+
+.root {
+  min-width: 0;
+  padding: 10px;
+  border: 1px solid tokens.$color-panel-border;
+  background: tokens.$color-panel-bg;
+}

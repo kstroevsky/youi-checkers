@@ -1,0 +1,1 @@
+export { BoardCell } from './BoardCell';

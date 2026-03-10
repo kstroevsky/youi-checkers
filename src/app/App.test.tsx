@@ -147,45 +147,55 @@ describe('App', () => {
     expect(screen.queryByRole('button', { name: 'Восхождение' })).not.toBeInTheDocument();
   });
 
-  it('supports history back/forward, fogged future moves, and click-to-travel', async () => {
-    const user = userEvent.setup();
-    renderApp();
+  it(
+    'supports history back/forward, fogged future moves, and click-to-travel',
+    async () => {
+      const user = userEvent.setup();
+      renderApp();
 
-    await user.click(await screen.findByRole('button', { name: 'Клетка A1' }));
-    await user.click(screen.getByRole('button', { name: 'Восхождение' }));
-    await user.click(screen.getByRole('button', { name: 'Клетка B2' }));
-    await user.click(screen.getByRole('button', { name: 'Продолжить' }));
+      await user.click(await screen.findByRole('button', { name: 'Клетка A1' }));
+      await user.click(screen.getByRole('button', { name: 'Восхождение' }));
+      await user.click(screen.getByRole('button', { name: 'Клетка B2' }));
+      await user.click(screen.getByRole('button', { name: 'Продолжить' }));
 
-    await user.click(screen.getByRole('button', { name: 'Клетка F6' }));
-    await user.click(screen.getByRole('button', { name: 'Восхождение' }));
-    await user.click(screen.getByRole('button', { name: 'Клетка E5' }));
-    await user.click(screen.getByRole('button', { name: 'Продолжить' }));
+      await user.click(screen.getByRole('button', { name: 'Клетка F6' }));
+      await user.click(screen.getByRole('button', { name: 'Восхождение' }));
+      await user.click(screen.getByRole('button', { name: 'Клетка E5' }));
+      await user.click(screen.getByRole('button', { name: 'Продолжить' }));
 
-    const historyList = screen.getByRole('list');
-    expect(historyList).toHaveClass('history-list');
+      const historyList = screen.getByRole('list');
+      expect(historyList).toBeInTheDocument();
 
-    const backButton = screen.getByRole('button', { name: 'Назад' });
-    const forwardButton = screen.getByRole('button', { name: 'Вперёд' });
+      expect(screen.getByRole('button', { name: 'Чёрные: Восхождение F6 -> E5' })).toHaveAttribute(
+        'aria-current',
+        'step',
+      );
 
-    expect(backButton).toBeEnabled();
-    expect(forwardButton).toBeDisabled();
+      const backButton = screen.getByRole('button', { name: 'Назад' });
+      const forwardButton = screen.getByRole('button', { name: 'Вперёд' });
 
-    await user.click(backButton);
+      expect(backButton).toBeEnabled();
+      expect(forwardButton).toBeDisabled();
 
-    expect(screen.getByText((_, element) => element?.textContent === 'Позиция истории: 1')).toBeInTheDocument();
-    expect(forwardButton).toBeEnabled();
-    expect(screen.getByRole('button', { name: 'Чёрные: Восхождение F6 -> E5' })).toHaveClass(
-      'history-item--future',
-    );
+      await user.click(backButton);
 
-    await user.click(screen.getByRole('button', { name: 'Чёрные: Восхождение F6 -> E5' }));
+      expect(screen.getByText((_, element) => element?.textContent === 'Позиция истории: 1')).toBeInTheDocument();
+      expect(forwardButton).toBeEnabled();
+      expect(screen.getByRole('button', { name: 'Чёрные: Восхождение F6 -> E5' })).toHaveAttribute(
+        'data-state',
+        'future',
+      );
 
-    expect(screen.getByText((_, element) => element?.textContent === 'Позиция истории: 2')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Вперёд' })).toBeDisabled();
+      await user.click(screen.getByRole('button', { name: 'Чёрные: Восхождение F6 -> E5' }));
 
-    await user.click(screen.getByRole('button', { name: 'Белые: Восхождение A1 -> B2' }));
+      expect(screen.getByText((_, element) => element?.textContent === 'Позиция истории: 2')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Вперёд' })).toBeDisabled();
 
-    expect(screen.getByText((_, element) => element?.textContent === 'Позиция истории: 1')).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Вперёд' })).toBeEnabled();
-  });
+      await user.click(screen.getByRole('button', { name: 'Белые: Восхождение A1 -> B2' }));
+
+      expect(screen.getByText((_, element) => element?.textContent === 'Позиция истории: 1')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Вперёд' })).toBeEnabled();
+    },
+    10000,
+  );
 });

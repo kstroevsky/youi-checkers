@@ -1,0 +1,15 @@
+@use '../../../styles/tokens' as tokens;
+@use '../../../styles/mixins' as mixins;
+
+.root {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+@include mixins.max-width(tokens.$bp-lg) {
+  .root {
+    justify-content: flex-start;
+  }
+}

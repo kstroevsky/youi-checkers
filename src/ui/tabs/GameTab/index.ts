@@ -1,0 +1,1 @@
+export { GameTab } from './GameTab';

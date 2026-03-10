@@ -1,0 +1,1 @@
+export { InstructionsView } from './InstructionsView';

@@ -1,0 +1,16 @@
+@use '../../../styles/tokens' as tokens;
+@use '../../../styles/mixins' as mixins;
+
+.root {
+  height: 100%;
+  min-height: 0;
+  width: 100%;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+@include mixins.max-width(tokens.$bp-md) {
+  .root {
+    padding-right: 0;
+  }
+}

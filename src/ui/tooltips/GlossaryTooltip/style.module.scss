@@ -1,0 +1,53 @@
+@use '../../../styles/tokens' as tokens;
+
+.anchor {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  flex-shrink: 0;
+}
+
+.trigger {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: 1px solid tokens.$color-brown-300;
+  border-radius: tokens.$radius-sm;
+  background: tokens.$color-panel-bg-strong;
+  color: tokens.$color-subtle;
+  font-size: 0.78rem;
+  font-weight: 700;
+
+  &[data-open='true'] {
+    border-color: tokens.$color-brown-500;
+    background: #e6d7c3;
+  }
+}
+
+.popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 1200;
+  display: grid;
+  gap: 5px;
+  width: min(300px, calc(100vw - 24px));
+  max-height: min(220px, 55vh);
+  overflow: auto;
+  overflow-wrap: anywhere;
+  padding: 10px;
+  border: 1px solid tokens.$color-panel-border;
+  border-radius: tokens.$radius-md;
+  background: tokens.$color-panel-bg-strong;
+  box-shadow: tokens.$shadow-tooltip;
+  line-height: 1.35;
+
+  strong {
+    color: tokens.$color-heading;
+  }
+
+  span {
+    color: tokens.$color-subtle-strong;
+    font-size: 0.92rem;
+  }
+}

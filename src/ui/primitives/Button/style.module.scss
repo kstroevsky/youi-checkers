@@ -1,0 +1,33 @@
+@use '../../../styles/tokens' as tokens;
+
+.root {
+  padding: 8px 12px;
+  border: 1px solid tokens.$color-brown-900;
+  border-radius: tokens.$radius-lg;
+  background: tokens.$color-brown-900;
+  color: tokens.$color-cream-100;
+  transition:
+    background-color 160ms ease,
+    border-color 160ms ease,
+    color 160ms ease,
+    opacity 160ms ease;
+
+  &[data-variant='ghost'] {
+    background: transparent;
+    color: tokens.$color-brown-900;
+  }
+
+  &[data-variant='active'] {
+    border-color: tokens.$color-accent-dark;
+    background: tokens.$color-accent-dark;
+  }
+
+  &:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
+}
+
+.fullWidth {
+  width: 100%;
+}
