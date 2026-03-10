@@ -9,55 +9,54 @@
 }
 
 .main {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  gap: 12px;
+  display: grid;
+  grid-template-columns: minmax(320px, auto) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 16px;
 }
 
 .title {
   min-width: 0;
-  flex: 0 1 260px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 
   h1 {
-    margin: 0 0 2px;
+    margin: 0;
     font-size: 1.75rem;
+    line-height: 1.02;
+    white-space: nowrap;
   }
 
   p {
     margin: 0;
     color: tokens.$color-subtle;
+    line-height: 1.05;
+    white-space: nowrap;
   }
 }
 
 .tabs {
-  flex: 1 1 320px;
   min-width: 0;
 }
 
 .switcher {
-  flex: 0 0 auto;
-  margin-left: auto;
+  justify-self: end;
 }
 
 @include mixins.max-width(tokens.$bp-lg) {
   .main {
-    align-items: flex-start;
-    gap: 8px;
-  }
-
-  .tabs {
-    order: 2;
-    flex-basis: 100%;
-  }
-
-  .switcher {
-    order: 3;
-    margin-left: 0;
+    grid-template-columns: minmax(280px, auto) minmax(0, 1fr) auto;
+    gap: 12px;
   }
 }
 
 @include mixins.max-width(tokens.$bp-md) {
+  .main {
+    grid-template-columns: minmax(240px, auto) minmax(0, 1fr) auto;
+    gap: 10px;
+  }
+
   .title {
     h1 {
       font-size: 1.45rem;
@@ -71,7 +70,10 @@
 
 @include mixins.max-width(tokens.$bp-sm) {
   .main {
+    display: flex;
+    flex-wrap: wrap;
     gap: 6px;
+    align-items: flex-start;
   }
 
   .title {

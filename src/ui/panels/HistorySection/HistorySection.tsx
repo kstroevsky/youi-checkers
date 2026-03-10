@@ -34,6 +34,14 @@ export function HistorySection() {
     <Panel className={styles.root}>
       <div className={styles.header}>
         <h2>{text(language, 'history')}</h2>
+        <div className={styles.headerActions}>
+          <Button className={styles.headerButton} variant="ghost" onClick={onUndo} disabled={!canUndo}>
+            {text(language, 'undo')}
+          </Button>
+          <Button className={styles.headerButton} variant="ghost" onClick={onRedo} disabled={!canRedo}>
+            {text(language, 'redo')}
+          </Button>
+        </div>
         <small>{historyCountLabel(language, deferredTurnLog.length)}</small>
       </div>
       <ol className={styles.list}>
@@ -58,14 +66,6 @@ export function HistorySection() {
           );
         })}
       </ol>
-      <div className={styles.actions}>
-        <Button variant="ghost" onClick={onUndo} disabled={!canUndo}>
-          {text(language, 'undo')}
-        </Button>
-        <Button variant="ghost" onClick={onRedo} disabled={!canRedo}>
-          {text(language, 'redo')}
-        </Button>
-      </div>
       <p className={styles.meta}>
         <strong>{text(language, 'historyCursor')}:</strong> {historyCursor}
       </p>
