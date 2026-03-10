@@ -7,6 +7,7 @@ import { GameStoreProvider, useGameStore } from '@/app/providers/GameStoreProvid
 import type { Coord } from '@/domain';
 import { createInitialState } from '@/domain';
 import { Board } from '@/ui/board/Board';
+import { ScoreCompactTable } from '@/ui/panels/ScoreCompactTable';
 import { createSession, resetFactoryIds } from '@/test/factories';
 
 const NO_SELECTABLE_COORDS: Coord[] = [];
@@ -69,13 +70,28 @@ function SessionProbe({ onRender }: RenderProbeProps) {
   );
 }
 
+function ScoreProbe({ onRender }: RenderProbeProps) {
+  const { language, scoreSummary } = useGameStore(
+    useShallow((state) => ({
+      language: state.preferences.language,
+      scoreSummary: state.scoreSummary,
+    })),
+  );
+
+  onRender();
+
+  return scoreSummary ? <ScoreCompactTable language={language} scoreSummary={scoreSummary} /> : null;
+}
+
 function renderProbes(
   boardRender: () => void,
   moveRender: () => void,
   sessionRender: () => void,
+  scoreRender: () => void,
 ) {
   return render(
     <GameStoreProvider initialSession={createSession(createInitialState())}>
+      <ScoreProbe onRender={scoreRender} />
       <BoardProbe onRender={boardRender} />
       <MoveProbe onRender={moveRender} />
       <SessionProbe onRender={sessionRender} />
@@ -93,17 +109,20 @@ describe('render containment', () => {
     const boardRender = vi.fn();
     const moveRender = vi.fn();
     const sessionRender = vi.fn();
-    renderProbes(boardRender, moveRender, sessionRender);
+    const scoreRender = vi.fn();
+    renderProbes(boardRender, moveRender, sessionRender, scoreRender);
 
     expect(boardRender).toHaveBeenCalledTimes(1);
     expect(moveRender).toHaveBeenCalledTimes(1);
     expect(sessionRender).toHaveBeenCalledTimes(1);
+    expect(scoreRender).toHaveBeenCalledTimes(1);
 
     await user.type(screen.getByRole('textbox', { name: 'Import probe' }), 'abc');
 
     expect(boardRender).toHaveBeenCalledTimes(1);
     expect(moveRender).toHaveBeenCalledTimes(1);
     expect(sessionRender.mock.calls.length).toBeGreaterThan(1);
+    expect(scoreRender).toHaveBeenCalledTimes(1);
   });
 
   it('updates board selection and move actions without rerendering the session subtree', async () => {
@@ -111,7 +130,8 @@ describe('render containment', () => {
     const boardRender = vi.fn();
     const moveRender = vi.fn();
     const sessionRender = vi.fn();
-    renderProbes(boardRender, moveRender, sessionRender);
+    const scoreRender = vi.fn();
+    renderProbes(boardRender, moveRender, sessionRender, scoreRender);
 
     await user.click(screen.getByRole('button', { name: 'Клетка A1' }));
 
@@ -119,5 +139,6 @@ describe('render containment', () => {
     expect(boardRender.mock.calls.length).toBeGreaterThan(1);
     expect(moveRender.mock.calls.length).toBeGreaterThan(1);
     expect(sessionRender).toHaveBeenCalledTimes(1);
+    expect(scoreRender).toHaveBeenCalledTimes(1);
   });
 });
