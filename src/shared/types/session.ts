@@ -14,6 +14,15 @@ export type AppPreferences = {
   language: Language;
 };
 
+export type OpponentMode = 'hotSeat' | 'computer';
+export type AiDifficulty = 'easy' | 'medium' | 'hard';
+
+export type MatchSettings = {
+  opponentMode: OpponentMode;
+  humanPlayer: Player;
+  aiDifficulty: AiDifficulty;
+};
+
 export type InteractionState =
   | { type: 'idle' }
   | { type: 'pieceSelected'; source: Coord; availableActions: ActionKind[] }
@@ -54,6 +63,17 @@ export type SerializableSessionV2 = {
   future: UndoFrame[];
 };
 
-export type SerializableSession = SerializableSessionV2;
+export type SerializableSessionV3 = {
+  version: 3;
+  ruleConfig: RuleConfig;
+  preferences: AppPreferences;
+  matchSettings: MatchSettings;
+  turnLog: TurnRecord[];
+  present: UndoFrame;
+  past: UndoFrame[];
+  future: UndoFrame[];
+};
 
-export type DeserializedSession = SerializableSessionV1 | SerializableSessionV2;
+export type SerializableSession = SerializableSessionV3;
+
+export type DeserializedSession = SerializableSessionV1 | SerializableSessionV2 | SerializableSessionV3;
