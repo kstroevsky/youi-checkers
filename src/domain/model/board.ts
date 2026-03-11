@@ -96,6 +96,13 @@ export function getController(board: Board, coord: Coord): Player | null {
   return getTopChecker(board, coord)?.owner ?? null;
 }
 
+/** True when a height-3 stack contains only checkers owned by the same player. */
+export function isFullStackOwnedByPlayer(board: Board, coord: Coord, player: Player): boolean {
+  const { checkers } = getCell(board, coord);
+
+  return checkers.length === 3 && checkers.every((checker) => checker.owner === player);
+}
+
 /** Removes and returns `count` top checkers from a cell (mutable board helper). */
 export function removeTopCheckers(board: Board, coord: Coord, count: number): Checker[] {
   const cell = getCell(board, coord);

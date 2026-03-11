@@ -649,7 +649,7 @@ describe('game engine', () => {
     const stackBoard = createEmptyBoard();
 
     (['A6', 'B6', 'C6', 'D6', 'E6', 'F6'] as const).forEach((coord) => {
-      stackBoard[coord].checkers = [checker('black'), checker('white'), checker('white')];
+      stackBoard[coord].checkers = [checker('white'), checker('white'), checker('white')];
     });
 
     const stackState = gameStateWithBoard(stackBoard);
@@ -658,6 +658,18 @@ describe('game engine', () => {
       type: 'sixStacks',
       winner: 'white',
     });
+  });
+
+  it('does not count mixed-color front-row stacks as a six-stack victory', () => {
+    const board = createEmptyBoard();
+
+    (['A6', 'B6', 'C6', 'D6', 'E6', 'F6'] as const).forEach((coord) => {
+      board[coord].checkers = [checker('black'), checker('white'), checker('white')];
+    });
+
+    const state = gameStateWithBoard(board);
+
+    expect(checkVictory(state, withConfig())).toEqual({ type: 'none' });
   });
 
   it('handles automatic passes when the next player has no legal actions', () => {

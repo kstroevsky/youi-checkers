@@ -1,23 +1,19 @@
 import {
+  isFullStackOwnedByPlayer,
   countCheckersForPlayer,
-  getCellHeight,
-  getController,
   getTopChecker,
   isSingleChecker,
 } from '@/domain/model/board';
-import { FRONT_HOME_ROW, HOME_ROWS } from '@/domain/model/constants';
+import { BOARD_COLUMNS, FRONT_HOME_ROW, HOME_ROWS } from '@/domain/model/constants';
 import { allCoords, createCoord, parseCoord } from '@/domain/model/coordinates';
 import { hashPosition } from '@/domain/model/hash';
 import { withRuleDefaults } from '@/domain/model/ruleConfig';
 import type { Column, Coord, GameState, Player, RuleConfig, Victory } from '@/domain/model/types';
 
-/** Returns six front-row coordinates used by the six-stack victory check. */
-function getHomeFieldFrontCoords(player: Player): Coord[] {
-  const homeRow = FRONT_HOME_ROW[player];
-  return ['A', 'B', 'C', 'D', 'E', 'F'].map((column) =>
-    createCoord(column as Column, homeRow),
-  );
-}
+const FRONT_HOME_COORDS: Record<Player, Coord[]> = {
+  white: BOARD_COLUMNS.map((column) => createCoord(column as Column, FRONT_HOME_ROW.white)),
+  black: BOARD_COLUMNS.map((column) => createCoord(column as Column, FRONT_HOME_ROW.black)),
+};
 
 /** True when all 18 player checkers are singles inside that player's home rows. */
 function hasHomeFieldWin(state: GameState, player: Player): boolean {
@@ -37,11 +33,11 @@ function hasHomeFieldWin(state: GameState, player: Player): boolean {
   });
 }
 
-/** True when player controls six height-3 stacks on their front home row. */
+/** True when six front-row stacks are full height and contain only the player's own checkers. */
 function hasSixStackWin(state: GameState, player: Player): boolean {
-  return getHomeFieldFrontCoords(player).every((coord) => {
-    return getCellHeight(state.board, coord) === 3 && getController(state.board, coord) === player;
-  });
+  return FRONT_HOME_COORDS[player].every((coord) =>
+    isFullStackOwnedByPlayer(state.board, coord, player),
+  );
 }
 
 /** Evaluates deterministic terminal status for current state under provided rules. */
