@@ -1,4 +1,4 @@
-import { act, render, screen } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it } from 'vitest';
 
@@ -81,15 +81,17 @@ describe('GameTab compact layout', () => {
     setViewport(390, 844);
   });
 
-  it('shows move input in the actions tray after selecting a cell', async () => {
+  it('opens the move choice dialog from a board selection without an actions tray', async () => {
     const user = userEvent.setup();
     renderGameTab();
 
-    expect(screen.getByRole('tab', { name: 'Ходы' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.queryByRole('tab', { name: 'Ходы' })).not.toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'История' })).toHaveAttribute('aria-selected', 'true');
 
     await user.click(await screen.findByRole('button', { name: 'Клетка A1' }));
 
-    expect(await screen.findByRole('button', { name: 'Восхождение' })).toBeInTheDocument();
+    const dialog = await screen.findByRole('dialog', { name: 'Выберите ход' });
+    expect(within(dialog).getByRole('button', { name: 'Восхождение' })).toBeInTheDocument();
   });
 
   it('shows score summary only inside the info tray on compact layout', async () => {

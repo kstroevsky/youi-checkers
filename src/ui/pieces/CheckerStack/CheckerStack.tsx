@@ -21,7 +21,7 @@ export const CheckerStack = memo(function CheckerStack({
   return (
     <div className={cx(styles.root, emphasized && styles.emphasized)} aria-hidden="true">
       {checkers.map((checker, index) => {
-        const offset = (checkers.length - index - 1) * 12;
+        const offset = (checkers.length - index - 1) * 8;
         const isSingleFrozen = checkers.length === 1 && checker.frozen;
 
         return (

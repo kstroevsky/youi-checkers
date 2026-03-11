@@ -30,6 +30,24 @@ describe('App', () => {
     expect(await screen.findByRole('button', { name: 'Восхождение' })).toBeInTheDocument();
   });
 
+  it('opens move choice in a dialog after selecting a checker', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(await screen.findByRole('button', { name: 'Клетка A1' }));
+
+    const dialog = await screen.findByRole('dialog', { name: 'Выберите ход' });
+
+    expect(
+      within(dialog).getByText((_, element) => element?.textContent === 'Выбранная клетка: A1'),
+    ).toBeInTheDocument();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Восхождение' }));
+
+    expect(screen.queryByRole('dialog', { name: 'Выберите ход' })).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Клетка B2' })).toHaveAttribute('data-target', 'true');
+  });
+
   it('switches the interface language globally, including lazy-loaded tabs', async () => {
     const user = userEvent.setup();
     renderApp();
@@ -113,9 +131,7 @@ describe('App', () => {
 
     expect(screen.queryByText(/Выбранная клетка/i)).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Восхождение' })).not.toBeInTheDocument();
-    expect(
-      screen.getByText('Выберите шашку или свою горку, чтобы увидеть ходы.'),
-    ).toBeInTheDocument();
+    expect(screen.getAllByText('Выберите шашку или контролируемую горку.')).not.toHaveLength(0);
   });
 
   it('hides compact score table when score mode is turned off', async () => {
