@@ -1,0 +1,382 @@
+{
+  "chunkSizes": {
+    "entryScripts": [
+      "index-CToIMv2x.js"
+    ],
+    "jsAssets": [
+      {
+        "assetName": "index-CToIMv2x.js",
+        "bytes": 247644
+      },
+      {
+        "assetName": "index-D09F2mDs.js",
+        "bytes": 32209
+      },
+      {
+        "assetName": "ai.worker-CvQMaBpM.js",
+        "bytes": 18334
+      },
+      {
+        "assetName": "index-q4T6w0M8.js",
+        "bytes": 17799
+      },
+      {
+        "assetName": "GlossaryTooltip-8q8DL6wL.js",
+        "bytes": 10057
+      },
+      {
+        "assetName": "index-BWO5Zwqk.js",
+        "bytes": 3135
+      },
+      {
+        "assetName": "MoveInputModal-BwSvBahu.js",
+        "bytes": 1763
+      }
+    ],
+    "lazyChunkSmoke": {
+      "moveInputModal": true,
+      "gameResultModal": false,
+      "glossaryTooltipDialog": false,
+      "turnOverlay": false
+    },
+    "totalJsBytes": 330941
+  },
+  "desktop": {
+    "load": {
+      "domContentLoadedMs": 31.2,
+      "firstContentfulPaintMs": 72,
+      "firstPaintMs": 72,
+      "largestContentfulPaintMs": 72,
+      "loadEventMs": 31.6,
+      "longTaskCount": 0,
+      "longTaskMaxMs": 0,
+      "totalLayoutShift": 0
+    },
+    "render": {
+      "initial": {
+        "buttons": 49,
+        "checkerNodes": 0,
+        "dialogs": 0,
+        "elements": 399,
+        "historyItems": 0
+      },
+      "scroll": {
+        "bodyClientHeight": 900,
+        "bodyScrollHeight": 900,
+        "contentOverflowY": "hidden",
+        "documentOverflowY": "hidden"
+      }
+    },
+    "ui": {
+      "chooseAction": {
+        "elapsedMs": 56.5,
+        "layoutShiftScore": 0,
+        "longTaskCount": 0,
+        "maxLongTaskMs": 0,
+        "totalLongTaskMs": 0
+      },
+      "commitMove": {
+        "elapsedMs": 58.4,
+        "layoutShiftScore": 0,
+        "longTaskCount": 0,
+        "maxLongTaskMs": 0,
+        "totalLongTaskMs": 0
+      },
+      "openMoveDialog": {
+        "elapsedMs": 374.3,
+        "layoutShiftScore": 0,
+        "longTaskCount": 0,
+        "maxLongTaskMs": 0,
+        "totalLongTaskMs": 0
+      }
+    },
+    "viewport": {
+      "width": 1440,
+      "height": 900
+    }
+  },
+  "domain": {
+    "generatedAt": "2026-03-12T14:07:06.186Z",
+    "domain": {
+      "hashPosition": {
+        "avgMs": 0.0054,
+        "iterations": 6000,
+        "totalMs": 32.33
+      },
+      "getLegalActions": {
+        "avgMs": 0.2193,
+        "iterations": 750,
+        "totalMs": 164.46
+      },
+      "getLegalActionsForCell": {
+        "avgMs": 0.0002,
+        "iterations": 1500,
+        "totalMs": 0.28
+      },
+      "selectableCoordsScan": {
+        "avgMs": 0.1954,
+        "iterations": 280,
+        "totalMs": 54.71
+      },
+      "hasLegalActionCheck": {
+        "avgMs": 0.0107,
+        "iterations": 420,
+        "totalMs": 4.5
+      },
+      "advanceEngineState": {
+        "avgMs": 0.2318,
+        "iterations": 700,
+        "totalMs": 162.29
+      }
+    },
+    "comparisons": {
+      "cellActionVsFullActionSpeedup": 1096.5,
+      "hashVsFullActionSpeedup": 40.61
+    },
+    "ai": {
+      "easy": {
+        "avgWallTimeMs": 105.72,
+        "states": [
+          {
+            "action": "climbOne:A4:A3",
+            "completedDepth": 0,
+            "evaluatedNodes": 1,
+            "label": "afterOpening",
+            "reportedElapsedMs": 134.83,
+            "timeBudgetMs": 120,
+            "wallTimeMs": 134.99
+          },
+          {
+            "action": "climbOne:A1:B1",
+            "completedDepth": 0,
+            "evaluatedNodes": 1,
+            "label": "initialState",
+            "reportedElapsedMs": 157.25,
+            "timeBudgetMs": 120,
+            "wallTimeMs": 157.26
+          },
+          {
+            "action": "jumpSequence:C3:E5",
+            "completedDepth": 2,
+            "evaluatedNodes": 3,
+            "label": "jumpContinuation",
+            "reportedElapsedMs": 3.25,
+            "timeBudgetMs": 120,
+            "wallTimeMs": 3.25
+          },
+          {
+            "action": "climbOne:B2:A1",
+            "completedDepth": 0,
+            "evaluatedNodes": 240,
+            "label": "threatState",
+            "reportedElapsedMs": 127.37,
+            "timeBudgetMs": 120,
+            "wallTimeMs": 127.37
+          }
+        ]
+      },
+      "medium": {
+        "avgWallTimeMs": 314.92,
+        "states": [
+          {
+            "action": "climbOne:A4:A3",
+            "completedDepth": 0,
+            "evaluatedNodes": 11,
+            "label": "afterOpening",
+            "reportedElapsedMs": 420.28,
+            "timeBudgetMs": 400,
+            "wallTimeMs": 420.29
+          },
+          {
+            "action": "climbOne:A1:B1",
+            "completedDepth": 0,
+            "evaluatedNodes": 11,
+            "label": "initialState",
+            "reportedElapsedMs": 408.45,
+            "timeBudgetMs": 400,
+            "wallTimeMs": 408.47
+          },
+          {
+            "action": "jumpSequence:C3:E5",
+            "completedDepth": 4,
+            "evaluatedNodes": 61,
+            "label": "jumpContinuation",
+            "reportedElapsedMs": 25.02,
+            "timeBudgetMs": 400,
+            "wallTimeMs": 25.04
+          },
+          {
+            "action": "climbOne:B2:A1",
+            "completedDepth": 1,
+            "evaluatedNodes": 1058,
+            "label": "threatState",
+            "reportedElapsedMs": 405.87,
+            "timeBudgetMs": 400,
+            "wallTimeMs": 405.88
+          }
+        ]
+      },
+      "hard": {
+        "avgWallTimeMs": 955.62,
+        "states": [
+          {
+            "action": "climbOne:A4:A3",
+            "completedDepth": 0,
+            "evaluatedNodes": 41,
+            "label": "afterOpening",
+            "reportedElapsedMs": 1211.12,
+            "timeBudgetMs": 1200,
+            "wallTimeMs": 1211.13
+          },
+          {
+            "action": "climbOne:A1:B1",
+            "completedDepth": 0,
+            "evaluatedNodes": 42,
+            "label": "initialState",
+            "reportedElapsedMs": 1206.43,
+            "timeBudgetMs": 1200,
+            "wallTimeMs": 1206.44
+          },
+          {
+            "action": "jumpSequence:C3:E5",
+            "completedDepth": 6,
+            "evaluatedNodes": 368,
+            "label": "jumpContinuation",
+            "reportedElapsedMs": 201.28,
+            "timeBudgetMs": 1200,
+            "wallTimeMs": 201.29
+          },
+          {
+            "action": "climbOne:B2:A1",
+            "completedDepth": 2,
+            "evaluatedNodes": 1366,
+            "label": "threatState",
+            "reportedElapsedMs": 1203.59,
+            "timeBudgetMs": 1200,
+            "wallTimeMs": 1203.6
+          }
+        ]
+      }
+    }
+  },
+  "generatedAt": "2026-03-12T14:07:17.913Z",
+  "mobile": {
+    "load": {
+      "domContentLoadedMs": 64.9,
+      "firstContentfulPaintMs": 96,
+      "firstPaintMs": 44,
+      "largestContentfulPaintMs": 96,
+      "loadEventMs": 65,
+      "longTaskCount": 0,
+      "longTaskMaxMs": 0,
+      "totalLayoutShift": 0
+    },
+    "render": {
+      "initial": {
+        "buttons": 46,
+        "checkerNodes": 0,
+        "dialogs": 0,
+        "elements": 366,
+        "historyItems": 0
+      },
+      "scroll": {
+        "bodyClientHeight": 844,
+        "bodyScrollHeight": 844,
+        "contentOverflowY": "hidden",
+        "documentOverflowY": "hidden"
+      }
+    },
+    "ui": {
+      "chooseAction": {
+        "elapsedMs": 57.5,
+        "layoutShiftScore": 0,
+        "longTaskCount": 0,
+        "maxLongTaskMs": 0,
+        "totalLongTaskMs": 0
+      },
+      "commitMove": {
+        "elapsedMs": 40.9,
+        "layoutShiftScore": 0,
+        "longTaskCount": 0,
+        "maxLongTaskMs": 0,
+        "totalLongTaskMs": 0
+      },
+      "openMoveDialog": {
+        "elapsedMs": 367.4,
+        "layoutShiftScore": 0,
+        "longTaskCount": 0,
+        "maxLongTaskMs": 0,
+        "totalLongTaskMs": 0
+      }
+    },
+    "viewport": {
+      "width": 390,
+      "height": 844
+    },
+    "compactTabs": {
+      "toHistory": {
+        "elapsedMs": 55.3,
+        "layoutShiftScore": 0,
+        "longTaskCount": 0,
+        "maxLongTaskMs": 0,
+        "totalLongTaskMs": 0
+      },
+      "toInfo": {
+        "elapsedMs": 38.2,
+        "layoutShiftScore": 0,
+        "longTaskCount": 0,
+        "maxLongTaskMs": 0,
+        "totalLongTaskMs": 0
+      }
+    },
+    "ai": {
+      "black": {
+        "easy": {
+          "elapsedMs": 211.1,
+          "layoutShiftScore": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0,
+          "totalLongTaskMs": 0
+        },
+        "medium": {
+          "elapsedMs": 493.8,
+          "layoutShiftScore": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0,
+          "totalLongTaskMs": 0
+        },
+        "hard": {
+          "elapsedMs": 1286,
+          "layoutShiftScore": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0,
+          "totalLongTaskMs": 0
+        }
+      },
+      "white": {
+        "easy": {
+          "elapsedMs": 184.7,
+          "layoutShiftScore": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0,
+          "totalLongTaskMs": 0
+        },
+        "medium": {
+          "elapsedMs": 457.7,
+          "layoutShiftScore": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0,
+          "totalLongTaskMs": 0
+        },
+        "hard": {
+          "elapsedMs": 1249.4,
+          "layoutShiftScore": 0,
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0,
+          "totalLongTaskMs": 0
+        }
+      }
+    }
+  },
+  "previewUrl": "http://127.0.0.1:4176/"
+}

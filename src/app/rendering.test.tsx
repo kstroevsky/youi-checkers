@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useShallow } from 'zustand/react/shallow';
@@ -6,7 +6,9 @@ import { useShallow } from 'zustand/react/shallow';
 import { GameStoreProvider, useGameStore } from '@/app/providers/GameStoreProvider';
 import type { Coord } from '@/domain';
 import { createInitialState } from '@/domain';
+import { GameResultModal } from '@/app/components/GameResultModal/GameResultModal';
 import { Board } from '@/ui/board/Board';
+import { MoveInputPanel } from '@/ui/panels/MoveInputPanel';
 import { ScoreCompactTable } from '@/ui/panels/ScoreCompactTable';
 import { createSession, resetFactoryIds } from '@/test/factories';
 
@@ -83,11 +85,29 @@ function ScoreProbe({ onRender }: RenderProbeProps) {
   return scoreSummary ? <ScoreCompactTable language={language} scoreSummary={scoreSummary} /> : null;
 }
 
+function HistoryProbe({ onRender }: RenderProbeProps) {
+  const { historyCursor, turnLog } = useGameStore(
+    useShallow((state) => ({
+      historyCursor: state.historyCursor,
+      turnLog: state.turnLog,
+    })),
+  );
+
+  onRender();
+
+  return (
+    <output data-testid="history-probe">
+      {turnLog.length}:{historyCursor}
+    </output>
+  );
+}
+
 function renderProbes(
   boardRender: () => void,
   moveRender: () => void,
   sessionRender: () => void,
   scoreRender: () => void,
+  historyRender: () => void,
 ) {
   return render(
     <GameStoreProvider initialSession={createSession(createInitialState())}>
@@ -95,6 +115,7 @@ function renderProbes(
       <BoardProbe onRender={boardRender} />
       <MoveProbe onRender={moveRender} />
       <SessionProbe onRender={sessionRender} />
+      <HistoryProbe onRender={historyRender} />
     </GameStoreProvider>,
   );
 }
@@ -110,12 +131,14 @@ describe('render containment', () => {
     const moveRender = vi.fn();
     const sessionRender = vi.fn();
     const scoreRender = vi.fn();
-    renderProbes(boardRender, moveRender, sessionRender, scoreRender);
+    const historyRender = vi.fn();
+    renderProbes(boardRender, moveRender, sessionRender, scoreRender, historyRender);
 
     expect(boardRender).toHaveBeenCalledTimes(1);
     expect(moveRender).toHaveBeenCalledTimes(1);
     expect(sessionRender).toHaveBeenCalledTimes(1);
     expect(scoreRender).toHaveBeenCalledTimes(1);
+    expect(historyRender).toHaveBeenCalledTimes(1);
 
     await user.type(screen.getByRole('textbox', { name: 'Import probe' }), 'abc');
 
@@ -123,6 +146,7 @@ describe('render containment', () => {
     expect(moveRender).toHaveBeenCalledTimes(1);
     expect(sessionRender.mock.calls.length).toBeGreaterThan(1);
     expect(scoreRender).toHaveBeenCalledTimes(1);
+    expect(historyRender).toHaveBeenCalledTimes(1);
   });
 
   it('updates board selection and move actions without rerendering the session subtree', async () => {
@@ -131,7 +155,8 @@ describe('render containment', () => {
     const moveRender = vi.fn();
     const sessionRender = vi.fn();
     const scoreRender = vi.fn();
-    renderProbes(boardRender, moveRender, sessionRender, scoreRender);
+    const historyRender = vi.fn();
+    renderProbes(boardRender, moveRender, sessionRender, scoreRender, historyRender);
 
     await user.click(screen.getByRole('button', { name: 'Клетка A1' }));
 
@@ -140,5 +165,54 @@ describe('render containment', () => {
     expect(moveRender.mock.calls.length).toBeGreaterThan(1);
     expect(sessionRender).toHaveBeenCalledTimes(1);
     expect(scoreRender).toHaveBeenCalledTimes(1);
+    expect(historyRender).toHaveBeenCalledTimes(1);
+  });
+
+  it('opens the lazy move dialog without rerendering the history subtree', async () => {
+    const user = userEvent.setup();
+    const boardRender = vi.fn();
+    const historyRender = vi.fn();
+
+    render(
+      <GameStoreProvider initialSession={createSession(createInitialState())}>
+        <BoardProbe onRender={boardRender} />
+        <HistoryProbe onRender={historyRender} />
+        <MoveInputPanel />
+      </GameStoreProvider>,
+    );
+
+    await user.click(screen.getByRole('button', { name: 'Клетка A1' }));
+
+    expect(await screen.findByRole('dialog', { name: 'Выберите ход' })).toBeInTheDocument();
+    expect(boardRender.mock.calls.length).toBeGreaterThan(1);
+    expect(historyRender).toHaveBeenCalledTimes(1);
+  });
+
+  it('dismisses the result modal without rerendering board or history probes', async () => {
+    const user = userEvent.setup();
+    const boardRender = vi.fn();
+    const historyRender = vi.fn();
+
+    render(
+      <GameStoreProvider
+        initialSession={createSession({
+          ...createInitialState(),
+          status: 'gameOver',
+          victory: { type: 'threefoldDraw' },
+        })}
+      >
+        <BoardProbe onRender={boardRender} />
+        <HistoryProbe onRender={historyRender} />
+        <GameResultModal />
+      </GameStoreProvider>,
+    );
+
+    const dialog = await screen.findByRole('dialog', { name: 'Ничья' });
+
+    await user.click(within(dialog).getByRole('button', { name: 'Закрыть' }));
+
+    expect(screen.queryByRole('dialog', { name: 'Ничья' })).not.toBeInTheDocument();
+    expect(boardRender).toHaveBeenCalledTimes(1);
+    expect(historyRender).toHaveBeenCalledTimes(1);
   });
 });

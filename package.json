@@ -7,6 +7,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
+    "perf:report": "npm run build && node scripts/perf-report.mjs",
     "test": "vitest",
     "test:run": "vitest run",
     "lint": "eslint .",
