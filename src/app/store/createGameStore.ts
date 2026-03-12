@@ -126,6 +126,20 @@ function isComputerMatch(matchSettings: MatchSettings): boolean {
   return matchSettings.opponentMode === 'computer';
 }
 
+function getRuleConfigForNewMatch(
+  ruleConfig: RuleConfig,
+  matchSettings: MatchSettings,
+): RuleConfig {
+  if (!isComputerMatch(matchSettings) || ruleConfig.drawRule !== 'none') {
+    return ruleConfig;
+  }
+
+  return {
+    ...ruleConfig,
+    drawRule: 'threefold',
+  };
+}
+
 function isComputerTurn(gameState: GameState, matchSettings: MatchSettings): boolean {
   return isComputerMatch(matchSettings) && gameState.currentPlayer !== matchSettings.humanPlayer;
 }
@@ -1256,10 +1270,11 @@ export function createGameStore(options: StoreOptions = {}) {
       startNewGame: (matchSettings = get().setupMatchSettings) => {
         disposeAiWorker();
         const state = get();
-        const nextGameState = createInitialState(state.ruleConfig);
-        const nextBoardDerivation = getBoardDerivation(nextGameState, state.ruleConfig);
+        const nextRuleConfig = getRuleConfigForNewMatch(state.ruleConfig, matchSettings);
+        const nextGameState = createInitialState(nextRuleConfig);
+        const nextBoardDerivation = getBoardDerivation(nextGameState, nextRuleConfig);
         const nextData = {
-          ruleConfig: state.ruleConfig,
+          ruleConfig: nextRuleConfig,
           preferences: state.preferences,
           matchSettings,
           gameState: nextGameState,

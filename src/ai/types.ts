@@ -4,9 +4,12 @@ import type { AiDifficulty, MatchSettings } from '@/shared/types/session';
 /** Search-budget tuning for one exposed difficulty level. */
 export type AiDifficultyPreset = {
   maxDepth: number;
-  pickTopCount: number;
-  randomThreshold: number;
   quietMoveLimit: number;
+  balancedTopCount: number;
+  balancedThreshold: number;
+  repetitionPenalty: number;
+  selfUndoPenalty: number;
+  rootCandidateLimit: number;
   timeBudgetMs: number;
 };
 
@@ -25,14 +28,34 @@ export type ChooseComputerActionRequest = {
   state: EngineState;
 };
 
+export type AiRootCandidate = {
+  action: TurnAction;
+  isForced: boolean;
+  isRepetition: boolean;
+  isSelfUndo: boolean;
+  isTactical: boolean;
+  score: number;
+};
+
+export type AiSearchDiagnostics = {
+  betaCutoffs: number;
+  quiescenceNodes: number;
+  repetitionPenalties: number;
+  selfUndoPenalties: number;
+  transpositionHits: number;
+};
+
 /** Final decision metadata returned by the search. */
 export type AiSearchResult = {
   action: TurnAction | null;
   completedDepth: number;
   completedRootMoves: number;
+  diagnostics: AiSearchDiagnostics;
   elapsedMs: number;
   evaluatedNodes: number;
   fallbackKind: AiFallbackKind;
+  principalVariation: TurnAction[];
+  rootCandidates: AiRootCandidate[];
   score: number;
   timedOut: boolean;
 };

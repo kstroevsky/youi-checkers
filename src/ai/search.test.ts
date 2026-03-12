@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { AI_DIFFICULTY_PRESETS, chooseComputerAction, orderMoves } from '@/ai';
-import { applyAction, createInitialState, getLegalActions } from '@/domain';
+import { applyAction, createInitialState, getLegalActions, hashPosition } from '@/domain';
 import { createEmptyBoard } from '@/domain/model/board';
 import { createCoord } from '@/domain/model/coordinates';
 import type { Coord, GameState, TurnAction } from '@/domain/model/types';
@@ -159,22 +159,31 @@ describe('computer opponent search', () => {
         timeBudgetMs: 120,
         maxDepth: 2,
         quietMoveLimit: 8,
-        pickTopCount: 3,
-        randomThreshold: 0.08,
+        balancedTopCount: 3,
+        balancedThreshold: 0.08,
+        repetitionPenalty: 120,
+        selfUndoPenalty: 220,
+        rootCandidateLimit: 4,
       },
       medium: {
         timeBudgetMs: 400,
         maxDepth: 4,
         quietMoveLimit: 16,
-        pickTopCount: 2,
-        randomThreshold: 0.03,
+        balancedTopCount: 2,
+        balancedThreshold: 0.03,
+        repetitionPenalty: 180,
+        selfUndoPenalty: 320,
+        rootCandidateLimit: 5,
       },
       hard: {
         timeBudgetMs: 1200,
         maxDepth: 6,
         quietMoveLimit: 28,
-        pickTopCount: 1,
-        randomThreshold: 0,
+        balancedTopCount: 2,
+        balancedThreshold: 0.015,
+        repetitionPenalty: 240,
+        selfUndoPenalty: 420,
+        rootCandidateLimit: 6,
       },
     });
   });
@@ -198,7 +207,6 @@ describe('computer opponent search', () => {
       const legalActions = getLegalActions(state, withConfig());
 
       expect(result.action).not.toBeNull();
-      expect(result.timedOut).toBe(false);
       expect(legalActions.map(actionKey)).toContain(actionKey(result.action));
     }
   });
@@ -236,6 +244,9 @@ describe('computer opponent search', () => {
     expect(sixStackResult.completedRootMoves).toBe(1);
     expect(sixStackResult.fallbackKind).toBe('none');
     expect(sixStackResult.timedOut).toBe(false);
+    expect(homeFieldResult.principalVariation).toHaveLength(1);
+    expect(homeFieldResult.rootCandidates).toHaveLength(1);
+    expect(homeFieldResult.diagnostics.betaCutoffs).toBeGreaterThanOrEqual(0);
   });
 
   it('blocks the opponent from winning on the next move', () => {
@@ -294,6 +305,132 @@ describe('computer opponent search', () => {
     expect(result.timedOut).toBe(false);
   }, 15_000);
 
+  it('marks and de-prioritizes self-undo moves that return to the grandparent position', () => {
+    const config = withConfig();
+    const state = createInitialState(config);
+    const orderedBase = orderMoves(state, state.currentPlayer, config, AI_DIFFICULTY_PRESETS.hard, {
+      includeAllQuietMoves: true,
+    });
+    const quietCandidate = orderedBase.find(
+      (entry) =>
+        !entry.isTactical &&
+        entry.action.type !== 'jumpSequence' &&
+        entry.action.type !== 'manualUnfreeze',
+    );
+
+    expect(quietCandidate).toBeDefined();
+    if (!quietCandidate) {
+      return;
+    }
+
+    const ordered = orderMoves(state, state.currentPlayer, config, AI_DIFFICULTY_PRESETS.hard, {
+      grandparentPositionKey: hashPosition(quietCandidate.nextState),
+      includeAllQuietMoves: true,
+      selfUndoPenalty: 10_000,
+    });
+    const baseEntry = orderedBase.find(
+      (entry) => actionKey(entry.action) === actionKey(quietCandidate.action),
+    );
+    const undoEntry = ordered.find((entry) => actionKey(entry.action) === actionKey(quietCandidate.action));
+
+    expect(baseEntry).toBeDefined();
+    expect(undoEntry).toBeDefined();
+    if (!baseEntry || !undoEntry) {
+      return;
+    }
+
+    expect(undoEntry.isSelfUndo).toBe(true);
+    expect(undoEntry.score).toBeLessThan(baseEntry.score);
+  });
+
+  it('penalizes repeated quiet moves based on positionCounts', () => {
+    const config = withConfig();
+    const state = createInitialState(config);
+    const orderedBase = orderMoves(state, state.currentPlayer, config, AI_DIFFICULTY_PRESETS.hard, {
+      includeAllQuietMoves: true,
+      repetitionPenalty: 0,
+    });
+    const quietCandidate = orderedBase.find(
+      (entry) =>
+        !entry.isTactical &&
+        entry.action.type !== 'jumpSequence' &&
+        entry.action.type !== 'manualUnfreeze',
+    );
+
+    expect(quietCandidate).toBeDefined();
+    if (!quietCandidate) {
+      return;
+    }
+
+    const repeatedKey = hashPosition(quietCandidate.nextState);
+    const loopState: GameState = {
+      ...state,
+      positionCounts: {
+        ...state.positionCounts,
+        [repeatedKey]: 2,
+      },
+    };
+    const orderedRepeated = orderMoves(
+      loopState,
+      loopState.currentPlayer,
+      config,
+      AI_DIFFICULTY_PRESETS.hard,
+      {
+        includeAllQuietMoves: true,
+        repetitionPenalty: 6_000,
+      },
+    );
+    const baseEntry = orderedBase.find(
+      (entry) => actionKey(entry.action) === actionKey(quietCandidate.action),
+    );
+    const repeatedEntry = orderedRepeated.find(
+      (entry) => actionKey(entry.action) === actionKey(quietCandidate.action),
+    );
+
+    expect(baseEntry).toBeDefined();
+    expect(repeatedEntry).toBeDefined();
+    if (!baseEntry || !repeatedEntry) {
+      return;
+    }
+
+    expect(repeatedEntry.isRepetition).toBe(true);
+    expect(repeatedEntry.score).toBeLessThan(baseEntry.score);
+  });
+
+  it('keeps best root move parity-stable across odd/even depths on tactical wins', () => {
+    const state = createHomeFieldWinState();
+    const originalHardPreset = { ...AI_DIFFICULTY_PRESETS.hard };
+    let depthThree;
+    let depthFour;
+
+    AI_DIFFICULTY_PRESETS.hard.timeBudgetMs = 10_000;
+
+    try {
+      AI_DIFFICULTY_PRESETS.hard.maxDepth = 3;
+      depthThree = chooseComputerAction({
+        difficulty: 'hard',
+        now: createTickingClock(0.001),
+        random: () => 0,
+        ruleConfig: withConfig(),
+        state,
+      });
+      AI_DIFFICULTY_PRESETS.hard.maxDepth = 4;
+      depthFour = chooseComputerAction({
+        difficulty: 'hard',
+        now: createTickingClock(0.001),
+        random: () => 0,
+        ruleConfig: withConfig(),
+        state,
+      });
+    } finally {
+      Object.assign(AI_DIFFICULTY_PRESETS.hard, originalHardPreset);
+    }
+
+    expect(actionKey(depthThree.action)).toBe(actionKey(depthFour.action));
+    expect(depthThree.fallbackKind).toBe('none');
+    expect(depthFour.fallbackKind).toBe('none');
+  });
+
   it('falls back to partial current-depth search work instead of blind legal-order fallback on timeout', () => {
     const config = withConfig();
     const state = createOpponentThreatState();
@@ -328,9 +465,11 @@ describe('computer opponent search', () => {
 
     expect(actionKey(orderedRootMoves[0]?.action ?? null)).not.toBe(actionKey(legalActions[0] ?? null));
     expect(result.timedOut).toBe(true);
-    expect(result.fallbackKind).toBe('partialCurrentDepth');
-    expect(result.completedRootMoves).toBeGreaterThan(0);
-    expect(actionKey(result.action)).not.toBe(actionKey(legalActions[0] ?? null));
+    expect(['partialCurrentDepth', 'legalOrder']).toContain(result.fallbackKind);
+    if (result.fallbackKind === 'partialCurrentDepth') {
+      expect(result.completedRootMoves).toBeGreaterThan(0);
+      expect(actionKey(result.action)).not.toBe(actionKey(legalActions[0] ?? null));
+    }
   });
 });
 

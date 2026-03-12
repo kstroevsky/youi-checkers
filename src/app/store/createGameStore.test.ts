@@ -86,9 +86,18 @@ function createAiResult(overrides: Partial<AiSearchResult> = {}): AiSearchResult
     action: null,
     completedDepth: 1,
     completedRootMoves: 1,
+    diagnostics: {
+      betaCutoffs: 0,
+      quiescenceNodes: 0,
+      repetitionPenalties: 0,
+      selfUndoPenalties: 0,
+      transpositionHits: 0,
+    },
     elapsedMs: 0,
     evaluatedNodes: 1,
     fallbackKind: 'none',
+    principalVariation: [],
+    rootCandidates: [],
     score: 10,
     timedOut: false,
     ...overrides,
@@ -565,6 +574,22 @@ describe('createGameStore', () => {
     store.getState().selectCell(humanSource);
 
     expect(store.getState().selectedCell).toBe(humanSource);
+  });
+
+  it('defaults new computer matches to threefold draws when current draw rule is none', () => {
+    const store = createGameStore({
+      storage: undefined,
+    });
+
+    expect(store.getState().ruleConfig.drawRule).toBe('none');
+
+    store.getState().startNewGame({
+      opponentMode: 'computer',
+      humanPlayer: 'white',
+      aiDifficulty: 'medium',
+    });
+
+    expect(store.getState().ruleConfig.drawRule).toBe('threefold');
   });
 
   it('undoes the full human-plus-computer turn pair in computer mode', () => {

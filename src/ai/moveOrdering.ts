@@ -1,11 +1,13 @@
 import {
   advanceEngineState,
   getLegalActions,
+  hashPosition,
   type EngineState,
   type Player,
   type RuleConfig,
   type TurnAction,
 } from '@/domain';
+import { evaluateStructureState } from '@/ai/evaluation';
 import { getCellHeight, getTopChecker } from '@/domain/model/board';
 import { FRONT_HOME_ROW, HOME_ROWS } from '@/domain/model/constants';
 import { getAdjacentCoord, getJumpDirection, parseCoord } from '@/domain/model/coordinates';
@@ -13,17 +15,30 @@ import type { AiDifficultyPreset } from '@/ai/types';
 
 export type OrderedAction = {
   action: TurnAction;
+  isForced: boolean;
+  isRepetition: boolean;
+  isSelfUndo: boolean;
   isTactical: boolean;
   nextState: EngineState;
+  repeatedPositionCount: number;
   score: number;
+  winsImmediately: boolean;
 };
 
 export type OrderMovesOptions = {
   actions?: TurnAction[];
   deadline?: number;
+  grandparentPositionKey?: string | null;
+  historyScores?: Map<string, number>;
   includeAllQuietMoves?: boolean;
+  killerMoves?: TurnAction[];
   now?: () => number;
+  previousActionKey?: string | null;
   pvMove?: TurnAction | null;
+  repetitionPenalty?: number;
+  samePlayerPreviousAction?: TurnAction | null;
+  selfUndoPenalty?: number;
+  continuationScores?: Map<string, number>;
   ttMove?: TurnAction | null;
 };
 
@@ -58,6 +73,71 @@ function isSameAction(left: TurnAction | null | undefined, right: TurnAction): b
   }
 
   return actionKey(left) === actionKey(right);
+}
+
+function getRepeatedPositionCount(state: EngineState): number {
+  return state.positionCounts[hashPosition(state)] ?? 0;
+}
+
+function movedCheckerCount(action: TurnAction): number {
+  switch (action.type) {
+    case 'splitTwoFromStack':
+      return 2;
+    case 'jumpSequence':
+    case 'manualUnfreeze':
+      return 0;
+    default:
+      return 1;
+  }
+}
+
+function getSourceTarget(
+  action: TurnAction,
+): { source: string; target: string } | null {
+  switch (action.type) {
+    case 'manualUnfreeze':
+      return null;
+    case 'jumpSequence':
+      return {
+        source: action.source,
+        target: action.path.at(-1) ?? action.source,
+      };
+    default:
+      return {
+        source: action.source,
+        target: action.target,
+      };
+  }
+}
+
+function isDirectSelfUndo(
+  action: TurnAction,
+  previousOwnAction: TurnAction | null | undefined,
+): boolean {
+  if (!previousOwnAction) {
+    return false;
+  }
+
+  const current = getSourceTarget(action);
+  const previous = getSourceTarget(previousOwnAction);
+
+  if (!current || !previous) {
+    return false;
+  }
+
+  if (
+    current.source !== previous.target ||
+    current.target !== previous.source ||
+    movedCheckerCount(action) !== movedCheckerCount(previousOwnAction)
+  ) {
+    return false;
+  }
+
+  if (action.type === 'jumpSequence' || previousOwnAction.type === 'jumpSequence') {
+    return current.source === previous.target && current.target === previous.source;
+  }
+
+  return true;
 }
 
 /** Detects stack-building moves that directly improve a front-row scoring structure. */
@@ -139,24 +219,41 @@ export function orderMoves(
   {
     actions,
     deadline,
+    grandparentPositionKey = null,
+    historyScores,
     includeAllQuietMoves = false,
+    killerMoves = [],
     now,
+    previousActionKey = null,
     pvMove,
+    repetitionPenalty = preset.repetitionPenalty,
+    samePlayerPreviousAction = null,
+    selfUndoPenalty = preset.selfUndoPenalty,
+    continuationScores,
     ttMove,
   }: OrderMovesOptions = {},
 ): OrderedAction[] {
   const actor = state.currentPlayer;
+  const baseStructureScore = evaluateStructureState(state, actor, ruleConfig);
   const ordered = (actions ?? getLegalActions(state, ruleConfig)).map<OrderedAction>((action) => {
     throwIfTimedOut(deadline, now);
 
     const nextState = advanceEngineState(state, action, ruleConfig);
+    const nextPositionKey = hashPosition(nextState);
     const winsImmediately =
       nextState.status === 'gameOver' &&
       (nextState.victory.type === 'homeField' || nextState.victory.type === 'sixStacks') &&
       nextState.victory.winner === actor;
+    const repeatedPositionCount = getRepeatedPositionCount(nextState);
     const frontRowGrowth = growsFrontRowStack(state, action, nextState, actor);
     const homeProgress = improvesHomeField(action, actor);
     const freezeSwingBonus = getFreezeSwingBonus(state, action, actor);
+    const staticPromise =
+      evaluateStructureState(nextState, actor, ruleConfig) - baseStructureScore;
+    const isRepetition = repeatedPositionCount > 1;
+    const isSelfUndo =
+      (grandparentPositionKey !== null && nextPositionKey === grandparentPositionKey) ||
+      isDirectSelfUndo(action, samePlayerPreviousAction);
     const isTactical =
       winsImmediately ||
       action.type === 'jumpSequence' ||
@@ -164,6 +261,14 @@ export function orderMoves(
       frontRowGrowth ||
       homeProgress ||
       freezeSwingBonus > 0;
+    const isForced = winsImmediately || nextState.status === 'gameOver';
+    const serializedAction = actionKey(action);
+    const historyScore = historyScores?.get(serializedAction) ?? 0;
+    const continuationScore =
+      previousActionKey === null
+        ? 0
+        : continuationScores?.get(`${previousActionKey}->${serializedAction}`) ?? 0;
+    const killerScore = killerMoves.some((killer) => isSameAction(killer, action)) ? 9_000 : 0;
 
     let score = 0;
 
@@ -199,11 +304,29 @@ export function orderMoves(
       score += freezeSwingBonus * 2_000;
     }
 
+    score += Math.max(-8_000, Math.min(8_000, staticPromise));
+    score += Math.min(12_000, historyScore);
+    score += Math.min(8_000, continuationScore);
+    score += killerScore;
+
+    if (isRepetition) {
+      score -= repetitionPenalty * (repeatedPositionCount - 1);
+    }
+
+    if (isSelfUndo && !isTactical) {
+      score -= selfUndoPenalty;
+    }
+
     return {
       action,
+      isForced,
+      isRepetition,
+      isSelfUndo,
       isTactical,
       nextState,
+      repeatedPositionCount,
       score,
+      winsImmediately,
     };
   });
 

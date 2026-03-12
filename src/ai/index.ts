@@ -6,6 +6,8 @@ export { chooseComputerAction } from '@/ai/search';
 export type {
   AiFallbackKind,
   AiDifficultyPreset,
+  AiRootCandidate,
+  AiSearchDiagnostics,
   AiSearchResult,
   AiWorkerRequest,
   AiWorkerResponse,

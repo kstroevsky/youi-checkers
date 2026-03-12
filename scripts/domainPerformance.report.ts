@@ -198,10 +198,21 @@ describePerf('domain performance report', () => {
           return {
             action: actionKey(result.action),
             completedDepth: result.completedDepth,
+            cutoffRate:
+              result.evaluatedNodes > 0
+                ? round(result.diagnostics.betaCutoffs / result.evaluatedNodes, 4)
+                : 0,
+            diagnostics: result.diagnostics,
             evaluatedNodes: result.evaluatedNodes,
             label,
+            principalVariationLength: result.principalVariation.length,
             reportedElapsedMs: round(result.elapsedMs),
+            rootCandidates: result.rootCandidates.length,
             timeBudgetMs: AI_DIFFICULTY_PRESETS[difficulty].timeBudgetMs,
+            transpositionHitRate:
+              result.evaluatedNodes > 0
+                ? round(result.diagnostics.transpositionHits / result.evaluatedNodes, 4)
+                : 0,
             wallTimeMs,
           };
         });
