@@ -8,6 +8,9 @@ export default defineConfig({
       '@': new URL('./src', import.meta.url).pathname,
     },
   },
+  worker: {
+    format: 'es',
+  },
   test: {
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',

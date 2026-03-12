@@ -1,12 +1,14 @@
 import { evaluateState } from '@/ai/evaluation';
 import { orderMoves } from '@/ai/moveOrdering';
 import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
+import { getStrategicIntent } from '@/ai/strategy';
 import type { AiSearchResult, ChooseComputerActionRequest } from '@/ai/types';
 import { getLegalActions, type TurnAction } from '@/domain';
 
 import {
   getMovePenalty,
   getRootPreviousOwnAction,
+  getRootPreviousStrategicTags,
   getRootSelfUndoPositionKey,
   MAX_QUIESCENCE_DEPTH,
 } from '@/ai/search/heuristics';
@@ -19,17 +21,37 @@ import {
   selectCandidateAction,
   sortRankedActions,
 } from '@/ai/search/result';
-import {
-  actionKey,
-  isSearchTimeout,
-  makeTableKey,
-  throwIfTimedOut,
-} from '@/ai/search/shared';
+import { actionKey, isSearchTimeout, makeTableKey, throwIfTimedOut } from '@/ai/search/shared';
 import type { RootRankedAction, SearchContext, TranspositionEntry } from '@/ai/search/types';
+
+function createRootFallbackCandidate(
+  action: TurnAction,
+  score: number,
+  policyPrior: number,
+  strategicIntent: AiSearchResult['strategicIntent'],
+): RootRankedAction {
+  return {
+    action,
+    intent: strategicIntent,
+    intentDelta: 0,
+    isForced: false,
+    isRepetition: false,
+    isSelfUndo: false,
+    isTactical: false,
+    policyPrior,
+    score,
+    tags: [],
+  };
+}
+
+function countPolicyPriorHits(ranked: Array<{ policyPrior: number }>): number {
+  return ranked.reduce((count, entry) => count + (entry.policyPrior > 0 ? 1 : 0), 0);
+}
 
 /** Chooses one computer move using iterative deepening negamax with alpha-beta pruning. */
 export function chooseComputerAction({
   difficulty,
+  modelGuidance = null,
   now = () => performance.now(),
   random = Math.random,
   ruleConfig,
@@ -39,6 +61,10 @@ export function chooseComputerAction({
   const startedAt = now();
   const deadline = startedAt + preset.timeBudgetMs;
   const legalActions = getLegalActions(state, ruleConfig);
+  const inferredIntent = getStrategicIntent(state, state.currentPlayer).intent;
+  const strategicIntent = modelGuidance?.strategicIntent ?? inferredIntent;
+  const policyPriors = modelGuidance?.actionPriors ?? null;
+  const rootPositionKey = makeTableKey(state);
   let fallbackScore: number | null = null;
 
   function getFallbackScore(): number {
@@ -50,6 +76,7 @@ export function chooseComputerAction({
     return {
       ...createEmptyResult(null, getFallbackScore()),
       fallbackKind: 'none',
+      strategicIntent,
     };
   }
 
@@ -61,14 +88,38 @@ export function chooseComputerAction({
     historyScores: new Map<string, number>(),
     killerMovesByDepth: new Map<number, TurnAction[]>(),
     now,
+    policyPriors,
     preset,
     pvMoveByDepth: new Map<number, TurnAction>(),
     rootPreviousOwnAction: getRootPreviousOwnAction(state),
+    rootPreviousStrategicTags: getRootPreviousStrategicTags(state),
+    rootStrategicIntent: strategicIntent,
     quiescenceDepthLimit: preset.maxDepth + MAX_QUIESCENCE_DEPTH,
     rootSelfUndoPositionKey: getRootSelfUndoPositionKey(state),
     ruleConfig,
     table: new Map<string, TranspositionEntry>(),
   };
+
+  const buildRootOrdering = (pvMove: TurnAction | null): ReturnType<typeof orderMoves> =>
+    orderMoves(state, state.currentPlayer, ruleConfig, preset, {
+      actions: legalActions,
+      deadline,
+      grandparentPositionKey: context.rootSelfUndoPositionKey,
+      historyScores: context.historyScores,
+      includeAllQuietMoves: true,
+      killerMoves: context.killerMovesByDepth.get(0) ?? [],
+      now,
+      policyPriors,
+      previousStrategicTags: context.rootPreviousStrategicTags,
+      previousActionKey: null,
+      policyPriorWeight: preset.policyPriorWeight,
+      pvMove,
+      repetitionPenalty: preset.repetitionPenalty,
+      samePlayerPreviousAction: context.rootPreviousOwnAction,
+      selfUndoPenalty: preset.selfUndoPenalty,
+      continuationScores: context.continuationScores,
+      ttMove: context.table.get(rootPositionKey)?.bestAction ?? null,
+    });
 
   let completedDepth = 0;
   let completedRootMoves = 0;
@@ -79,22 +130,8 @@ export function chooseComputerAction({
   let rootCandidates: RootRankedAction[] = [];
 
   try {
-    const rootOrderedMoves = orderMoves(state, state.currentPlayer, ruleConfig, preset, {
-      actions: legalActions,
-      deadline,
-      grandparentPositionKey: context.rootSelfUndoPositionKey,
-      historyScores: context.historyScores,
-      includeAllQuietMoves: true,
-      killerMoves: [],
-      now,
-      previousActionKey: null,
-      pvMove: null,
-      repetitionPenalty: preset.repetitionPenalty,
-      samePlayerPreviousAction: context.rootPreviousOwnAction,
-      selfUndoPenalty: preset.selfUndoPenalty,
-      continuationScores: context.continuationScores,
-      ttMove: null,
-    });
+    const rootOrderedMoves = buildRootOrdering(null);
+    context.diagnostics.policyPriorHits += countPolicyPriorHits(rootOrderedMoves);
 
     for (const entry of rootOrderedMoves) {
       if (
@@ -112,17 +149,25 @@ export function chooseComputerAction({
           evaluatedNodes: 1,
           fallbackKind: 'none',
           principalVariation: [entry.action],
-          rootCandidates: [
-            {
-              action: entry.action,
-              isForced: entry.isForced,
-              isRepetition: entry.isRepetition,
-              isSelfUndo: entry.isSelfUndo,
-              isTactical: entry.isTactical,
-              score: 1_000_000,
-            },
-          ],
+          rootCandidates: orderRootCandidates(
+            [
+              {
+                action: entry.action,
+                intent: entry.intent,
+                intentDelta: entry.intentDelta,
+                isForced: entry.isForced,
+                isRepetition: entry.isRepetition,
+                isSelfUndo: entry.isSelfUndo,
+                isTactical: entry.isTactical,
+                policyPrior: entry.policyPrior,
+                score: 1_000_000,
+                tags: entry.tags,
+              },
+            ],
+            preset.rootCandidateLimit,
+          ),
           score: 1_000_000,
+          strategicIntent,
           timedOut: false,
         };
       }
@@ -141,84 +186,100 @@ export function chooseComputerAction({
       evaluatedNodes: 0,
       fallbackKind: 'legalOrder',
       principalVariation: [legalActions[0]],
-      rootCandidates: [
-        {
-          action: legalActions[0],
-          isForced: false,
-          isRepetition: false,
-          isSelfUndo: false,
-          isTactical: false,
-          score: getFallbackScore(),
-        },
-      ],
+      rootCandidates: orderRootCandidates(
+        [
+          createRootFallbackCandidate(
+            legalActions[0],
+            getFallbackScore(),
+            policyPriors?.[actionKey(legalActions[0])] ?? 0,
+            strategicIntent,
+          ),
+        ],
+        preset.rootCandidateLimit,
+      ),
       score: getFallbackScore(),
+      strategicIntent,
       timedOut: true,
     };
   }
 
-  const rootPositionKey = makeTableKey(state);
+  const runDepthSearch = (
+    depth: number,
+    alphaWindow: number,
+    betaWindow: number,
+  ): RootRankedAction[] => {
+    const ranked: RootRankedAction[] = [];
+    const orderedMoves = buildRootOrdering(context.pvMoveByDepth.get(0) ?? null);
+
+    context.diagnostics.policyPriorHits += countPolicyPriorHits(orderedMoves);
+
+    for (const entry of orderedMoves) {
+      throwIfTimedOut(now, deadline);
+
+      let score = -negamax(
+        entry.nextState,
+        depth - 1,
+        -betaWindow,
+        -alphaWindow,
+        1,
+        [rootPositionKey, makeTableKey(entry.nextState)],
+        [entry.action],
+        actionKey(entry.action),
+        context,
+      );
+
+      score -= getMovePenalty(entry, context);
+
+      ranked.push({
+        action: entry.action,
+        intent: entry.intent,
+        intentDelta: entry.intentDelta,
+        isForced: entry.isForced,
+        isRepetition: entry.isRepetition,
+        isSelfUndo: entry.isSelfUndo,
+        isTactical: entry.isTactical,
+        policyPrior: entry.policyPrior,
+        score,
+        tags: entry.tags,
+      });
+    }
+
+    return sortRankedActions(ranked);
+  };
 
   for (let depth = 1; depth <= preset.maxDepth; depth += 1) {
-    const ranked: RootRankedAction[] = [];
+    let ranked: RootRankedAction[] = [];
+    const hasAspirationCenter = completedDepth > 0 && Number.isFinite(bestScore);
+    const windowSize = 220 + depth * 80;
+    let alphaWindow = hasAspirationCenter ? bestScore - windowSize : Number.NEGATIVE_INFINITY;
+    let betaWindow = hasAspirationCenter ? bestScore + windowSize : Number.POSITIVE_INFINITY;
 
     try {
       throwIfTimedOut(now, deadline);
+      ranked = runDepthSearch(depth, alphaWindow, betaWindow);
 
-      const orderedMoves = orderMoves(state, state.currentPlayer, ruleConfig, preset, {
-        actions: legalActions,
-        deadline,
-        grandparentPositionKey: context.rootSelfUndoPositionKey,
-        historyScores: context.historyScores,
-        includeAllQuietMoves: true,
-        killerMoves: context.killerMovesByDepth.get(0) ?? [],
-        now,
-        previousActionKey: null,
-        pvMove: context.pvMoveByDepth.get(0),
-        repetitionPenalty: preset.repetitionPenalty,
-        samePlayerPreviousAction: context.rootPreviousOwnAction,
-        selfUndoPenalty: preset.selfUndoPenalty,
-        continuationScores: context.continuationScores,
-        ttMove: context.table.get(rootPositionKey)?.bestAction,
-      });
+      const aspirationMiss =
+        hasAspirationCenter &&
+        ranked.length > 0 &&
+        (ranked[0].score <= alphaWindow || ranked[0].score >= betaWindow);
 
-      for (const entry of orderedMoves) {
-        throwIfTimedOut(now, deadline);
-
-        let score = -negamax(
-          entry.nextState,
-          depth - 1,
-          Number.NEGATIVE_INFINITY,
-          Number.POSITIVE_INFINITY,
-          1,
-          [rootPositionKey, makeTableKey(entry.nextState)],
-          [entry.action],
-          actionKey(entry.action),
-          context,
-        );
-
-        score -= getMovePenalty(entry, context);
-
-        ranked.push({
-          action: entry.action,
-          isForced: entry.isForced,
-          isRepetition: entry.isRepetition,
-          isSelfUndo: entry.isSelfUndo,
-          isTactical: entry.isTactical,
-          score,
-        });
+      if (aspirationMiss) {
+        context.diagnostics.aspirationResearches += 1;
+        alphaWindow = Number.NEGATIVE_INFINITY;
+        betaWindow = Number.POSITIVE_INFINITY;
+        ranked = runDepthSearch(depth, alphaWindow, betaWindow);
       }
     } catch (error) {
       if (isSearchTimeout(error)) {
         timedOut = true;
 
         if (ranked.length > 0) {
-          const partialRanked = sortRankedActions(ranked);
-          const partialBest = partialRanked[0];
+          const partialBest = ranked[0];
 
           bestAction = partialBest.action;
           bestScore = partialBest.score;
-          completedRootMoves = partialRanked.length;
-          rootCandidates = partialRanked;
+          completedRootMoves = ranked.length;
+          rootCandidates = ranked;
           fallbackKind = 'partialCurrentDepth';
         } else if (completedDepth > 0) {
           fallbackKind = 'previousDepth';
@@ -227,14 +288,12 @@ export function chooseComputerAction({
           bestScore = getFallbackScore();
           completedRootMoves = 0;
           rootCandidates = [
-            {
-              action: legalActions[0],
-              isForced: false,
-              isRepetition: false,
-              isSelfUndo: false,
-              isTactical: false,
-              score: bestScore,
-            },
+            createRootFallbackCandidate(
+              legalActions[0],
+              bestScore,
+              policyPriors?.[actionKey(legalActions[0])] ?? 0,
+              strategicIntent,
+            ),
           ];
         }
 
@@ -243,8 +302,6 @@ export function chooseComputerAction({
 
       throw error;
     }
-
-    sortRankedActions(ranked);
 
     if (!ranked.length) {
       break;
@@ -271,6 +328,7 @@ export function chooseComputerAction({
     principalVariation: buildPrincipalVariation(state, bestAction, completedDepth, context),
     rootCandidates: orderRootCandidates(rootCandidates, preset.rootCandidateLimit),
     score: bestScore,
+    strategicIntent,
     timedOut,
   };
 }

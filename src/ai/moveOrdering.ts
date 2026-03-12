@@ -8,21 +8,30 @@ import {
   type TurnAction,
 } from '@/domain';
 import { evaluateStructureState } from '@/ai/evaluation';
+import {
+  getActionStrategicProfile,
+  getNoveltyPenalty,
+  type ActionStrategicProfile,
+} from '@/ai/strategy';
 import { actionKey, throwIfTimedOut } from '@/ai/search/shared';
 import { getCellHeight, getTopChecker } from '@/domain/model/board';
 import { FRONT_HOME_ROW, HOME_ROWS } from '@/domain/model/constants';
 import { getAdjacentCoord, getJumpDirection, parseCoord } from '@/domain/model/coordinates';
-import type { AiDifficultyPreset } from '@/ai/types';
+import type { AiDifficultyPreset, AiStrategicIntent, AiStrategicTag } from '@/ai/types';
 
 export type OrderedAction = {
   action: TurnAction;
+  intent: AiStrategicIntent;
+  intentDelta: number;
   isForced: boolean;
   isRepetition: boolean;
   isSelfUndo: boolean;
   isTactical: boolean;
   nextState: EngineState;
+  policyPrior: number;
   repeatedPositionCount: number;
   score: number;
+  tags: AiStrategicTag[];
   winsImmediately: boolean;
 };
 
@@ -34,7 +43,10 @@ export type OrderMovesOptions = {
   includeAllQuietMoves?: boolean;
   killerMoves?: TurnAction[];
   now?: () => number;
+  policyPriors?: Record<string, number> | null;
+  previousStrategicTags?: AiStrategicTag[] | null;
   previousActionKey?: string | null;
+  policyPriorWeight?: number;
   pvMove?: TurnAction | null;
   repetitionPenalty?: number;
   samePlayerPreviousAction?: TurnAction | null;
@@ -209,7 +221,10 @@ export function orderMoves(
     includeAllQuietMoves = false,
     killerMoves = [],
     now,
+    policyPriors = null,
+    previousStrategicTags = null,
     previousActionKey = null,
+    policyPriorWeight = preset.policyPriorWeight,
     pvMove,
     repetitionPenalty = preset.repetitionPenalty,
     samePlayerPreviousAction = null,
@@ -233,8 +248,16 @@ export function orderMoves(
     const frontRowGrowth = growsFrontRowStack(state, action, nextState, actor);
     const homeProgress = improvesHomeField(action, actor);
     const freezeSwingBonus = getFreezeSwingBonus(state, action, actor);
+    const strategicProfile = getActionStrategicProfile(
+      state,
+      action,
+      nextState,
+      actor,
+    );
     const staticPromise =
       evaluateStructureState(nextState, actor, ruleConfig) - baseStructureScore;
+    const serializedAction = actionKey(action);
+    const policyPrior = policyPriors?.[serializedAction] ?? 0;
     const isRepetition = repeatedPositionCount > 1;
     const isSelfUndo =
       (grandparentPositionKey !== null && nextPositionKey === grandparentPositionKey) ||
@@ -245,15 +268,17 @@ export function orderMoves(
       action.type === 'manualUnfreeze' ||
       frontRowGrowth ||
       homeProgress ||
-      freezeSwingBonus > 0;
+      freezeSwingBonus > 0 ||
+      strategicProfile.tags.includes('freezeBlock') ||
+      strategicProfile.tags.includes('rescue');
     const isForced = winsImmediately || nextState.status === 'gameOver';
-    const serializedAction = actionKey(action);
     const historyScore = historyScores?.get(serializedAction) ?? 0;
     const continuationScore =
       previousActionKey === null
         ? 0
         : continuationScores?.get(`${previousActionKey}->${serializedAction}`) ?? 0;
     const killerScore = killerMoves.some((killer) => isSameAction(killer, action)) ? 9_000 : 0;
+    const noveltyPenalty = getNoveltyPenalty(strategicProfile.tags, previousStrategicTags);
 
     let score = 0;
 
@@ -290,9 +315,13 @@ export function orderMoves(
     }
 
     score += Math.max(-8_000, Math.min(8_000, staticPromise));
+    score += Math.max(-6_000, Math.min(6_000, strategicProfile.intentDelta));
+    score += strategicProfile.policyBias;
+    score += Math.round(policyPrior * policyPriorWeight);
     score += Math.min(12_000, historyScore);
     score += Math.min(8_000, continuationScore);
     score += killerScore;
+    score -= noveltyPenalty;
 
     if (isRepetition) {
       score -= repetitionPenalty * (repeatedPositionCount - 1);
@@ -304,13 +333,17 @@ export function orderMoves(
 
     return {
       action,
+      intent: strategicProfile.intent,
+      intentDelta: strategicProfile.intentDelta,
       isForced,
       isRepetition,
       isSelfUndo,
       isTactical,
       nextState,
+      policyPrior,
       repeatedPositionCount,
       score,
+      tags: strategicProfile.tags,
       winsImmediately,
     };
   });

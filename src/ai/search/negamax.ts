@@ -77,6 +77,8 @@ export function negamax(
     historyScores: context.historyScores,
     killerMoves: context.killerMovesByDepth.get(currentDepth) ?? [],
     now: context.now,
+    policyPriors: null,
+    previousStrategicTags: currentDepth === 0 ? context.rootPreviousStrategicTags : null,
     previousActionKey,
     pvMove: context.pvMoveByDepth.get(currentDepth),
     repetitionPenalty: context.preset.repetitionPenalty,
@@ -94,20 +96,55 @@ export function negamax(
 
   let bestAction: TurnAction | null = cached?.bestAction ?? null;
   let bestScore = Number.NEGATIVE_INFINITY;
+  let searchedFirstChild = false;
 
   for (const entry of orderedMoves) {
     const nextPositionKey = makeTableKey(entry.nextState);
-    let score = -negamax(
-      entry.nextState,
-      depth - 1,
-      -beta,
-      -alpha,
-      currentDepth + 1,
-      [...ancestorPositionKeys, nextPositionKey],
-      [...ancestorActions, entry.action],
-      actionKey(entry.action),
-      context,
-    );
+    const nextAncestorPositionKeys = [...ancestorPositionKeys, nextPositionKey];
+    const nextAncestorActions = [...ancestorActions, entry.action];
+    let score: number;
+
+    if (!searchedFirstChild) {
+      score = -negamax(
+        entry.nextState,
+        depth - 1,
+        -beta,
+        -alpha,
+        currentDepth + 1,
+        nextAncestorPositionKeys,
+        nextAncestorActions,
+        actionKey(entry.action),
+        context,
+      );
+      searchedFirstChild = true;
+    } else {
+      score = -negamax(
+        entry.nextState,
+        depth - 1,
+        -alpha - 1,
+        -alpha,
+        currentDepth + 1,
+        nextAncestorPositionKeys,
+        nextAncestorActions,
+        actionKey(entry.action),
+        context,
+      );
+
+      if (score > alpha && score < beta) {
+        context.diagnostics.pvsResearches += 1;
+        score = -negamax(
+          entry.nextState,
+          depth - 1,
+          -beta,
+          -alpha,
+          currentDepth + 1,
+          nextAncestorPositionKeys,
+          nextAncestorActions,
+          actionKey(entry.action),
+          context,
+        );
+      }
+    }
 
     score -= getMovePenalty(entry, context);
 

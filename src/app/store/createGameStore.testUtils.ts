@@ -118,7 +118,10 @@ export function createAiResult(overrides: Partial<AiSearchResult> = {}): AiSearc
     completedDepth: 1,
     completedRootMoves: 1,
     diagnostics: {
+      aspirationResearches: 0,
       betaCutoffs: 0,
+      policyPriorHits: 0,
+      pvsResearches: 0,
       quiescenceNodes: 0,
       repetitionPenalties: 0,
       selfUndoPenalties: 0,
@@ -130,6 +133,7 @@ export function createAiResult(overrides: Partial<AiSearchResult> = {}): AiSearc
     principalVariation: [],
     rootCandidates: [],
     score: 10,
+    strategicIntent: 'hybrid',
     timedOut: false,
     ...overrides,
   };

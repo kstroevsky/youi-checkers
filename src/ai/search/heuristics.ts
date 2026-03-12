@@ -1,5 +1,6 @@
 import type { OrderedAction } from '@/ai/moveOrdering';
-import type { AiRootCandidate } from '@/ai/types';
+import { getActionStrategicProfile } from '@/ai/strategy';
+import type { AiRootCandidate, AiStrategicTag } from '@/ai/types';
 import type { EngineState, TurnAction } from '@/domain';
 
 import { actionKey } from '@/ai/search/shared';
@@ -69,11 +70,15 @@ export function rememberCutoffMove(
 export function toRootCandidate(entry: RootRankedAction): AiRootCandidate {
   return {
     action: entry.action,
+    forced: entry.isForced,
+    intentDelta: entry.intentDelta,
     isForced: entry.isForced,
     isRepetition: entry.isRepetition,
     isSelfUndo: entry.isSelfUndo,
     isTactical: entry.isTactical,
+    policyPrior: entry.policyPrior,
     score: entry.score,
+    tags: entry.tags,
   };
 }
 
@@ -106,6 +111,36 @@ export function getRootPreviousOwnAction(state: EngineState): TurnAction | null 
     if (record.actor === state.currentPlayer) {
       return record.action;
     }
+  }
+
+  return null;
+}
+
+/** Rebuilds the tags for the previous same-side action to support root novelty scoring. */
+export function getRootPreviousStrategicTags(
+  state: EngineState,
+): AiStrategicTag[] | null {
+  if (!('history' in state) || !Array.isArray(state.history)) {
+    return null;
+  }
+
+  for (let index = state.history.length - 1; index >= 0; index -= 1) {
+    const record = state.history[index];
+
+    if (record.actor !== state.currentPlayer) {
+      continue;
+    }
+
+    const beforeState: EngineState = {
+      ...record.beforeState,
+      positionCounts: state.positionCounts,
+    };
+    const afterState: EngineState = {
+      ...record.afterState,
+      positionCounts: state.positionCounts,
+    };
+
+    return getActionStrategicProfile(beforeState, record.action, afterState, record.actor).tags;
   }
 
   return null;

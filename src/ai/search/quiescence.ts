@@ -61,6 +61,8 @@ export function getQuiescenceMoves(
     includeAllQuietMoves: true,
     killerMoves: context.killerMovesByDepth.get(currentDepth) ?? [],
     now: context.now,
+    policyPriors: null,
+    previousStrategicTags: null,
     previousActionKey,
     pvMove: context.pvMoveByDepth.get(currentDepth),
     repetitionPenalty: context.preset.repetitionPenalty,

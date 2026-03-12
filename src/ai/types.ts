@@ -1,16 +1,28 @@
 import type { EngineState, RuleConfig, TurnAction } from '@/domain';
 import type { AiDifficulty, MatchSettings } from '@/shared/types/session';
 
+export type AiStrategicIntent = 'home' | 'sixStack' | 'hybrid';
+export type AiStrategicTag =
+  | 'advanceMass'
+  | 'captureControl'
+  | 'decompress'
+  | 'freezeBlock'
+  | 'frontBuild'
+  | 'openLane'
+  | 'rescue';
+
 /** Search-budget tuning for one exposed difficulty level. */
 export type AiDifficultyPreset = {
   maxDepth: number;
+  policyPriorWeight: number;
   quietMoveLimit: number;
-  balancedTopCount: number;
-  balancedThreshold: number;
   repetitionPenalty: number;
-  selfUndoPenalty: number;
   rootCandidateLimit: number;
+  selfUndoPenalty: number;
   timeBudgetMs: number;
+  varietyTemperature: number;
+  varietyThreshold: number;
+  varietyTopCount: number;
 };
 
 export type AiFallbackKind =
@@ -22,23 +34,38 @@ export type AiFallbackKind =
 /** Inputs accepted by the pure search entrypoint. */
 export type ChooseComputerActionRequest = {
   difficulty: AiDifficulty;
+  modelGuidance?: AiModelGuidance | null;
   now?: () => number;
   random?: () => number;
   ruleConfig: RuleConfig;
   state: EngineState;
 };
 
+export type AiModelGuidance = {
+  actionPriors: Record<string, number>;
+  source: 'none' | 'onnx';
+  strategicIntent: AiStrategicIntent | null;
+  valueEstimate: number | null;
+};
+
 export type AiRootCandidate = {
   action: TurnAction;
+  forced: boolean;
+  intentDelta: number;
   isForced: boolean;
   isRepetition: boolean;
   isSelfUndo: boolean;
   isTactical: boolean;
+  policyPrior: number;
   score: number;
+  tags: AiStrategicTag[];
 };
 
 export type AiSearchDiagnostics = {
+  aspirationResearches: number;
   betaCutoffs: number;
+  policyPriorHits: number;
+  pvsResearches: number;
   quiescenceNodes: number;
   repetitionPenalties: number;
   selfUndoPenalties: number;
@@ -57,6 +84,7 @@ export type AiSearchResult = {
   principalVariation: TurnAction[];
   rootCandidates: AiRootCandidate[];
   score: number;
+  strategicIntent: AiStrategicIntent;
   timedOut: boolean;
 };
 

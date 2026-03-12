@@ -1,6 +1,8 @@
 import { describe, expect, it } from 'vitest';
 
 import { AI_DIFFICULTY_PRESETS, chooseComputerAction, orderMoves } from '@/ai';
+import { selectCandidateAction } from '@/ai/search/result';
+import type { RootRankedAction } from '@/ai/search/types';
 import { applyAction, createInitialState, getLegalActions, hashPosition } from '@/domain';
 import type { GameState, TurnAction } from '@/domain/model/types';
 import { resetFactoryIds, withConfig } from '@/test/factories';
@@ -19,32 +21,38 @@ describe('computer opponent search', () => {
       easy: {
         timeBudgetMs: 120,
         maxDepth: 2,
+        policyPriorWeight: 80,
         quietMoveLimit: 8,
-        balancedTopCount: 3,
-        balancedThreshold: 0.08,
         repetitionPenalty: 120,
         selfUndoPenalty: 220,
         rootCandidateLimit: 4,
+        varietyTemperature: 0.35,
+        varietyThreshold: 0.08,
+        varietyTopCount: 3,
       },
       medium: {
         timeBudgetMs: 400,
         maxDepth: 4,
+        policyPriorWeight: 140,
         quietMoveLimit: 16,
-        balancedTopCount: 2,
-        balancedThreshold: 0.03,
         repetitionPenalty: 180,
         selfUndoPenalty: 320,
         rootCandidateLimit: 5,
+        varietyTemperature: 0.22,
+        varietyThreshold: 0.03,
+        varietyTopCount: 2,
       },
       hard: {
         timeBudgetMs: 1200,
         maxDepth: 6,
+        policyPriorWeight: 220,
         quietMoveLimit: 28,
-        balancedTopCount: 2,
-        balancedThreshold: 0.015,
         repetitionPenalty: 240,
         selfUndoPenalty: 420,
         rootCandidateLimit: 6,
+        varietyTemperature: 0.15,
+        varietyThreshold: 0.015,
+        varietyTopCount: 3,
       },
     });
   });
@@ -107,6 +115,14 @@ describe('computer opponent search', () => {
     expect(sixStackResult.timedOut).toBe(false);
     expect(homeFieldResult.principalVariation).toHaveLength(1);
     expect(homeFieldResult.rootCandidates).toHaveLength(1);
+    expect(homeFieldResult.strategicIntent).toBe('home');
+    expect(sixStackResult.strategicIntent).toBe('sixStack');
+    expect(homeFieldResult.rootCandidates[0]).toMatchObject({
+      forced: true,
+      policyPrior: 0,
+      tags: expect.any(Array),
+    });
+    expect(homeFieldResult.diagnostics.aspirationResearches).toBeGreaterThanOrEqual(0);
     expect(homeFieldResult.diagnostics.betaCutoffs).toBeGreaterThanOrEqual(0);
   });
 
@@ -237,13 +253,13 @@ describe('computer opponent search', () => {
     let depthThree;
     let depthFour;
 
-    AI_DIFFICULTY_PRESETS.hard.timeBudgetMs = 10_000;
+    AI_DIFFICULTY_PRESETS.hard.timeBudgetMs = 1_200;
 
     try {
       AI_DIFFICULTY_PRESETS.hard.maxDepth = 3;
       depthThree = chooseComputerAction({
         difficulty: 'hard',
-        now: createTickingClock(0.001),
+        now: () => 0,
         random: () => 0,
         ruleConfig: withConfig(),
         state,
@@ -251,7 +267,7 @@ describe('computer opponent search', () => {
       AI_DIFFICULTY_PRESETS.hard.maxDepth = 4;
       depthFour = chooseComputerAction({
         difficulty: 'hard',
-        now: createTickingClock(0.001),
+        now: () => 0,
         random: () => 0,
         ruleConfig: withConfig(),
         state,
@@ -263,5 +279,93 @@ describe('computer opponent search', () => {
     expect(actionKey(depthThree.action)).toBe(actionKey(depthFour.action));
     expect(depthThree.fallbackKind).toBe('none');
     expect(depthFour.fallbackKind).toBe('none');
+  });
+
+  it('surfaces multiple quiet root candidates when hard-mode variety is widened', () => {
+    const config = withConfig();
+    const state = createInitialState(config);
+    const originalHardPreset = { ...AI_DIFFICULTY_PRESETS.hard };
+    let result;
+
+    Object.assign(AI_DIFFICULTY_PRESETS.hard, {
+      maxDepth: 1,
+      timeBudgetMs: 2_000,
+      varietyTemperature: 0.6,
+      varietyThreshold: 1,
+      varietyTopCount: 3,
+    });
+
+    try {
+      result = chooseComputerAction({
+        difficulty: 'hard',
+        now: createTickingClock(0.01),
+        random: () => 0,
+        ruleConfig: config,
+        state,
+      });
+    } finally {
+      Object.assign(AI_DIFFICULTY_PRESETS.hard, originalHardPreset);
+    }
+
+    expect(result.rootCandidates.length).toBeGreaterThan(1);
+    expect(result.rootCandidates.some((candidate) => !candidate.isTactical)).toBe(true);
+    expect(result.rootCandidates.every((candidate) => Array.isArray(candidate.tags))).toBe(true);
+  }, 15_000);
+
+  it('samples different strategic tags across near-equal synthetic root candidates', () => {
+    const originalHardPreset = { ...AI_DIFFICULTY_PRESETS.hard };
+
+    Object.assign(AI_DIFFICULTY_PRESETS.hard, {
+      varietyTemperature: 0.4,
+      varietyThreshold: 0.2,
+      varietyTopCount: 3,
+    });
+
+    try {
+      const ranked: RootRankedAction[] = [
+        {
+          action: { type: 'climbOne', source: 'A1', target: 'B2' } as const,
+          intent: 'home' as const,
+          intentDelta: 80,
+          isForced: false,
+          isRepetition: false,
+          isSelfUndo: false,
+          isTactical: false,
+          policyPrior: 0.2,
+          score: 500,
+          tags: ['advanceMass'],
+        },
+        {
+          action: { type: 'climbOne', source: 'B1', target: 'C2' } as const,
+          intent: 'hybrid' as const,
+          intentDelta: 65,
+          isForced: false,
+          isRepetition: false,
+          isSelfUndo: false,
+          isTactical: false,
+          policyPrior: 0.1,
+          score: 495,
+          tags: ['openLane'],
+        },
+        {
+          action: { type: 'climbOne', source: 'C1', target: 'D2' } as const,
+          intent: 'sixStack' as const,
+          intentDelta: 60,
+          isForced: false,
+          isRepetition: false,
+          isSelfUndo: false,
+          isTactical: false,
+          policyPrior: 0.05,
+          score: 492,
+          tags: ['frontBuild'],
+        },
+      ];
+
+      expect(actionKey(selectCandidateAction(ranked, AI_DIFFICULTY_PRESETS.hard, () => 0).action)).not.toBe(
+        actionKey(selectCandidateAction(ranked, AI_DIFFICULTY_PRESETS.hard, () => 0.99).action),
+      );
+    } finally {
+      Object.assign(AI_DIFFICULTY_PRESETS.hard, originalHardPreset);
+    }
   });
 });
