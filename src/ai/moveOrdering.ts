@@ -9,6 +9,11 @@ import {
 } from '@/domain';
 import { evaluateStructureState } from '@/ai/evaluation';
 import {
+  getActionParticipationProfile,
+  type ParticipationState,
+  type SourceRegion,
+} from '@/ai/participation';
+import {
   getActionStrategicProfile,
   getNoveltyPenalty,
   type ActionStrategicProfile,
@@ -27,10 +32,17 @@ export type OrderedAction = {
   isRepetition: boolean;
   isSelfUndo: boolean;
   isTactical: boolean;
+  movedMass: number;
   nextState: EngineState;
+  nextParticipationState: ParticipationState;
+  participationDelta: number;
   policyPrior: number;
   repeatedPositionCount: number;
+  repeatsSourceFamily: boolean;
+  repeatsSourceRegion: boolean;
   score: number;
+  sourceFamily: string;
+  sourceRegion: SourceRegion;
   tags: AiStrategicTag[];
   winsImmediately: boolean;
 };
@@ -43,6 +55,7 @@ export type OrderMovesOptions = {
   includeAllQuietMoves?: boolean;
   killerMoves?: TurnAction[];
   now?: () => number;
+  participationState?: ParticipationState | null;
   policyPriors?: Record<string, number> | null;
   previousStrategicTags?: AiStrategicTag[] | null;
   previousActionKey?: string | null;
@@ -221,6 +234,7 @@ export function orderMoves(
     includeAllQuietMoves = false,
     killerMoves = [],
     now,
+    participationState = null,
     policyPriors = null,
     previousStrategicTags = null,
     previousActionKey = null,
@@ -266,11 +280,21 @@ export function orderMoves(
       winsImmediately ||
       action.type === 'jumpSequence' ||
       action.type === 'manualUnfreeze' ||
-      frontRowGrowth ||
-      homeProgress ||
       freezeSwingBonus > 0 ||
       strategicProfile.tags.includes('freezeBlock') ||
       strategicProfile.tags.includes('rescue');
+    const participationProfile = getActionParticipationProfile(
+      state,
+      action,
+      nextState,
+      actor,
+      participationState,
+      preset,
+      {
+        isTactical,
+        winsImmediately,
+      },
+    );
     const isForced = winsImmediately || nextState.status === 'gameOver';
     const historyScore = historyScores?.get(serializedAction) ?? 0;
     const continuationScore =
@@ -295,27 +319,28 @@ export function orderMoves(
     }
 
     if (action.type === 'jumpSequence') {
-      score += 25_000;
+      score += 7_500;
     }
 
     if (action.type === 'manualUnfreeze') {
-      score += 18_000;
+      score += 5_500;
     }
 
     if (frontRowGrowth) {
-      score += 8_000;
+      score += 5_000;
     }
 
     if (homeProgress) {
-      score += 4_000;
+      score += 2_500;
     }
 
     if (freezeSwingBonus > 0) {
-      score += freezeSwingBonus * 2_000;
+      score += freezeSwingBonus * 1_200;
     }
 
     score += Math.max(-8_000, Math.min(8_000, staticPromise));
     score += Math.max(-6_000, Math.min(6_000, strategicProfile.intentDelta));
+    score += Math.max(-2_400, Math.min(2_400, participationProfile.participationDelta));
     score += strategicProfile.policyBias;
     score += Math.round(policyPrior * policyPriorWeight);
     score += Math.min(12_000, historyScore);
@@ -339,10 +364,17 @@ export function orderMoves(
       isRepetition,
       isSelfUndo,
       isTactical,
+      movedMass: participationProfile.movedMass,
       nextState,
+      nextParticipationState: participationProfile.nextParticipationState,
+      participationDelta: participationProfile.participationDelta,
       policyPrior,
       repeatedPositionCount,
+      repeatsSourceFamily: participationProfile.repeatsSourceFamily,
+      repeatsSourceRegion: participationProfile.repeatsSourceRegion,
       score,
+      sourceFamily: participationProfile.sourceFamily,
+      sourceRegion: participationProfile.sourceRegion,
       tags: strategicProfile.tags,
       winsImmediately,
     };

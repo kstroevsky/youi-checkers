@@ -1,5 +1,7 @@
+import type { AiDifficultyPreset } from '@/ai/types';
 import type { EngineState, Player, RuleConfig } from '@/domain';
 
+import { getParticipationScore, type ParticipationState } from '@/ai/participation';
 import { getStrategicIntent, getStrategicScore } from '@/ai/strategy';
 
 const TERMINAL_SCORE = 1_000_000;
@@ -36,6 +38,8 @@ export function evaluateState(
   state: EngineState,
   perspectivePlayer: Player,
   _ruleConfig: RuleConfig,
+  participationState: ParticipationState | null = null,
+  preset: AiDifficultyPreset | null = null,
 ): number {
   if (state.status === 'gameOver') {
     if (state.victory.type === 'homeField' || state.victory.type === 'sixStacks') {
@@ -64,6 +68,15 @@ export function evaluateState(
 
   if (state.pendingJump) {
     score += state.currentPlayer === perspectivePlayer ? 140 : -140;
+  }
+
+  if (preset) {
+    score += getParticipationScore(
+      state,
+      perspectivePlayer,
+      preset,
+      participationState,
+    );
   }
 
   return score;

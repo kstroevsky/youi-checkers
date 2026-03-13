@@ -36,10 +36,20 @@
       "good": 1,
       "warn": 0.5
     },
+    "sameFamilyQuietRepeatRate": {
+      "direction": "lower",
+      "good": 0.25,
+      "warn": 0.45
+    },
     "repetitionPlyShare": {
       "direction": "lower",
       "good": 0.1,
       "warn": 0.2
+    },
+    "sourceFamilyOpeningHhi": {
+      "direction": "lower",
+      "good": 0.32,
+      "warn": 0.45
     },
     "stagnationWindowRate": {
       "direction": "lower",

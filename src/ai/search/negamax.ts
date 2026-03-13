@@ -1,5 +1,6 @@
 import { evaluateState } from '@/ai/evaluation';
 import { orderMoves } from '@/ai/moveOrdering';
+import type { ParticipationState } from '@/ai/participation';
 import type { EngineState, TurnAction } from '@/domain';
 
 import {
@@ -22,6 +23,7 @@ export function negamax(
   ancestorPositionKeys: string[],
   ancestorActions: TurnAction[],
   previousActionKey: string | null,
+  participationState: ParticipationState,
   context: SearchContext,
 ): number {
   throwIfTimedOut(context.now, context.deadline);
@@ -51,7 +53,13 @@ export function negamax(
 
   if (state.status === 'gameOver') {
     context.evaluatedNodes += 1;
-    return evaluateState(state, state.currentPlayer, context.ruleConfig);
+    return evaluateState(
+      state,
+      state.currentPlayer,
+      context.ruleConfig,
+      participationState,
+      context.preset,
+    );
   }
 
   if (depth === 0) {
@@ -63,6 +71,7 @@ export function negamax(
       ancestorPositionKeys,
       ancestorActions,
       previousActionKey,
+      participationState,
       context,
     );
   }
@@ -77,6 +86,7 @@ export function negamax(
     historyScores: context.historyScores,
     killerMoves: context.killerMovesByDepth.get(currentDepth) ?? [],
     now: context.now,
+    participationState,
     policyPriors: null,
     previousStrategicTags: currentDepth === 0 ? context.rootPreviousStrategicTags : null,
     previousActionKey,
@@ -91,7 +101,13 @@ export function negamax(
 
   if (!orderedMoves.length) {
     context.evaluatedNodes += 1;
-    return evaluateState(state, state.currentPlayer, context.ruleConfig);
+    return evaluateState(
+      state,
+      state.currentPlayer,
+      context.ruleConfig,
+      participationState,
+      context.preset,
+    );
   }
 
   let bestAction: TurnAction | null = cached?.bestAction ?? null;
@@ -114,6 +130,7 @@ export function negamax(
         nextAncestorPositionKeys,
         nextAncestorActions,
         actionKey(entry.action),
+        entry.nextParticipationState,
         context,
       );
       searchedFirstChild = true;
@@ -127,6 +144,7 @@ export function negamax(
         nextAncestorPositionKeys,
         nextAncestorActions,
         actionKey(entry.action),
+        entry.nextParticipationState,
         context,
       );
 
@@ -141,6 +159,7 @@ export function negamax(
           nextAncestorPositionKeys,
           nextAncestorActions,
           actionKey(entry.action),
+          entry.nextParticipationState,
           context,
         );
       }

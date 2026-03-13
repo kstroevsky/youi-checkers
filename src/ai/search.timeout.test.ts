@@ -77,10 +77,12 @@ describe('computer opponent search timeouts', () => {
       actionKey(legalActions[0] ?? null),
     );
     expect(result.timedOut).toBe(true);
-    expect(['partialCurrentDepth', 'legalOrder']).toContain(result.fallbackKind);
+    expect(['orderedRoot', 'partialCurrentDepth']).toContain(result.fallbackKind);
     if (result.fallbackKind === 'partialCurrentDepth') {
       expect(result.completedRootMoves).toBeGreaterThan(0);
       expect(actionKey(result.action)).not.toBe(actionKey(legalActions[0] ?? null));
+    } else {
+      expect(actionKey(result.action)).toBe(actionKey(orderedRootMoves[0]?.action ?? null));
     }
   });
 });

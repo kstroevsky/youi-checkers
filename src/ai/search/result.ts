@@ -15,11 +15,14 @@ export function createSearchDiagnostics(): AiSearchDiagnostics {
   return {
     aspirationResearches: 0,
     betaCutoffs: 0,
+    orderedFallbacks: 0,
+    participationPenalties: 0,
     policyPriorHits: 0,
     pvsResearches: 0,
     quiescenceNodes: 0,
     repetitionPenalties: 0,
     selfUndoPenalties: 0,
+    sourceFamilyCollisions: 0,
     transpositionHits: 0,
   };
 }
@@ -45,8 +48,11 @@ export function createEmptyResult(action: TurnAction | null, score: number): AiS
             isRepetition: false,
             isSelfUndo: false,
             isTactical: false,
+            movedMass: 0,
+            participationDelta: 0,
             policyPrior: 0,
             score,
+            sourceFamily: 'none',
             tags: [],
           },
         ]
@@ -125,25 +131,50 @@ export function selectCandidateAction(
         !entry.isSelfUndo &&
         !entry.isRepetition,
     )
-    .slice(0, preset.varietyTopCount);
+    .slice(0, Math.max(preset.varietyTopCount * 6, preset.varietyTopCount));
 
   if (!quietCandidates.length) {
     return best;
   }
 
-  if (quietCandidates.length === 1) {
-    return quietCandidates[0];
+  const uniqueFamilies = new Set<string>();
+  const familyFirstPass: RootRankedAction[] = [];
+
+  for (const entry of quietCandidates) {
+    if (uniqueFamilies.has(entry.sourceFamily)) {
+      continue;
+    }
+
+    uniqueFamilies.add(entry.sourceFamily);
+    familyFirstPass.push(entry);
+
+    if (familyFirstPass.length >= preset.varietyTopCount) {
+      break;
+    }
+  }
+
+  const candidatePool = familyFirstPass.length > 1
+    ? familyFirstPass
+    : quietCandidates.slice(0, preset.varietyTopCount);
+
+  if (candidatePool.length === 1) {
+    return candidatePool[0];
   }
 
   const coveredTags = new Set<AiRootCandidate['tags'][number]>();
-  const weighted = quietCandidates.map((entry, index) => {
+  const coveredFamilies = new Set<string>();
+  const weighted = candidatePool.map((entry, index) => {
     const diversityBonus = entry.tags.some((tag) => !coveredTags.has(tag)) ? 40 : 0;
+    const familyBonus = coveredFamilies.has(entry.sourceFamily) ? 0 : 55;
 
+    coveredFamilies.add(entry.sourceFamily);
     entry.tags.forEach((tag) => coveredTags.add(tag));
 
     const adjustedScore =
       entry.score +
+      familyBonus +
       diversityBonus +
+      Math.round(entry.participationDelta * 0.2) +
       Math.round(entry.policyPrior * 40) +
       (entry.intent === 'hybrid' ? 15 : 0) -
       index * 5;
@@ -172,5 +203,34 @@ export function orderRootCandidates(
   ranked: RootRankedAction[],
   limit: number,
 ): AiRootCandidate[] {
-  return sortRankedActions(ranked).slice(0, limit).map(toRootCandidate);
+  const ordered = sortRankedActions(ranked);
+  const candidates: RootRankedAction[] = [];
+  const seenFamilies = new Set<string>();
+
+  for (const entry of ordered) {
+    if (seenFamilies.has(entry.sourceFamily)) {
+      continue;
+    }
+
+    seenFamilies.add(entry.sourceFamily);
+    candidates.push(entry);
+
+    if (candidates.length >= limit) {
+      return candidates.map(toRootCandidate);
+    }
+  }
+
+  for (const entry of ordered) {
+    if (candidates.includes(entry)) {
+      continue;
+    }
+
+    candidates.push(entry);
+
+    if (candidates.length >= limit) {
+      break;
+    }
+  }
+
+  return candidates.map(toRootCandidate);
 }

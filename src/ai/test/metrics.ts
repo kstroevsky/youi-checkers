@@ -6,8 +6,6 @@ import { getCellHeight } from '@/domain/model/board';
 import { allCoords } from '@/domain/model/coordinates';
 import type { AiDifficulty } from '@/shared/types/session';
 
-import { actionKey, createSeededRandom, createTimeoutClock } from '@/ai/test/searchTestUtils';
-
 export type AiTracePly = {
   action: TurnAction;
   actionKey: string;
@@ -26,11 +24,14 @@ export type AiTracePly = {
   isSelfUndo: boolean;
   isTactical: boolean;
   legalRootCandidateCount: number;
+  movedMass: number;
   normalizedWhiteScore: number;
+  participationDelta: number;
   ply: number;
   repeatedPositionCount: number;
   score: number;
   sixStackProgress: Record<Player, number>;
+  sourceFamily: string;
   stackHeightHistogram: [number, number, number, number];
   stackProfileChurn: number;
   strategicIntent: AiStrategicIntent;
@@ -86,10 +87,12 @@ export type AiVarietyMetricKey =
   | 'openingJsDivergence'
   | 'openingSimpsonDiversity'
   | 'repetitionPlyShare'
+  | 'sameFamilyQuietRepeatRate'
   | 'sixStackProgressAuc'
   | 'stackProfileChurn'
   | 'stagnationWindowRate'
   | 'stalemateDrawShare'
+  | 'sourceFamilyOpeningHhi'
   | 'tension'
   | 'threefoldDrawShare'
   | 'twoPlyUndoRate'
@@ -111,6 +114,7 @@ export type AiVarietySummary = {
   metrics: Record<AiVarietyMetricKey, number>;
   samples: {
     firstMoveDistribution: Record<string, number>;
+    firstMoveSourceFamilyDistribution: Record<string, number>;
     firstFourActionKindDistribution: Record<string, number>;
     firstFourTagDistribution: Record<string, number>;
     firstTenLineDistribution: Record<string, number>;
@@ -184,6 +188,38 @@ const STABLE_CALLS_BY_DIFFICULTY: Record<AiDifficulty, number> = {
   medium: 10,
   hard: 12,
 };
+
+function actionKey(action: TurnAction): string {
+  switch (action.type) {
+    case 'manualUnfreeze':
+      return `${action.type}:${action.coord}`;
+    case 'jumpSequence':
+      return `${action.type}:${action.source}:${action.path.join('>')}`;
+    default:
+      return `${action.type}:${action.source}:${action.target}`;
+  }
+}
+
+function createSeededRandom(seed = 1): () => number {
+  let current = seed >>> 0;
+
+  return () => {
+    current = (current * 1_664_525 + 1_013_904_223) >>> 0;
+    return current / 0x1_0000_0000;
+  };
+}
+
+function createTimeoutClock(
+  stableCalls: number,
+  expiredValue: number,
+): () => number {
+  let calls = 0;
+
+  return () => {
+    calls += 1;
+    return calls <= stableCalls ? 0 : expiredValue;
+  };
+}
 
 function roundMetric(value: number, digits = 6): number {
   return Number(value.toFixed(digits));
@@ -335,6 +371,22 @@ function computeSimpsonDiversity(distribution: Record<string, number>): number {
         const probability = count / total;
         return sum + probability * probability;
       }, 0),
+  );
+}
+
+function computeHhi(distribution: Record<string, number>): number {
+  const entries = Object.values(distribution);
+  const total = entries.reduce((sum, count) => sum + count, 0);
+
+  if (total <= 0) {
+    return 0;
+  }
+
+  return roundMetric(
+    entries.reduce((sum, count) => {
+      const probability = count / total;
+      return sum + probability * probability;
+    }, 0),
   );
 }
 
@@ -758,6 +810,52 @@ function countStagnationWindows(trace: AiGameTrace): { stagnation: number; total
   };
 }
 
+function computeSameFamilyQuietRepeatRate(traces: AiGameTrace[]): number {
+  let repeatCount = 0;
+  let quietComparisons = 0;
+
+  for (const trace of traces) {
+    const lastQuietFamily: Record<Player, string | null> = {
+      black: null,
+      white: null,
+    };
+
+    for (const ply of trace.plies) {
+      if (ply.isTactical) {
+        continue;
+      }
+
+      if (lastQuietFamily[ply.actor] !== null) {
+        quietComparisons += 1;
+
+        if (lastQuietFamily[ply.actor] === ply.sourceFamily) {
+          repeatCount += 1;
+        }
+      }
+
+      lastQuietFamily[ply.actor] = ply.sourceFamily;
+    }
+  }
+
+  return roundMetric(repeatCount / Math.max(1, quietComparisons));
+}
+
+function computeSourceFamilyOpeningHhi(traces: AiGameTrace[]): number {
+  const values = traces.flatMap((trace) =>
+    (['white', 'black'] as const).map((player) => {
+      const distribution: Record<string, number> = {};
+
+      for (const ply of trace.plies.filter((entry) => entry.actor === player).slice(0, 8)) {
+        distribution[ply.sourceFamily] = (distribution[ply.sourceFamily] ?? 0) + 1;
+      }
+
+      return computeHhi(distribution);
+    }),
+  );
+
+  return roundMetric(average(values));
+}
+
 export function getStableCallsForDifficulty(difficulty: AiDifficulty): number {
   return STABLE_CALLS_BY_DIFFICULTY[difficulty];
 }
@@ -818,10 +916,12 @@ export function runAiGameTrace({
       break;
     }
 
+    const chosenAction = result.action;
+
     const selectedCandidate =
-      result.rootCandidates.find((candidate) => actionKey(candidate.action) === actionKey(result.action)) ??
+      result.rootCandidates.find((candidate) => actionKey(candidate.action) === actionKey(chosenAction)) ??
       null;
-    const nextState = applyAction(state, result.action, ruleConfig);
+    const nextState = applyAction(state, chosenAction, ruleConfig);
     const afterProgress = createScoreProgress(nextState);
     const afterHistogram = createStackHeightHistogram(nextState);
     const afterLegalMoveCount =
@@ -834,9 +934,9 @@ export function runAiGameTrace({
     seenPositionCounts[nextPositionKey] = repeatedPositionCount;
 
     plies.push({
-      action: result.action,
-      actionKey: actionKey(result.action),
-      actionKind: result.action.type,
+      action: chosenAction,
+      actionKey: actionKey(chosenAction),
+      actionKind: chosenAction.type,
       actor: state.currentPlayer,
       afterLegalMoveCount,
       beforeLegalMoveCount,
@@ -858,13 +958,16 @@ export function runAiGameTrace({
       isSelfUndo: selectedCandidate?.isSelfUndo ?? false,
       isTactical: selectedCandidate?.isTactical ?? false,
       legalRootCandidateCount: result.rootCandidates.length,
+      movedMass: selectedCandidate?.movedMass ?? 0,
       normalizedWhiteScore: roundMetric(
         clamp(whitePerspectiveScore / MAX_SCORE_FOR_TENSION, -1, 1),
       ),
+      participationDelta: selectedCandidate?.participationDelta ?? 0,
       ply: plyIndex + 1,
       repeatedPositionCount,
       score: result.score,
       sixStackProgress: afterProgress.sixStackProgress,
+      sourceFamily: selectedCandidate?.sourceFamily ?? actionKey(chosenAction),
       stackHeightHistogram: afterHistogram,
       stackProfileChurn: roundMetric(
         afterHistogram.reduce(
@@ -960,6 +1063,7 @@ export function summarizeAiVariety(
   const terminalCounts = zeroTerminalCounts();
   const strategicIntentDistribution = zeroIntentCounts();
   const firstMoveDistribution: Record<string, number> = {};
+  const firstMoveSourceFamilyDistribution: Record<string, number> = {};
   const firstTenLineDistribution: Record<string, number> = {};
   const firstFourActionKindDistribution: Record<string, number> = {};
   const firstFourTagDistribution: Record<string, number> = {};
@@ -978,6 +1082,11 @@ export function summarizeAiVariety(
     if (trace.firstMoveKey) {
       firstMoveDistribution[trace.firstMoveKey] =
         (firstMoveDistribution[trace.firstMoveKey] ?? 0) + 1;
+    }
+
+    if (trace.plies[0]?.sourceFamily) {
+      firstMoveSourceFamilyDistribution[trace.plies[0].sourceFamily] =
+        (firstMoveSourceFamilyDistribution[trace.plies[0].sourceFamily] ?? 0) + 1;
     }
 
     if (trace.terminalType === 'homeField' || trace.terminalType === 'sixStacks') {
@@ -1110,6 +1219,7 @@ export function summarizeAiVariety(
       : 0,
     openingSimpsonDiversity: computeSimpsonDiversity(firstMoveDistribution),
     repetitionPlyShare: roundMetric(repetitionCount / Math.max(1, totalPlies)),
+    sameFamilyQuietRepeatRate: computeSameFamilyQuietRepeatRate(traces),
     sixStackProgressAuc: roundMetric(sixStackProgressAuc),
     stackProfileChurn: roundMetric(
       average(traces.flatMap((trace) => trace.plies.map((ply) => ply.stackProfileChurn))),
@@ -1122,6 +1232,7 @@ export function summarizeAiVariety(
         ),
     ),
     stalemateDrawShare: roundMetric(terminalCounts.stalemateDraw / Math.max(1, traces.length)),
+    sourceFamilyOpeningHhi: computeSourceFamilyOpeningHhi(traces),
     tension: roundMetric(average(normalizedScores.map((score) => 1 - Math.abs(score)))),
     threefoldDrawShare: roundMetric(terminalCounts.threefoldDraw / Math.max(1, traces.length)),
     twoPlyUndoRate: roundMetric(selfUndoCount / Math.max(1, totalPlies)),
@@ -1154,6 +1265,7 @@ export function summarizeAiVariety(
     },
     samples: {
       firstMoveDistribution,
+      firstMoveSourceFamilyDistribution,
       firstFourActionKindDistribution,
       firstFourTagDistribution,
       firstTenLineDistribution,
@@ -1171,8 +1283,10 @@ export function compareSummaryToBaseline(
   const lowerIsBetter: AiVarietyMetricKey[] = [
     'maxRepeatedStateRun',
     'repetitionPlyShare',
+    'sameFamilyQuietRepeatRate',
     'stagnationWindowRate',
     'stalemateDrawShare',
+    'sourceFamilyOpeningHhi',
     'threefoldDrawShare',
     'twoPlyUndoRate',
   ];
@@ -1186,6 +1300,11 @@ export function compareSummaryToBaseline(
 
   for (const metric of lowerIsBetter) {
     const baselineValue = baseline.metrics[metric];
+
+    if (!Number.isFinite(baselineValue)) {
+      continue;
+    }
+
     const threshold = roundMetric(baselineValue * 1.1 + 1e-6);
 
     if (summary.metrics[metric] > threshold) {
@@ -1200,6 +1319,11 @@ export function compareSummaryToBaseline(
 
   for (const metric of higherIsBetter) {
     const baselineValue = baseline.metrics[metric];
+
+    if (!Number.isFinite(baselineValue)) {
+      continue;
+    }
+
     const threshold =
       baselineValue === 0
         ? 0

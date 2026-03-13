@@ -1,4 +1,5 @@
 import type { OrderedAction } from '@/ai/moveOrdering';
+import type { ParticipationState } from '@/ai/participation';
 import type {
   AiDifficultyPreset,
   AiSearchDiagnostics,
@@ -25,7 +26,10 @@ export type RootRankedAction = Pick<
   | 'isRepetition'
   | 'isSelfUndo'
   | 'isTactical'
+  | 'movedMass'
+  | 'participationDelta'
   | 'policyPrior'
+  | 'sourceFamily'
   | 'tags'
 > & {
   score: number;
@@ -42,6 +46,7 @@ export type SearchContext = {
   preset: AiDifficultyPreset;
   policyPriors: Record<string, number> | null;
   pvMoveByDepth: Map<number, TurnAction>;
+  rootParticipationState: ParticipationState;
   rootPreviousOwnAction: TurnAction | null;
   rootPreviousStrategicTags: AiStrategicTag[] | null;
   rootStrategicIntent: AiStrategicIntent;

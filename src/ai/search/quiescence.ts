@@ -1,6 +1,7 @@
 import { getLegalActions, type EngineState, type TurnAction } from '@/domain';
 import { evaluateState } from '@/ai/evaluation';
 import { orderMoves, type OrderedAction } from '@/ai/moveOrdering';
+import type { ParticipationState } from '@/ai/participation';
 import { FRONT_HOME_ROW, HOME_ROWS } from '@/domain/model/constants';
 import { parseCoord } from '@/domain/model/coordinates';
 
@@ -15,6 +16,7 @@ export function getQuiescenceMoves(
   ancestorPositionKeys: string[],
   ancestorActions: TurnAction[],
   previousActionKey: string | null,
+  participationState: ParticipationState,
   context: SearchContext,
 ): OrderedAction[] {
   const legalActions = getLegalActions(state, context.ruleConfig);
@@ -61,6 +63,7 @@ export function getQuiescenceMoves(
     includeAllQuietMoves: true,
     killerMoves: context.killerMovesByDepth.get(currentDepth) ?? [],
     now: context.now,
+    participationState,
     policyPriors: null,
     previousStrategicTags: null,
     previousActionKey,
@@ -95,13 +98,20 @@ export function quiescence(
   ancestorPositionKeys: string[],
   ancestorActions: TurnAction[],
   previousActionKey: string | null,
+  participationState: ParticipationState,
   context: SearchContext,
 ): number {
   throwIfTimedOut(context.now, context.deadline);
   context.diagnostics.quiescenceNodes += 1;
   context.evaluatedNodes += 1;
 
-  const standPat = evaluateState(state, state.currentPlayer, context.ruleConfig);
+  const standPat = evaluateState(
+    state,
+    state.currentPlayer,
+    context.ruleConfig,
+    participationState,
+    context.preset,
+  );
 
   if (currentDepth >= context.quiescenceDepthLimit) {
     return standPat;
@@ -119,6 +129,7 @@ export function quiescence(
     ancestorPositionKeys,
     ancestorActions,
     previousActionKey,
+    participationState,
     context,
   );
 
@@ -138,6 +149,7 @@ export function quiescence(
       [...ancestorPositionKeys, nextPositionKey],
       [...ancestorActions, entry.action],
       actionKey(entry.action),
+      entry.nextParticipationState,
       context,
     );
 

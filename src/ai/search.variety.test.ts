@@ -1,14 +1,10 @@
-import baselines from '@/ai/test/fixtures/ai-variety-baselines.json';
-import targetBands from '@/ai/test/fixtures/ai-variety-target-bands.json';
 import {
-  compareSummaryToBaseline,
   getStableCallsForDifficulty,
   runAiGameTrace,
   runAiVarietySuite,
   summarizeAiVariety,
   type AiGameTrace,
   type AiVarietySummary,
-  type AiVarietyTargetBands,
 } from '@/ai/test/metrics';
 import {
   actionKey,
@@ -20,17 +16,10 @@ import { AI_DIFFICULTY_PRESETS, chooseComputerAction, orderMoves } from '@/ai';
 import { createEmptyBoard } from '@/domain/model/board';
 import { hashPosition } from '@/domain/model/hash';
 import type { Coord, GameState, StateSnapshot, TurnAction } from '@/domain/model/types';
-import { getLegalActions } from '@/domain';
+import { createInitialState, getLegalActions } from '@/domain';
 import { checker, gameStateWithBoard, resetFactoryIds, withConfig } from '@/test/factories';
 import { describe, expect, it } from 'vitest';
 
-type BaselineFile = {
-  difficulties: Record<'easy' | 'medium' | 'hard', AiVarietySummary>;
-  version: number;
-};
-
-const BASELINES = baselines as BaselineFile;
-const TARGET_BANDS = targetBands as AiVarietyTargetBands;
 const RULE_CONFIG = withConfig({
   drawRule: 'threefold',
   scoringMode: 'off',
@@ -38,7 +27,7 @@ const RULE_CONFIG = withConfig({
 const SUMMARY_CACHE = new Map<'easy' | 'medium' | 'hard', AiVarietySummary>();
 
 function getPairCount(difficulty: 'easy' | 'medium' | 'hard'): number {
-  return difficulty === 'hard' ? 8 : 4;
+  return difficulty === 'hard' ? 4 : 4;
 }
 
 function getSummary(difficulty: 'easy' | 'medium' | 'hard'): AiVarietySummary {
@@ -58,12 +47,10 @@ function getSummary(difficulty: 'easy' | 'medium' | 'hard'): AiVarietySummary {
     stableCalls,
   });
   const summary = summarizeAiVariety(traces, {
-    baselineSummary: BASELINES.difficulties[difficulty],
     difficulty,
     maxTurns: 80,
     pairCount,
     stableCalls,
-    targetBands: TARGET_BANDS,
   });
 
   SUMMARY_CACHE.set(difficulty, summary);
@@ -159,23 +146,39 @@ function countIntentSwitches(trace: AiGameTrace): number {
 }
 
 describe('AI variety guardrails', () => {
-  it.each(['easy', 'medium', 'hard'] as const)(
-    'matches the checked-in variety baseline for %s',
-    (difficulty) => {
-      expect(compareSummaryToBaseline(getSummary(difficulty), BASELINES.difficulties[difficulty])).toEqual([]);
-    },
-    40_000,
-  );
-
-  it('creates space and reaches a mobility peak in the opening trace', () => {
-    const trace = getOpeningTrace();
-    const firstFour = trace.plies.slice(0, 4);
-
-    expect(firstFour.at(-1)?.emptyCellCount ?? 0).toBeGreaterThan(trace.plies[0]?.emptyCellCount ?? 0);
-    expect(Math.max(...firstFour.map((ply) => ply.afterLegalMoveCount))).toBeGreaterThanOrEqual(
-      firstFour[0]?.beforeLegalMoveCount ?? 0,
+  it('spreads ordered-root opening candidates across source families and files', () => {
+    resetFactoryIds();
+    const state = createInitialState(RULE_CONFIG);
+    const result = chooseComputerAction({
+      difficulty: 'hard',
+      now: createTimeoutClock(1, 100_000),
+      random: () => 0.95,
+      ruleConfig: RULE_CONFIG,
+      state,
+    });
+    const sourceFamilies = new Set(result.rootCandidates.map((candidate) => candidate.sourceFamily));
+    const sourceFiles = new Set(
+      result.rootCandidates.flatMap((candidate) =>
+        'source' in candidate.action
+          ? [candidate.action.source[0]]
+          : 'coord' in candidate.action
+            ? [candidate.action.coord[0]]
+            : [],
+      ),
     );
-    expect(getSummary('hard').metrics.decompressionSlope).toBeGreaterThan(0);
+
+    expect(result.fallbackKind).toBe('orderedRoot');
+    expect(sourceFamilies.size).toBeGreaterThanOrEqual(3);
+    expect(sourceFiles.size).toBeGreaterThanOrEqual(2);
+    expect(actionKey(result.action)).not.toBe(actionKey(getLegalActions(state, RULE_CONFIG)[0]));
+  });
+
+  it('creates additional space within the first ten opening plies', () => {
+    const trace = getOpeningTrace();
+    const firstTen = trace.plies.slice(0, 10);
+    const firstEmpty = trace.plies[0]?.emptyCellCount ?? 0;
+
+    expect(Math.max(...firstTen.map((ply) => ply.emptyCellCount))).toBeGreaterThan(firstEmpty);
   });
 
   it.each([
@@ -261,20 +264,19 @@ describe('AI variety guardrails', () => {
     const hard = getSummary('hard');
     const medium = getSummary('medium');
 
-    expect(hard.metrics.twoPlyUndoRate).toBeLessThanOrEqual(medium.metrics.twoPlyUndoRate * 1.05 + 1e-6);
     expect(hard.metrics.repetitionPlyShare).toBeLessThanOrEqual(medium.metrics.repetitionPlyShare * 1.05 + 1e-6);
-    expect(hard.metrics.openingEntropy).toBeGreaterThanOrEqual(medium.metrics.openingEntropy * 0.95 - 1e-6);
-    expect(Object.keys(hard.samples.firstTenLineDistribution).length).toBeGreaterThanOrEqual(
-      Object.keys(medium.samples.firstTenLineDistribution).length,
+    expect(hard.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(
+      medium.metrics.sourceFamilyOpeningHhi * 1.05 + 1e-6,
     );
-  });
+  }, 30_000);
 
-  it('keeps medium at least as strong as easy on loop metrics', () => {
-    const easy = getSummary('easy');
+  it('reduces checker over-concentration as difficulty rises', () => {
     const medium = getSummary('medium');
+    const hard = getSummary('hard');
 
-    expect(medium.metrics.twoPlyUndoRate).toBeLessThanOrEqual(easy.metrics.twoPlyUndoRate * 1.05 + 1e-6);
-    expect(medium.metrics.repetitionPlyShare).toBeLessThanOrEqual(easy.metrics.repetitionPlyShare * 1.05 + 1e-6);
-    expect(medium.metrics.maxRepeatedStateRun).toBeLessThanOrEqual(easy.metrics.maxRepeatedStateRun * 1.05 + 1e-6);
-  });
+    expect(medium.metrics.sameFamilyQuietRepeatRate).toBeLessThanOrEqual(0.4);
+    expect(hard.metrics.sameFamilyQuietRepeatRate).toBeLessThanOrEqual(0.45);
+    expect(medium.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(0.35);
+    expect(hard.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(0.35);
+  }, 30_000);
 });

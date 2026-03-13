@@ -16,6 +16,14 @@ export const MAX_QUIESCENCE_DEPTH = 6;
 export function getMovePenalty(entry: OrderedAction, context: SearchContext): number {
   let penalty = 0;
 
+  if (entry.participationDelta < 0) {
+    context.diagnostics.participationPenalties += 1;
+  }
+
+  if (entry.repeatsSourceFamily || entry.repeatsSourceRegion) {
+    context.diagnostics.sourceFamilyCollisions += 1;
+  }
+
   if (entry.isRepetition) {
     context.diagnostics.repetitionPenalties += 1;
     penalty += context.preset.repetitionPenalty * (entry.repeatedPositionCount - 1);
@@ -76,8 +84,11 @@ export function toRootCandidate(entry: RootRankedAction): AiRootCandidate {
     isRepetition: entry.isRepetition,
     isSelfUndo: entry.isSelfUndo,
     isTactical: entry.isTactical,
+    movedMass: entry.movedMass,
+    participationDelta: entry.participationDelta,
     policyPrior: entry.policyPrior,
     score: entry.score,
+    sourceFamily: entry.sourceFamily,
     tags: entry.tags,
   };
 }

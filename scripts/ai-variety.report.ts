@@ -83,10 +83,12 @@ function buildMarkdown(
 ): string {
   const keyMetrics: AiVarietyMetricKey[] = [
     'twoPlyUndoRate',
+    'sameFamilyQuietRepeatRate',
     'repetitionPlyShare',
     'threefoldDrawShare',
     'stagnationWindowRate',
     'openingEntropy',
+    'sourceFamilyOpeningHhi',
     'uniqueOpeningLineShare',
     'decompressionSlope',
     'mobilityReleaseSlope',

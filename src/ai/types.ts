@@ -13,13 +13,18 @@ export type AiStrategicTag =
 
 /** Search-budget tuning for one exposed difficulty level. */
 export type AiDifficultyPreset = {
+  familyVarietyWeight: number;
   maxDepth: number;
+  participationBias: number;
+  participationWindow: number;
   policyPriorWeight: number;
   quietMoveLimit: number;
   repetitionPenalty: number;
   rootCandidateLimit: number;
+  sourceReusePenalty: number;
   selfUndoPenalty: number;
   timeBudgetMs: number;
+  frontierWidthWeight: number;
   varietyTemperature: number;
   varietyThreshold: number;
   varietyTopCount: number;
@@ -27,6 +32,7 @@ export type AiDifficultyPreset = {
 
 export type AiFallbackKind =
   | 'none'
+  | 'orderedRoot'
   | 'partialCurrentDepth'
   | 'previousDepth'
   | 'legalOrder';
@@ -56,19 +62,25 @@ export type AiRootCandidate = {
   isRepetition: boolean;
   isSelfUndo: boolean;
   isTactical: boolean;
+  movedMass: number;
+  participationDelta: number;
   policyPrior: number;
   score: number;
+  sourceFamily: string;
   tags: AiStrategicTag[];
 };
 
 export type AiSearchDiagnostics = {
   aspirationResearches: number;
   betaCutoffs: number;
+  orderedFallbacks: number;
+  participationPenalties: number;
   policyPriorHits: number;
   pvsResearches: number;
   quiescenceNodes: number;
   repetitionPenalties: number;
   selfUndoPenalties: number;
+  sourceFamilyCollisions: number;
   transpositionHits: number;
 };
 

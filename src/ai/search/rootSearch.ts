@@ -1,5 +1,6 @@
 import { evaluateState } from '@/ai/evaluation';
 import { orderMoves } from '@/ai/moveOrdering';
+import { buildParticipationState } from '@/ai/participation';
 import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
 import { getStrategicIntent } from '@/ai/strategy';
 import type { AiSearchResult, ChooseComputerActionRequest } from '@/ai/types';
@@ -25,27 +26,57 @@ import { actionKey, isSearchTimeout, makeTableKey, throwIfTimedOut } from '@/ai/
 import type { RootRankedAction, SearchContext, TranspositionEntry } from '@/ai/search/types';
 
 function createRootFallbackCandidate(
-  action: TurnAction,
+  entry: {
+    action: TurnAction;
+    movedMass: number;
+    participationDelta: number;
+    policyPrior: number;
+    sourceFamily: string;
+  },
   score: number,
-  policyPrior: number,
   strategicIntent: AiSearchResult['strategicIntent'],
 ): RootRankedAction {
   return {
-    action,
+    action: entry.action,
     intent: strategicIntent,
     intentDelta: 0,
     isForced: false,
     isRepetition: false,
     isSelfUndo: false,
     isTactical: false,
-    policyPrior,
+    movedMass: entry.movedMass,
+    participationDelta: entry.participationDelta,
+    policyPrior: entry.policyPrior,
     score,
+    sourceFamily: entry.sourceFamily,
     tags: [],
   };
 }
 
 function countPolicyPriorHits(ranked: Array<{ policyPrior: number }>): number {
   return ranked.reduce((count, entry) => count + (entry.policyPrior > 0 ? 1 : 0), 0);
+}
+
+function toFallbackRanked(
+  orderedMoves: ReturnType<typeof orderMoves>,
+): RootRankedAction[] {
+  return sortRankedActions(
+    orderedMoves.map((entry) => ({
+      action: entry.action,
+      intent: entry.intent,
+      intentDelta: entry.intentDelta,
+      isForced: entry.isForced,
+      isRepetition: entry.isRepetition,
+      isSelfUndo: entry.isSelfUndo,
+      isTactical: entry.isTactical,
+      movedMass: entry.movedMass,
+      participationDelta: entry.participationDelta,
+      policyPrior: entry.policyPrior,
+      score: entry.score,
+      sourceFamily: entry.sourceFamily,
+      tags: entry.tags,
+    })),
+  );
 }
 
 /** Chooses one computer move using iterative deepening negamax with alpha-beta pruning. */
@@ -64,11 +95,18 @@ export function chooseComputerAction({
   const inferredIntent = getStrategicIntent(state, state.currentPlayer).intent;
   const strategicIntent = modelGuidance?.strategicIntent ?? inferredIntent;
   const policyPriors = modelGuidance?.actionPriors ?? null;
+  const rootParticipationState = buildParticipationState(state, preset.participationWindow);
   const rootPositionKey = makeTableKey(state);
   let fallbackScore: number | null = null;
 
   function getFallbackScore(): number {
-    fallbackScore ??= evaluateState(state, state.currentPlayer, ruleConfig);
+    fallbackScore ??= evaluateState(
+      state,
+      state.currentPlayer,
+      ruleConfig,
+      rootParticipationState,
+      preset,
+    );
     return fallbackScore;
   }
 
@@ -91,6 +129,7 @@ export function chooseComputerAction({
     policyPriors,
     preset,
     pvMoveByDepth: new Map<number, TurnAction>(),
+    rootParticipationState,
     rootPreviousOwnAction: getRootPreviousOwnAction(state),
     rootPreviousStrategicTags: getRootPreviousStrategicTags(state),
     rootStrategicIntent: strategicIntent,
@@ -109,11 +148,30 @@ export function chooseComputerAction({
       includeAllQuietMoves: true,
       killerMoves: context.killerMovesByDepth.get(0) ?? [],
       now,
+      participationState: rootParticipationState,
       policyPriors,
       previousStrategicTags: context.rootPreviousStrategicTags,
       previousActionKey: null,
       policyPriorWeight: preset.policyPriorWeight,
       pvMove,
+      repetitionPenalty: preset.repetitionPenalty,
+      samePlayerPreviousAction: context.rootPreviousOwnAction,
+      selfUndoPenalty: preset.selfUndoPenalty,
+      continuationScores: context.continuationScores,
+      ttMove: context.table.get(rootPositionKey)?.bestAction ?? null,
+    });
+  const buildOrderedFallback = (): ReturnType<typeof orderMoves> =>
+    orderMoves(state, state.currentPlayer, ruleConfig, preset, {
+      actions: legalActions,
+      grandparentPositionKey: context.rootSelfUndoPositionKey,
+      historyScores: context.historyScores,
+      includeAllQuietMoves: true,
+      killerMoves: context.killerMovesByDepth.get(0) ?? [],
+      participationState: rootParticipationState,
+      policyPriors,
+      previousStrategicTags: context.rootPreviousStrategicTags,
+      previousActionKey: null,
+      policyPriorWeight: preset.policyPriorWeight,
       repetitionPenalty: preset.repetitionPenalty,
       samePlayerPreviousAction: context.rootPreviousOwnAction,
       selfUndoPenalty: preset.selfUndoPenalty,
@@ -128,9 +186,10 @@ export function chooseComputerAction({
   let fallbackKind: AiSearchResult['fallbackKind'] = 'none';
   let timedOut = false;
   let rootCandidates: RootRankedAction[] = [];
+  let rootOrderedMoves: ReturnType<typeof orderMoves> = [];
 
   try {
-    const rootOrderedMoves = buildRootOrdering(null);
+    rootOrderedMoves = buildRootOrdering(null);
     context.diagnostics.policyPriorHits += countPolicyPriorHits(rootOrderedMoves);
 
     for (const entry of rootOrderedMoves) {
@@ -159,8 +218,11 @@ export function chooseComputerAction({
                 isRepetition: entry.isRepetition,
                 isSelfUndo: entry.isSelfUndo,
                 isTactical: entry.isTactical,
+                movedMass: entry.movedMass,
+                participationDelta: entry.participationDelta,
                 policyPrior: entry.policyPrior,
                 score: 1_000_000,
+                sourceFamily: entry.sourceFamily,
                 tags: entry.tags,
               },
             ],
@@ -177,27 +239,42 @@ export function chooseComputerAction({
       throw error;
     }
 
+    context.diagnostics.orderedFallbacks += 1;
+    rootOrderedMoves = rootOrderedMoves.length > 0 ? rootOrderedMoves : buildOrderedFallback();
+    const fallbackRanked = toFallbackRanked(rootOrderedMoves);
+    const fallbackBest = fallbackRanked.length
+      ? selectCandidateAction(fallbackRanked, preset, random)
+      : null;
+    const orderedFallbackScore = fallbackRanked[0]?.score ?? getFallbackScore();
+
     return {
-      action: legalActions[0],
+      action: fallbackBest?.action ?? rootOrderedMoves[0]?.action ?? legalActions[0],
       completedDepth: 0,
       completedRootMoves: 0,
       diagnostics: context.diagnostics,
       elapsedMs: now() - startedAt,
       evaluatedNodes: 0,
-      fallbackKind: 'legalOrder',
-      principalVariation: [legalActions[0]],
+      fallbackKind: 'orderedRoot',
+      principalVariation: [fallbackBest?.action ?? rootOrderedMoves[0]?.action ?? legalActions[0]],
       rootCandidates: orderRootCandidates(
-        [
-          createRootFallbackCandidate(
-            legalActions[0],
-            getFallbackScore(),
-            policyPriors?.[actionKey(legalActions[0])] ?? 0,
-            strategicIntent,
-          ),
-        ],
+        fallbackRanked.length
+          ? fallbackRanked
+          : [
+              createRootFallbackCandidate(
+                {
+                  action: legalActions[0],
+                  movedMass: 0,
+                  participationDelta: 0,
+                  policyPrior: policyPriors?.[actionKey(legalActions[0])] ?? 0,
+                  sourceFamily: 'none',
+                },
+                orderedFallbackScore,
+                strategicIntent,
+              ),
+            ],
         preset.rootCandidateLimit,
       ),
-      score: getFallbackScore(),
+      score: orderedFallbackScore,
       strategicIntent,
       timedOut: true,
     };
@@ -225,6 +302,7 @@ export function chooseComputerAction({
         [rootPositionKey, makeTableKey(entry.nextState)],
         [entry.action],
         actionKey(entry.action),
+        entry.nextParticipationState,
         context,
       );
 
@@ -238,8 +316,11 @@ export function chooseComputerAction({
         isRepetition: entry.isRepetition,
         isSelfUndo: entry.isSelfUndo,
         isTactical: entry.isTactical,
+        movedMass: entry.movedMass,
+        participationDelta: entry.participationDelta,
         policyPrior: entry.policyPrior,
         score,
+        sourceFamily: entry.sourceFamily,
         tags: entry.tags,
       });
     }
@@ -284,17 +365,32 @@ export function chooseComputerAction({
         } else if (completedDepth > 0) {
           fallbackKind = 'previousDepth';
         } else {
-          fallbackKind = 'legalOrder';
-          bestScore = getFallbackScore();
+          const fallbackOrderedMoves = buildOrderedFallback();
+          const orderedFallback = fallbackOrderedMoves[0];
+          const fallbackRanked = toFallbackRanked(fallbackOrderedMoves);
+
+          context.diagnostics.orderedFallbacks += 1;
+          fallbackKind = 'orderedRoot';
+          bestScore = fallbackRanked[0]?.score ?? orderedFallback?.score ?? getFallbackScore();
           completedRootMoves = 0;
-          rootCandidates = [
-            createRootFallbackCandidate(
-              legalActions[0],
-              bestScore,
-              policyPriors?.[actionKey(legalActions[0])] ?? 0,
-              strategicIntent,
-            ),
-          ];
+          rootCandidates = fallbackRanked.length
+            ? fallbackRanked
+            : [
+                createRootFallbackCandidate(
+                  orderedFallback ?? {
+                    action: legalActions[0],
+                    movedMass: 0,
+                    participationDelta: 0,
+                    policyPrior: policyPriors?.[actionKey(legalActions[0])] ?? 0,
+                    sourceFamily: 'none',
+                  },
+                  bestScore,
+                  strategicIntent,
+                ),
+              ];
+          bestAction = fallbackRanked.length
+            ? selectCandidateAction(fallbackRanked, preset, random).action
+            : orderedFallback?.action ?? legalActions[0];
         }
 
         break;
