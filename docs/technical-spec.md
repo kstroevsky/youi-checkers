@@ -39,7 +39,9 @@
 - `threefoldDraw`: the same full position hash, including side to move, appears for the third time
 - `stalemateDraw`: after turn resolution, neither player has a legal action and no win condition is met
 
-## Jump continuation behavior
+## Jump follow-up behavior
 - Jump actions are single-segment (`source -> one landing`) and are applied immediately.
-- If another jump segment is legal from the new landing, the same player keeps the turn and must continue with that same moving unit.
-- Turn handoff occurs only when no continuation targets remain.
+- If another jump segment is legal from the new landing, the same player keeps the turn.
+- On that continued turn, the player may continue the jump with the same unit or use any other legal move.
+- If the chosen move is another jump that also leaves a continuation, the same player keeps the turn again.
+- Turn handoff occurs when the player chooses a non-jump move or when the latest jump has no continuation, unless a jump already ended the game.

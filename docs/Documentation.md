@@ -110,6 +110,7 @@ Implemented in `src/app/store/createGameStore.ts`.
 Runtime interaction states (`InteractionState`):
 - `idle`
 - `pieceSelected`
+- `jumpFollowUp`
 - `choosingTarget`
 - `buildingJumpChain`
 - `turnResolved`
@@ -122,9 +123,9 @@ Main flow:
 3. User chooses action type (`chooseActionType`).
 4. Store highlights legal targets.
 5. For jumps, each legal target click immediately commits one jump segment.
-6. If a continuation exists, store keeps jump mode active for the new source using `getJumpContinuationTargets`.
-7. While jump continuation is active, non-target clicks are ignored and `cancelInteraction` cannot clear it.
-8. Store resolves turn/pass only when no jump continuation remains.
+6. If that jump leaves a legal continuation, store resets to a neutral `jumpFollowUp` state for the same player.
+7. The follow-up state keeps all legal sources selectable, while `buildingJumpChain` is still used only inside an in-progress jump selection before commit.
+8. Store resolves turn/pass only when the player switches to a non-jump move, the latest jump has no continuation, or a jump wins immediately.
 
 ## 8. Undo/redo and history model
 Store keeps:

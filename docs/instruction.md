@@ -239,8 +239,10 @@ Jumps are executed **one segment at a time**.
 After each legal jump segment:
 
 * the board updates immediately
-* if another legal jump segment exists from the new position, the same moving checker or stack must continue jumping
-* the turn passes only when no further legal jump segment exists
+* if another legal jump segment exists from the new position, the same player keeps the turn
+* on that continued turn, the player may either continue jumping with the same checker or stack, or use any other legal move
+* if the chosen move is another jump that also leaves a continuation, the same player keeps the turn again
+* the turn passes only after the player chooses a non-jump move or the latest jump has no continuation
 
 For every segment:
 
@@ -248,7 +250,7 @@ For every segment:
 * the landing cell must be **empty**
 * freezing/unfreezing is applied separately for the jumped checker
 
-If several opponent singles are jumped across consecutive segments, each jumped opponent single becomes frozen.
+If several opponent singles are jumped across consecutive segments or across several continued jump turns, each jumped opponent single becomes frozen separately.
 
 ---
 
