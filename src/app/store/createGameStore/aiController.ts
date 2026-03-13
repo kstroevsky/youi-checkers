@@ -24,10 +24,13 @@ type AiControllerOptions = {
   set: StoreSetter;
 };
 
+const AI_COLD_START_BUFFER_MS = 1500;
+
 /** Owns the AI worker, request ids, and watchdog for one store instance. */
 export function createAiController({ commitAction, get, options, set }: AiControllerOptions) {
   let aiWorker: AiWorkerLike | null = null;
   let aiWatchdogId: ReturnType<typeof globalThis.setTimeout> | null = null;
+  let aiWorkerIsWarm = false;
   let nextAiRequestId = 1;
 
   function clearAiWatchdog(): void {
@@ -50,6 +53,7 @@ export function createAiController({ commitAction, get, options, set }: AiContro
     aiWorker.onerror = null;
     aiWorker.terminate();
     aiWorker = null;
+    aiWorkerIsWarm = false;
   }
 
   function resetAiState(
@@ -71,6 +75,7 @@ export function createAiController({ commitAction, get, options, set }: AiContro
       return;
     }
 
+    aiWorkerIsWarm = true;
     disposeAiWorker();
     set({
       aiError: 'Computer move timed out.',
@@ -86,9 +91,14 @@ export function createAiController({ commitAction, get, options, set }: AiContro
       return;
     }
 
+    const timeoutMs =
+      AI_DIFFICULTY_PRESETS[matchSettings.aiDifficulty].timeBudgetMs +
+      AI_WATCHDOG_BUFFER_MS +
+      (aiWorkerIsWarm ? 0 : AI_COLD_START_BUFFER_MS);
+
     aiWatchdogId = globalThis.setTimeout(
       () => handleAiWatchdogTimeout(requestId),
-      AI_DIFFICULTY_PRESETS[matchSettings.aiDifficulty].timeBudgetMs + AI_WATCHDOG_BUFFER_MS,
+      timeoutMs,
     );
   }
 
@@ -115,6 +125,8 @@ export function createAiController({ commitAction, get, options, set }: AiContro
       return null;
     }
 
+    aiWorkerIsWarm = false;
+
     aiWorker.onmessage = (event) => {
       const message = event.data;
       const latest = get();
@@ -124,6 +136,7 @@ export function createAiController({ commitAction, get, options, set }: AiContro
       }
 
       clearAiWatchdog();
+      aiWorkerIsWarm = true;
 
       if (message.type === 'error') {
         set({
@@ -149,6 +162,7 @@ export function createAiController({ commitAction, get, options, set }: AiContro
 
     aiWorker.onerror = (event) => {
       clearAiWatchdog();
+      aiWorkerIsWarm = true;
       set({
         aiError: event.message || 'Computer move failed.',
         aiStatus: 'error',

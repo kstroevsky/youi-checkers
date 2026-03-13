@@ -6,7 +6,12 @@ import type { AiModelGuidance } from '@/ai/types';
 import { getLegalActions, type EngineState, type RuleConfig } from '@/domain';
 
 const DEFAULT_MODEL_URL = '/models/ai-policy-value.onnx';
+const MODEL_PROBE_RANGE = 'bytes=0-63';
+const MODEL_PROBE_BYTES = 64;
+const HTML_PREFIXES = ['<!doctype', '<html'];
 
+let modelAssetAvailablePromise: Promise<boolean> | null = null;
+let ortModulePromise: Promise<typeof import('onnxruntime-web')> | null = null;
 let sessionPromise: Promise<InferenceSession | null> | null = null;
 
 function getOutputTensor(
@@ -34,19 +39,83 @@ function toNumberArray(value: Exclude<Tensor['data'], string[]>): number[] {
   return Array.from(value as ArrayLike<number | bigint>, (entry) => Number(entry));
 }
 
+function decodeProbeBytes(bytes: Uint8Array | ArrayBuffer): string {
+  const buffer = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+
+  return new TextDecoder().decode(buffer).trimStart().toLowerCase();
+}
+
+function looksLikeHtmlDocument(prefix: string): boolean {
+  return HTML_PREFIXES.some((candidate) => prefix.startsWith(candidate));
+}
+
+async function readProbePrefix(response: Response): Promise<string> {
+  const reader = response.body?.getReader();
+
+  if (!reader) {
+    const buffer = await response.arrayBuffer();
+    return decodeProbeBytes(buffer.slice(0, MODEL_PROBE_BYTES));
+  }
+
+  try {
+    const { value } = await reader.read();
+    return decodeProbeBytes((value ?? new Uint8Array()).slice(0, MODEL_PROBE_BYTES));
+  } finally {
+    void reader.cancel().catch(() => undefined);
+  }
+}
+
+async function probeModelAsset(): Promise<boolean> {
+  if (!modelAssetAvailablePromise) {
+    modelAssetAvailablePromise = (async () => {
+      try {
+        const probe = await fetch(DEFAULT_MODEL_URL, {
+          headers: {
+            Range: MODEL_PROBE_RANGE,
+          },
+          method: 'GET',
+        });
+
+        if (!probe.ok) {
+          return false;
+        }
+
+        const contentType = probe.headers.get('content-type')?.toLowerCase() ?? '';
+
+        if (contentType.startsWith('text/html')) {
+          return false;
+        }
+
+        const prefix = await readProbePrefix(probe);
+        return !looksLikeHtmlDocument(prefix);
+      } catch {
+        return false;
+      }
+    })();
+  }
+
+  return modelAssetAvailablePromise;
+}
+
+async function loadOrtModule(): Promise<typeof import('onnxruntime-web')> {
+  if (!ortModulePromise) {
+    ortModulePromise = import('onnxruntime-web');
+  }
+
+  return ortModulePromise;
+}
+
 async function loadSession(): Promise<InferenceSession | null> {
   if (!sessionPromise) {
     sessionPromise = (async () => {
       try {
-        const probe = await fetch(DEFAULT_MODEL_URL, {
-          method: 'HEAD',
-        });
+        const modelAssetAvailable = await probeModelAsset();
 
-        if (!probe.ok) {
+        if (!modelAssetAvailable) {
           return null;
         }
 
-        const ort = await import('onnxruntime-web');
+        const ort = await loadOrtModule();
         return await ort.InferenceSession.create(DEFAULT_MODEL_URL, {
           executionProviders: ['wasm'],
           graphOptimizationLevel: 'all',
@@ -71,7 +140,7 @@ export async function getModelGuidance(
   }
 
   try {
-    const ort = await import('onnxruntime-web');
+    const ort = await loadOrtModule();
     const input = encodeStateForModel(state);
     const feeds = {
       [session.inputNames[0] ?? 'input']: new ort.Tensor('float32', input, [1, 16, 6, 6]),
@@ -105,5 +174,7 @@ export async function getModelGuidance(
 }
 
 export function resetModelGuidanceSessionForTests(): void {
+  modelAssetAvailablePromise = null;
+  ortModulePromise = null;
   sessionPromise = null;
 }

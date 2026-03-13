@@ -1,7 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import { AI_DIFFICULTY_PRESETS } from '@/ai';
 import { createGameStore } from '@/app/store/createGameStore';
-import { applyAction, createInitialState, getLegalActions } from '@/domain';
+import { AI_WATCHDOG_BUFFER_MS } from '@/app/store/createGameStore/constants';
+import { applyAction, createInitialState, getLegalActions, type TurnAction } from '@/domain';
 import type { MatchSettings } from '@/shared/types/session';
 import {
   boardWithPieces,
@@ -19,6 +21,32 @@ import {
   createQuotaExceededError,
   FakeAiWorker,
 } from '@/app/store/createGameStore.testUtils';
+
+const AI_COLD_START_BUFFER_MS = 1500;
+const EASY_WATCHDOG_MS = AI_DIFFICULTY_PRESETS.easy.timeBudgetMs + AI_WATCHDOG_BUFFER_MS;
+const EASY_COLD_START_WATCHDOG_MS = EASY_WATCHDOG_MS + AI_COLD_START_BUFFER_MS;
+
+function commitTurnAction(store: ReturnType<typeof createGameStore>, action: TurnAction): void {
+  const state = store.getState();
+
+  switch (action.type) {
+    case 'manualUnfreeze':
+      state.selectCell(action.coord);
+      state.chooseActionType('manualUnfreeze');
+      return;
+    case 'jumpSequence':
+      state.selectCell(action.source);
+      state.chooseActionType('jumpSequence');
+      for (const target of action.path) {
+        store.getState().selectCell(target);
+      }
+      return;
+    default:
+      state.selectCell(action.source);
+      state.chooseActionType(action.type);
+      store.getState().selectCell(action.target);
+  }
+}
 
 describe('createGameStore AI integration', () => {
   beforeEach(() => {
@@ -75,6 +103,94 @@ describe('createGameStore AI integration', () => {
     expect(() => store.getState().selectCell('B2')).not.toThrow();
     expect(store.getState().aiStatus).toBe('thinking');
     expect(worker.requests).toHaveLength(1);
+  });
+
+  it('allows the first computer reply to arrive during the cold-start watchdog buffer', () => {
+    vi.useFakeTimers();
+
+    const worker = new FakeAiWorker();
+    const store = createGameStore({
+      createAiWorker: () => worker,
+      storage: undefined,
+    });
+
+    store.getState().startNewGame({
+      opponentMode: 'computer',
+      humanPlayer: 'black',
+      aiDifficulty: 'easy',
+    });
+
+    vi.advanceTimersByTime(EASY_WATCHDOG_MS + 50);
+
+    expect(store.getState().aiStatus).toBe('thinking');
+    expect(worker.terminated).toBe(false);
+
+    const aiAction = getLegalActions(store.getState().gameState, store.getState().ruleConfig)[0];
+
+    expect(aiAction).toBeDefined();
+    if (!aiAction) {
+      return;
+    }
+
+    worker.reply(createAiResult({ action: aiAction }));
+
+    expect(store.getState().aiStatus).toBe('idle');
+    expect(store.getState().gameState.history).toHaveLength(1);
+  });
+
+  it('keeps the tighter watchdog for warm follow-up requests on the same worker', () => {
+    vi.useFakeTimers();
+
+    const worker = new FakeAiWorker();
+    const store = createGameStore({
+      createAiWorker: () => worker,
+      storage: undefined,
+    });
+
+    store.getState().startNewGame({
+      opponentMode: 'computer',
+      humanPlayer: 'white',
+      aiDifficulty: 'easy',
+    });
+
+    const humanOpening = getLegalActions(store.getState().gameState, store.getState().ruleConfig)[0];
+
+    expect(humanOpening).toBeDefined();
+    if (!humanOpening) {
+      return;
+    }
+
+    commitTurnAction(store, humanOpening);
+    expect(store.getState().aiStatus).toBe('thinking');
+
+    const firstAiReply = getLegalActions(store.getState().gameState, store.getState().ruleConfig)[0];
+
+    expect(firstAiReply).toBeDefined();
+    if (!firstAiReply) {
+      return;
+    }
+
+    worker.reply(createAiResult({ action: firstAiReply }));
+
+    expect(store.getState().aiStatus).toBe('idle');
+    expect(worker.requests).toHaveLength(1);
+
+    const secondHumanTurn = getLegalActions(store.getState().gameState, store.getState().ruleConfig)[0];
+
+    expect(secondHumanTurn).toBeDefined();
+    if (!secondHumanTurn) {
+      return;
+    }
+
+    commitTurnAction(store, secondHumanTurn);
+
+    expect(store.getState().aiStatus).toBe('thinking');
+    expect(worker.requests).toHaveLength(2);
+
+    vi.advanceTimersByTime(EASY_WATCHDOG_MS + 1);
+
+    expect(worker.terminated).toBe(true);
+    expect(store.getState().aiStatus).toBe('error');
   });
 
   it('starts a computer match as black and locks input while the AI is thinking', () => {
@@ -326,7 +442,12 @@ describe('createGameStore AI integration', () => {
       aiDifficulty: 'easy',
     });
 
-    vi.advanceTimersByTime(371);
+    vi.advanceTimersByTime(EASY_WATCHDOG_MS + 1);
+
+    expect(workers[0]?.terminated).toBe(false);
+    expect(store.getState().aiStatus).toBe('thinking');
+
+    vi.advanceTimersByTime(AI_COLD_START_BUFFER_MS);
 
     expect(workers[0]?.terminated).toBe(true);
     expect(store.getState().aiStatus).toBe('error');
@@ -361,7 +482,7 @@ describe('createGameStore AI integration', () => {
     const firstWorker = workers[0];
     const staleRequestId = firstWorker?.requests[0]?.requestId;
 
-    vi.advanceTimersByTime(371);
+    vi.advanceTimersByTime(EASY_COLD_START_WATCHDOG_MS + 1);
     store.getState().retryComputerMove();
 
     const secondWorker = workers[1];
