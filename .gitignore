@@ -4,5 +4,4 @@ node_modules
 .DS_Store
 *.log
 .playwright-cli
-.output
 .codex-artifactss

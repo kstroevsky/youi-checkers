@@ -5,6 +5,7 @@
   "type": "module",
   "scripts": {
     "ai:selfplay": "tsx scripts/ai-selfplay-dataset.ts",
+    "ai:variety": "tsx scripts/ai-variety.report.ts",
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "preview": "vite preview",
