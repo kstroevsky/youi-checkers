@@ -1,3 +1,5 @@
+/* global AbortSignal, PerformanceObserver, console, document, fetch, getComputedStyle, performance, requestAnimationFrame, setTimeout, window */
+
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { once } from 'node:events';
 import path from 'node:path';
@@ -14,32 +16,12 @@ const domainPerfPath = path.join(outputDir, 'domain-perf.json');
 const previewPort = 4176;
 const previewUrl = `http://127.0.0.1:${previewPort}/`;
 
-function round(value) {
-  return Math.round(value * 100) / 100;
-}
-
 function classifyLower(value, good, warn) {
   if (value <= good) {
     return 'good';
   }
 
   if (value <= warn) {
-    return 'warn';
-  }
-
-  return 'bad';
-}
-
-function classifySpeedup(value) {
-  if (!Number.isFinite(value)) {
-    return 'bad';
-  }
-
-  if (value >= 1.2) {
-    return 'good';
-  }
-
-  if (value >= 1) {
     return 'warn';
   }
 

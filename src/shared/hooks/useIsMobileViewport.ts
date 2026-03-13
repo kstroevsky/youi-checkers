@@ -40,7 +40,7 @@ function createViewportQueryStore(maxWidth: number): ViewportQueryStore {
       ? (window.matchMedia(getQuery(maxWidth)) as LegacyMediaQueryList)
       : null;
   let removeFallbackResizeListener: (() => void) | null = null;
-  let notify = () => {
+  const notify = () => {
     for (const listener of listeners) {
       listener();
     }

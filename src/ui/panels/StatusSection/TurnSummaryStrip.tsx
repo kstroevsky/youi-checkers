@@ -43,6 +43,7 @@ export function getVictoryTermId(victory: Victory): GlossaryTermId | null {
 export function TurnSummaryStrip({ compact = false }: TurnSummaryStripProps) {
   const {
     aiStatus,
+    availableActionKinds,
     currentPlayer,
     interaction,
     language,
@@ -50,11 +51,12 @@ export function TurnSummaryStrip({ compact = false }: TurnSummaryStripProps) {
     moveNumber,
     selectedCell,
     victory,
-    onRetryComputerMove,
     onCancel,
+    onRetryComputerMove,
   } = useGameStore(
     useShallow((state) => ({
       aiStatus: state.aiStatus,
+      availableActionKinds: state.availableActionKinds,
       currentPlayer: state.gameState.currentPlayer,
       interaction: state.interaction,
       language: state.preferences.language,
@@ -62,10 +64,13 @@ export function TurnSummaryStrip({ compact = false }: TurnSummaryStripProps) {
       moveNumber: state.gameState.moveNumber,
       selectedCell: state.selectedCell,
       victory: state.gameState.victory,
-      onRetryComputerMove: state.retryComputerMove,
       onCancel: state.cancelInteraction,
+      onRetryComputerMove: state.retryComputerMove,
     })),
   );
+
+  const isMoveActive =
+    selectedCell !== null && availableActionKinds.length > 0;
   const victoryTermId = getVictoryTermId(victory);
   const isComputerTurn =
     matchSettings.opponentMode === 'computer' && currentPlayer !== matchSettings.humanPlayer;
@@ -87,7 +92,7 @@ export function TurnSummaryStrip({ compact = false }: TurnSummaryStripProps) {
           <p>{formatTurnBanner(language, currentPlayer)}</p>
           <small>{interactionCopy}</small>
         </div>
-        <Button variant="active" onClick={onCancel}>
+        <Button variant="active" onClick={onCancel} disabled={!isMoveActive}>
             {text(language, 'clear')}
         </Button>
       </div>

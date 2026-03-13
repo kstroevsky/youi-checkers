@@ -5,7 +5,6 @@ import { TEXT } from '@/shared/i18n/catalog/text';
 export type InteractionCopy = {
   idle: string;
   pieceSelected: (source: string) => string;
-  actionTypeSelected: (actionLabel: string) => string;
   jumpFollowUp: (source: string) => string;
   choosingTarget: (actionLabel: string, source: string) => string;
   buildingJumpChain: (source: string) => string;
@@ -18,7 +17,6 @@ export const INTERACTION_COPY: Record<Language, InteractionCopy> = {
   english: {
     idle: 'Select a checker or controlled stack.',
     pieceSelected: (source) => `Selected ${source}. Choose a move type.`,
-    actionTypeSelected: (action) => `Action ${action} is selected.`,
     jumpFollowUp: (source) =>
       `Jump from ${source} keeps the turn. Continue jumping there or choose any legal move.`,
     choosingTarget: (action, source) => `Choose a target for ${action} from ${source}.`,
@@ -31,7 +29,6 @@ export const INTERACTION_COPY: Record<Language, InteractionCopy> = {
   russian: {
     idle: 'Выберите шашку или контролируемую горку.',
     pieceSelected: (source) => `Выбрана ${source}. Теперь выберите тип хода.`,
-    actionTypeSelected: (action) => `Выбрано действие «${action}».`,
     jumpFollowUp: (source) =>
       `Прыжок из ${source} сохраняет ход. Продолжайте прыжок им или выберите любой допустимый ход.`,
     choosingTarget: (action, source) => `Выберите цель для «${action}» из ${source}.`,

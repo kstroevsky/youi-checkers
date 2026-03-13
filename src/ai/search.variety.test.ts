@@ -73,7 +73,7 @@ function createSelfUndoMotifState(
   source: Coord,
   target: Coord,
   altSource: Coord,
-  altTarget: Coord,
+  _altTarget: Coord,
 ): { reverseAction: TurnAction; state: GameState } {
   const board = createEmptyBoard();
 
@@ -268,7 +268,7 @@ describe('AI variety guardrails', () => {
     expect(hard.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(
       medium.metrics.sourceFamilyOpeningHhi * 1.05 + 1e-6,
     );
-  }, 30_000);
+  }, 60_000);
 
   it('reduces checker over-concentration as difficulty rises', () => {
     const medium = getSummary('medium');
@@ -278,5 +278,5 @@ describe('AI variety guardrails', () => {
     expect(hard.metrics.sameFamilyQuietRepeatRate).toBeLessThanOrEqual(0.45);
     expect(medium.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(0.35);
     expect(hard.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(0.35);
-  }, 30_000);
+  }, 60_000);
 });

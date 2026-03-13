@@ -54,7 +54,7 @@ export function createCompactSession(
 
   const cursor = session.present.historyCursor;
   let windowStart = Math.max(0, cursor - Math.floor(windowSize / 2));
-  let windowEnd = Math.min(totalTurns, windowStart + windowSize);
+  const windowEnd = Math.min(totalTurns, windowStart + windowSize);
 
   windowStart = Math.max(0, windowEnd - windowSize);
 

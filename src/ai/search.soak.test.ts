@@ -1,7 +1,5 @@
 import { it } from 'vitest';
 
-import { AI_DIFFICULTY_PRESETS } from '@/ai';
-
 import { runAiSoakPlayout } from '@/ai/test/searchTestUtils';
 
 for (const difficulty of ['easy', 'medium', 'hard'] as const) {

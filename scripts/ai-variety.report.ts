@@ -44,10 +44,6 @@ function parseArg(name: string, fallback: number): number {
   return Number.isFinite(parsed) ? parsed : fallback;
 }
 
-function round(value: number, digits = 4): number {
-  return Number(value.toFixed(digits));
-}
-
 function classifyMetric(value: number, band?: AiVarietyTargetBand): 'good' | 'warn' | 'bad' | 'n/a' {
   if (!band) {
     return 'n/a';
