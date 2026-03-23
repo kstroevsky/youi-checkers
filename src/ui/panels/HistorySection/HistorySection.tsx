@@ -1,4 +1,4 @@
-import { startTransition, useDeferredValue } from 'react';
+import { startTransition, useDeferredValue, useEffect, useRef, useState } from 'react';
 import { useShallow } from 'zustand/react/shallow';
 
 import { useGameStore } from '@/app/providers/GameStoreProvider';
@@ -13,6 +13,8 @@ import styles from './style.module.scss';
 type HistoryState = 'current' | 'future' | 'past';
 
 export function HistorySection() {
+  const copyResetTimeoutRef = useRef<number | null>(null);
+  const [historyCopied, setHistoryCopied] = useState(false);
   const compactLayout = useIsMobileViewport(960);
   const {
     canRedo,
@@ -45,8 +47,48 @@ export function HistorySection() {
       : historyHydrationStatus === 'recentOnly'
         ? text(language, 'historyRecentOnly')
         : null;
+  const copyLabel = historyCopied ? text(language, 'historyCopied') : text(language, 'historyCopy');
 
   const showMatchSetup = !compactLayout;
+  const historyCopyPayload = deferredTurnLog
+    .map((record, index) => `${index + 1}. ${formatTurnRecord(language, record)}`)
+    .join('\n');
+
+  useEffect(() => {
+    return () => {
+      if (copyResetTimeoutRef.current !== null) {
+        window.clearTimeout(copyResetTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  const handleHistoryCopy = () => {
+    if (
+      !historyCopyPayload.length ||
+      typeof navigator === 'undefined' ||
+      typeof navigator.clipboard?.writeText !== 'function'
+    ) {
+      return;
+    }
+
+    void navigator.clipboard
+      .writeText(historyCopyPayload)
+      .then(() => {
+        setHistoryCopied(true);
+
+        if (copyResetTimeoutRef.current !== null) {
+          window.clearTimeout(copyResetTimeoutRef.current);
+        }
+
+        copyResetTimeoutRef.current = window.setTimeout(() => {
+          setHistoryCopied(false);
+          copyResetTimeoutRef.current = null;
+        }, 1200);
+      })
+      .catch(() => {
+        setHistoryCopied(false);
+      });
+  };
 
   return (
     <Panel className={styles.root}>
@@ -59,6 +101,17 @@ export function HistorySection() {
           <Button className={styles.headerButton} variant="ghost" onClick={onRedo} disabled={!canRedo}>
             {text(language, 'redo')}
           </Button>
+          <button
+            type="button"
+            className={styles.historyCopyButton}
+            aria-label={copyLabel}
+            title={copyLabel}
+            data-copied={historyCopied || undefined}
+            onClick={handleHistoryCopy}
+            disabled={!historyCopyPayload.length}
+          >
+            <span className={styles.copyIcon} aria-hidden="true" />
+          </button>
         </div>
         <small>{formatHistorySummary(language, deferredTurnLog.length, historyCursor)}</small>
         {hydrationNote ? <small className={styles.statusNote}>{hydrationNote}</small> : null}

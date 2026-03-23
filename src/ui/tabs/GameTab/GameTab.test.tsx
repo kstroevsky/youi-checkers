@@ -1,6 +1,6 @@
 import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
-import { beforeEach, describe, expect, it } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { GameStoreProvider } from '@/app/providers/GameStoreProvider';
 import type { GameState, TurnRecord } from '@/domain';
@@ -137,6 +137,26 @@ describe('GameTab compact layout', () => {
     expect(screen.getByRole('button', { name: 'Назад' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Вперёд' })).toBeInTheDocument();
     expect(screen.queryByRole('heading', { name: 'Параметры матча' })).not.toBeInTheDocument();
+  }, 10000);
+
+  it('copies the full move history from the history tray', async () => {
+    const user = userEvent.setup();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.defineProperty(navigator, 'clipboard', {
+      configurable: true,
+      value: { writeText },
+    });
+    renderGameTab(createHistoryHeavySession());
+
+    await user.click(screen.getByRole('tab', { name: 'История' }));
+    await user.click(await screen.findByRole('button', { name: 'Скопировать историю' }));
+
+    expect(writeText).toHaveBeenCalledTimes(1);
+    const copied = writeText.mock.calls[0]?.[0];
+    expect(typeof copied).toBe('string');
+    expect(copied.split('\n')).toHaveLength(12);
+    expect(copied).toContain('1. Белые: Шаг на пустую A1 -> A2');
+    expect(copied).toContain('12. Чёрные: Шаг на пустую A1 -> A2');
   }, 10000);
 
   it('renders the full history list instead of truncating to ten moves', async () => {
