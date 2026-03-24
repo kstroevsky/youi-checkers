@@ -116,8 +116,12 @@ export function validateGameState(state: EngineState): ValidationResult {
       };
     }
 
-    if (!state.pendingJump.visitedStateKeys.length) {
-      return { valid: false, reason: 'Pending jump must track at least one visited state.' };
+    if (
+      !state.pendingJump.jumpedCheckerIds.length &&
+      !(state.pendingJump.visitedCoords?.length) &&
+      !(state.pendingJump.visitedStateKeys?.length)
+    ) {
+      return { valid: false, reason: 'Pending jump must track at least one jumped checker.' };
     }
   }
 

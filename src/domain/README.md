@@ -42,7 +42,7 @@ The engine uses a deliberately small vocabulary.
 | `Cell` | `checkers[]` ordered bottom -> top | Stack control and structural analysis both depend on order |
 | `Board` | `Record<Coord, Cell>` over all `A1..F6` coordinates | Fixed coordinates simplify hashing, iteration, and serialization |
 | `TurnAction` | One legal action variant | The action union is the canonical move vocabulary used by UI, history, and AI |
-| `PendingJump` | Source cell plus visited jump-state keys | Preserves same-turn jump continuation without reintroducing illegal loops |
+| `PendingJump` | Source cell plus jumped-checker ids | Preserves same-turn jump continuation without allowing the same checker to be jumped twice |
 | `StateSnapshot` | Board + turn + status + victory + pending jump | Used inside history and undo frames without duplicating runtime-only fields |
 | `EngineState` | Snapshot + repetition counts | The smallest state the reducer/AI need for legal forward simulation |
 | `GameState` | Engine state + committed turn history | Full runtime state for gameplay, persistence, replay, and AI context |
@@ -225,18 +225,18 @@ Important design choice: this file does not only exist for the UI. The reducer, 
 
 | Function | Bigger purpose |
 | --- | --- |
-| `createJumpStateKey()` | Encodes jump-loop prevention as `(coord, board)` rather than only coordinate |
+| `createJumpStateKey()` | Helper for board-sensitive jump-state hashing used by tests and perf helpers |
 | `getMovingPlayer()` | Resolves moving-side ownership from the source cell |
 | `resolveJumpPath()` | Applies one or more jump segments while detecting loops and freeze/unfreeze effects |
-| `getVisitedJumpStates()` | Restores loop-prevention context from `pendingJump` or from committed history |
-| `getJumpTargetsForContext()` | Legal jump continuation under a specific board + visited-state context |
+| `getVisitedJumpedCheckerIds()` | Restores same-chain jumped-checker history from `pendingJump`, legacy payloads, or committed history |
+| `getJumpTargetsForContext()` | Legal jump continuation under a specific board + jumped-checker context |
 | `getJumpContinuationTargets()` | Computes next jump options after optional draft path segments |
 
 This file is why jump logic remains tractable. Same-turn continuation is the most subtle rule in the game, and these helpers keep it explicit instead of implicit.
 
-### Why visited jump states are board-based
+### Why jumped-checker history is identity-based
 
-The engine blocks repeating a prior jump state using `(landing coordinate + board hash)`. Coordinate alone is insufficient because the same source or landing square can be revisited after the board has changed materially. The rule the engine is protecting is not “never revisit a square”; it is “never re-enter the same jump state.”
+The engine blocks jumping over the same physical checker twice in one chain. Landing coordinates may repeat, including the starting square, as long as each segment uses a different jumped checker. Stable checker ids make that rule precise without forcing the engine to ban all landing-cell revisits.
 
 ### `rules/moveGeneration/validation.ts`
 

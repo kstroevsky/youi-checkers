@@ -57,15 +57,31 @@ export function assertPendingJump(value: unknown): PendingJump | null {
     return null;
   }
 
-  if (!isRecord(value) || !Array.isArray(value.visitedStateKeys)) {
+  if (!isRecord(value)) {
     throw new Error('Invalid pending jump state.');
   }
 
+  const jumpedCheckerIds = Array.isArray(value.jumpedCheckerIds)
+    ? value.jumpedCheckerIds.filter(
+        (entry): entry is string => typeof entry === 'string',
+      )
+    : [];
+  const visitedCoords = Array.isArray(value.visitedCoords)
+    ? value.visitedCoords.map((entry, index) =>
+        assertCoord(entry, `pendingJump.visitedCoords[${index}]`),
+      )
+    : [];
+  const visitedStateKeys = Array.isArray(value.visitedStateKeys)
+    ? value.visitedStateKeys.filter(
+        (entry): entry is string => typeof entry === 'string',
+      )
+    : [];
+
   return {
     source: assertCoord(value.source, 'pendingJump.source'),
-    visitedStateKeys: value.visitedStateKeys.filter(
-      (entry): entry is string => typeof entry === 'string',
-    ),
+    jumpedCheckerIds,
+    ...(visitedCoords.length ? { visitedCoords } : {}),
+    ...(visitedStateKeys.length ? { visitedStateKeys } : {}),
   };
 }
 

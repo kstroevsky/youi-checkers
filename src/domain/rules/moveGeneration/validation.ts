@@ -11,7 +11,7 @@ import type {
 import { isFrozenSingle } from '@/domain/validators/stateValidators';
 
 import {
-  getVisitedJumpStates,
+  getVisitedJumpedCheckerIds,
   resolveJumpPath,
 } from '@/domain/rules/moveGeneration/jump';
 import { getLegalActionsForCell } from '@/domain/rules/moveGeneration/targetDiscovery';
@@ -133,7 +133,7 @@ export function validateAction(
         action.source,
         action.path,
         sourceTopChecker.owner,
-        getVisitedJumpStates(state, action.source),
+        getVisitedJumpedCheckerIds(state, action.source),
       );
 
       if (!('board' in resolution)) {

@@ -3,7 +3,7 @@ import type { ActionKind, Board, Coord, PendingJump } from '@/domain/model/types
 export type PartialJumpResolution = {
   board: Board;
   currentCoord: Coord;
-  visited: Set<string>;
+  jumpedCheckerIds: Set<string>;
 };
 
 export type AppliedActionState = {

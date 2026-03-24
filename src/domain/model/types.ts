@@ -26,7 +26,9 @@ export type RuleConfig = {
 
 export type PendingJump = {
   source: Coord;
-  visitedStateKeys: string[];
+  jumpedCheckerIds: string[];
+  visitedCoords?: Coord[];
+  visitedStateKeys?: string[];
 };
 
 export type JumpSequenceAction = {

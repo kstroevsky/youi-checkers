@@ -28,23 +28,36 @@ import { canJumpOverCell, validateBoard } from '@/domain/validators/stateValidat
 
 import type { PartialJumpResolution } from '@/domain/rules/moveGeneration/types';
 
-/** Builds unique key for jump-loop prevention (coord + full board state). */
+/** Builds a board-sensitive jump-state key used by tests and perf helpers. */
 export function createJumpStateKey(coord: Coord, board: Board): string {
   return `${coord}::${hashBoard(board)}`;
 }
 
-/** Rebuilds visited jump states from a committed chain when history is available. */
-function getCommittedJumpVisitedStates(
+/** Resolves the middle coordinate for one jump segment. */
+function getJumpMiddleCoord(source: Coord, landing: Coord): Coord | null {
+  const direction = getJumpDirection(source, landing);
+
+  return direction ? getAdjacentCoord(source, direction) : null;
+}
+
+/** Resolves the jumped checker id for one segment on the current board. */
+function getJumpedCheckerId(board: Board, source: Coord, landing: Coord): string | null {
+  const middleCoord = getJumpMiddleCoord(source, landing);
+
+  return middleCoord ? getTopChecker(board, middleCoord)?.id ?? null : null;
+}
+
+/** Rebuilds jumped-checker ids from a committed chain when history is available. */
+function getCommittedJumpedCheckerIds(
   state: Pick<GameState, 'history'>,
   source: Coord,
   movingPlayer: Player,
 ): Set<string> {
-  const chain: Array<
-    Extract<GameState['history'][number]['action'], { type: 'jumpSequence' }> & {
-      beforeBoard: Board;
-      afterBoard: Board;
-    }
-  > = [];
+  const chain: Array<{
+    source: Coord;
+    landing: Coord;
+    beforeBoard: Board;
+  }> = [];
   let expectedLanding = source;
 
   for (let index = state.history.length - 1; index >= 0; index -= 1) {
@@ -61,9 +74,9 @@ function getCommittedJumpVisitedStates(
     }
 
     chain.push({
-      ...record.action,
+      source: record.action.source,
+      landing,
       beforeBoard: record.beforeState.board,
-      afterBoard: record.afterState.board,
     });
     expectedLanding = record.action.source;
   }
@@ -72,23 +85,45 @@ function getCommittedJumpVisitedStates(
     return new Set();
   }
 
-  const visited = new Set<string>();
+  const jumpedCheckerIds = new Set<string>();
   const orderedChain = chain.reverse();
-  const chainStart = orderedChain[0];
-
-  visited.add(createJumpStateKey(chainStart.source, chainStart.beforeBoard));
 
   for (const segment of orderedChain) {
-    const landing = segment.path.at(-1);
+    const jumpedCheckerId = getJumpedCheckerId(
+      segment.beforeBoard,
+      segment.source,
+      segment.landing,
+    );
 
-    if (!landing) {
+    if (!jumpedCheckerId) {
       continue;
     }
 
-    visited.add(createJumpStateKey(landing, segment.afterBoard));
+    jumpedCheckerIds.add(jumpedCheckerId);
   }
 
-  return visited;
+  return jumpedCheckerIds;
+}
+
+/** Rebuilds jumped-checker ids from legacy visited landing coordinates. */
+function getJumpedCheckerIdsFromVisitedCoords(board: Board, visitedCoords: Coord[]): Set<string> {
+  const jumpedCheckerIds = new Set<string>();
+
+  for (let index = 1; index < visitedCoords.length; index += 1) {
+    const jumpedCheckerId = getJumpedCheckerId(
+      board,
+      visitedCoords[index - 1],
+      visitedCoords[index],
+    );
+
+    if (!jumpedCheckerId) {
+      continue;
+    }
+
+    jumpedCheckerIds.add(jumpedCheckerId);
+  }
+
+  return jumpedCheckerIds;
 }
 
 /** Returns owner of the top checker at source coordinate. */
@@ -153,24 +188,30 @@ function applySingleJumpSegment(
   return validateBoard(board);
 }
 
-/** Resolves an entire jump path and blocks repetition of a prior jump state. */
+/** Resolves an entire jump path and blocks jumping the same checker twice. */
 export function resolveJumpPath(
   board: Board,
   source: Coord,
   path: Coord[],
   movingPlayer: Player,
-  visitedSeed?: Set<string>,
+  jumpedSeed?: Set<string>,
 ): ValidationResult | PartialJumpResolution {
   const nextBoard = cloneBoardStructure(board);
   const clonedCoords = new Set<Coord>();
   let currentCoord = source;
-  const visited = new Set(visitedSeed ?? []);
-
-  if (!visited.size) {
-    visited.add(createJumpStateKey(source, board));
-  }
+  const jumpedCheckerIds = new Set(jumpedSeed ?? []);
 
   for (const landing of path) {
+    const middleCoord = getJumpMiddleCoord(currentCoord, landing);
+    const jumpedCheckerId = middleCoord ? getTopChecker(nextBoard, middleCoord)?.id ?? null : null;
+
+    if (jumpedCheckerId && jumpedCheckerIds.has(jumpedCheckerId)) {
+      return {
+        valid: false,
+        reason: `Jump path cannot jump over ${middleCoord} twice during the same jump chain.`,
+      };
+    }
+
     const stepResult = applySingleJumpSegment(
       nextBoard,
       currentCoord,
@@ -183,23 +224,21 @@ export function resolveJumpPath(
       return stepResult;
     }
 
-    currentCoord = landing;
-    const stateKey = createJumpStateKey(currentCoord, nextBoard);
-
-    if (visited.has(stateKey)) {
+    if (!jumpedCheckerId) {
       return {
         valid: false,
-        reason: `Jump path repeats a previous position at ${landing}.`,
+        reason: `Middle checker missing at ${middleCoord ?? 'unknown'}.`,
       };
     }
 
-    visited.add(stateKey);
+    currentCoord = landing;
+    jumpedCheckerIds.add(jumpedCheckerId);
   }
 
   return {
     board: nextBoard,
     currentCoord,
-    visited,
+    jumpedCheckerIds,
   };
 }
 
@@ -225,22 +264,28 @@ function getJumpTargetsOnBoard(board: Board, source: Coord, _movingPlayer: Playe
   });
 }
 
-/** Returns visited jump-state set carried by the engine state or seeded from the source. */
-export function getVisitedJumpStates(
+/** Returns jumped-checker ids carried by the engine state or reconstructed from history. */
+export function getVisitedJumpedCheckerIds(
   state: Pick<EngineState, 'board' | 'pendingJump'> & Partial<Pick<GameState, 'history'>>,
   source: Coord,
 ): Set<string> {
   const pendingJump = state.pendingJump;
 
   if (pendingJump?.source === source) {
-    return new Set(pendingJump.visitedStateKeys);
+    if (pendingJump.jumpedCheckerIds.length) {
+      return new Set(pendingJump.jumpedCheckerIds);
+    }
+
+    if (pendingJump.visitedCoords?.length) {
+      return getJumpedCheckerIdsFromVisitedCoords(state.board, pendingJump.visitedCoords);
+    }
   }
 
   if (state.history?.length) {
     const movingPlayer = getMovingPlayer(state.board, source);
 
     if (movingPlayer) {
-      const committedVisited = getCommittedJumpVisitedStates(
+      const committedVisited = getCommittedJumpedCheckerIds(
         { history: state.history },
         source,
         movingPlayer,
@@ -252,18 +297,18 @@ export function getVisitedJumpStates(
     }
   }
 
-  return new Set([createJumpStateKey(source, state.board)]);
+  return new Set();
 }
 
-/** Returns filtered legal jump continuation targets for one board/visited context. */
+/** Returns filtered legal jump continuation targets for one board/jumped-checker context. */
 export function getJumpTargetsForContext(
   board: Board,
   source: Coord,
   movingPlayer: Player,
-  visited: Set<string>,
+  jumpedCheckerIds: Set<string>,
 ): Coord[] {
   return getJumpTargetsOnBoard(board, source, movingPlayer).filter((target) => {
-    const resolution = resolveJumpPath(board, source, [target], movingPlayer, visited);
+    const resolution = resolveJumpPath(board, source, [target], movingPlayer, jumpedCheckerIds);
 
     return 'board' in resolution;
   });
@@ -284,10 +329,16 @@ export function getJumpContinuationTargets(
 
   let currentCoord = source;
   let currentBoard = state.board;
-  let visited = getVisitedJumpStates(state, source);
+  let jumpedCheckerIds = getVisitedJumpedCheckerIds(state, source);
 
   for (const landing of draftPath) {
-    const partial = resolveJumpPath(currentBoard, currentCoord, [landing], movingPlayer, visited);
+    const partial = resolveJumpPath(
+      currentBoard,
+      currentCoord,
+      [landing],
+      movingPlayer,
+      jumpedCheckerIds,
+    );
 
     if (!('board' in partial)) {
       return [];
@@ -295,8 +346,8 @@ export function getJumpContinuationTargets(
 
     currentBoard = partial.board;
     currentCoord = partial.currentCoord;
-    visited = partial.visited;
+    jumpedCheckerIds = partial.jumpedCheckerIds;
   }
 
-  return getJumpTargetsForContext(currentBoard, currentCoord, movingPlayer, visited);
+  return getJumpTargetsForContext(currentBoard, currentCoord, movingPlayer, jumpedCheckerIds);
 }

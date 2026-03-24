@@ -19,7 +19,7 @@ import type {
 import {
   getJumpTargetsForContext,
   getMovingPlayer,
-  getVisitedJumpStates,
+  getVisitedJumpedCheckerIds,
   resolveJumpPath,
 } from '@/domain/rules/moveGeneration/jump';
 import type { AppliedActionState } from '@/domain/rules/moveGeneration/types';
@@ -69,7 +69,7 @@ export function applyValidatedAction(
         action.source,
         action.path,
         movingPlayer,
-        getVisitedJumpStates(state, action.source),
+        getVisitedJumpedCheckerIds(state, action.source),
       );
 
       if (!('board' in result)) {
@@ -80,7 +80,7 @@ export function applyValidatedAction(
         result.board,
         result.currentCoord,
         movingPlayer,
-        result.visited,
+        result.jumpedCheckerIds,
       );
 
       return {
@@ -88,7 +88,7 @@ export function applyValidatedAction(
         pendingJump: continuationTargets.length
           ? {
               source: result.currentCoord,
-              visitedStateKeys: [...result.visited],
+              jumpedCheckerIds: [...result.jumpedCheckerIds],
             }
           : null,
       };
