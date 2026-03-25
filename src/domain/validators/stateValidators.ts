@@ -9,6 +9,7 @@ import {
   isStack,
 } from '@/domain/model/board';
 import { allCoords, isAdjacent } from '@/domain/model/coordinates';
+import { hasPendingJumpTrail } from '@/domain/model/pendingJump';
 import type { Board, Coord, EngineState, Player, ValidationResult } from '@/domain/model/types';
 
 /** True when the cell contains exactly one frozen checker. */
@@ -116,11 +117,7 @@ export function validateGameState(state: EngineState): ValidationResult {
       };
     }
 
-    if (
-      !state.pendingJump.jumpedCheckerIds.length &&
-      !(state.pendingJump.visitedCoords?.length) &&
-      !(state.pendingJump.visitedStateKeys?.length)
-    ) {
+    if (!hasPendingJumpTrail(state.pendingJump)) {
       return { valid: false, reason: 'Pending jump must track at least one jumped checker.' };
     }
   }

@@ -1,4 +1,4 @@
-import { applyAction, createUndoFrame, type TurnAction } from '@/domain';
+import { createUndoFrame, runGameCommand, type DomainEvent, type TurnAction } from '@/domain';
 import type { SerializableSession } from '@/shared/types/session';
 import type { AiSearchResult } from '@/ai';
 import type { InteractionState } from '@/shared/types/session';
@@ -96,11 +96,25 @@ export function createStoreTransitions({
   function commitAction(action: TurnAction, aiDecision: AiSearchResult | null = null): void {
     const state = get();
     const nextHistoryHydrationStatus = consumeStartupHydrationOnMutation();
-    const nextGameState = applyAction(state.gameState, action, state.ruleConfig);
+    const transition = runGameCommand(
+      state.gameState,
+      { type: 'submitAction', action },
+      state.ruleConfig,
+    );
+    const nextGameState = transition.state;
     const nextTurnLog = nextGameState.history;
     const nextPast = [...state.past, createUndoFrame(state.gameState)];
     const nextFuture: GameStoreState['future'] = [];
-    const jumpFollowUp = getJumpFollowUpSelection(nextGameState);
+    const jumpFollowUpEvent = transition.events.find(
+      (event): event is Extract<DomainEvent, { type: 'jumpContinuationOpened' }> =>
+        event.type === 'jumpContinuationOpened',
+    );
+    const jumpFollowUp = jumpFollowUpEvent
+      ? {
+          source: jumpFollowUpEvent.source,
+          targets: jumpFollowUpEvent.targets,
+        }
+      : getJumpFollowUpSelection(nextGameState);
     const computerMatch = isComputerMatch(state.matchSettings);
     const nextInteraction: InteractionState =
       nextGameState.status === 'gameOver'

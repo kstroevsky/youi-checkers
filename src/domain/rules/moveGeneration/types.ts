@@ -8,6 +8,7 @@ export type PartialJumpResolution = {
 
 export type AppliedActionState = {
   board: Board;
+  continuationTargets?: Coord[];
   pendingJump: PendingJump | null;
 };
 

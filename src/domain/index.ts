@@ -2,6 +2,10 @@ export { createInitialBoard, createInitialState } from '@/domain/generators/crea
 export { hashPosition } from '@/domain/model/hash';
 export { RULE_DEFAULTS, RULE_TOGGLE_DESCRIPTORS, withRuleDefaults } from '@/domain/model/ruleConfig';
 export { advanceEngineState, applyAction } from '@/domain/reducers/gameReducer';
+export {
+  runEngineCommand,
+  runGameCommand,
+} from '@/domain/reducers/engineTransition';
 export { getScoreSummary } from '@/domain/rules/scoring';
 export {
   createUndoFrame,
@@ -43,3 +47,9 @@ export type {
   ValidationResult,
   Victory,
 } from '@/domain/model/types';
+export type {
+  DomainEvent,
+  EngineCommand,
+  EngineTransitionResult,
+  GameTransitionResult,
+} from '@/domain/reducers/engineTransition';
