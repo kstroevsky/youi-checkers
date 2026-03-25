@@ -141,7 +141,16 @@ export function createGameplayActions({
       }
     },
     redo: () => {
-      applyHistoryStep('forward');
+      if (!applyHistoryStep('forward')) {
+        return;
+      }
+
+      const state = get();
+      const justReplayed = state.turnLog[state.historyCursor - 1];
+
+      if (isComputerMatch(state.matchSettings) && justReplayed?.actor === state.matchSettings.humanPlayer) {
+        applyHistoryStep('forward');
+      }
     },
     retryComputerMove: () => {
       const state = get();

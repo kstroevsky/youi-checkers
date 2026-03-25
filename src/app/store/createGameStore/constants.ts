@@ -18,4 +18,4 @@ export const LEGACY_RULE_DEFAULTS: RuleConfig = {
 export const AI_WATCHDOG_BUFFER_MS = 250;
 
 /** Short pause after an AI-authored move before the next AI turn is scheduled. */
-export const AI_MOVE_REVEAL_MS = 550;
+export const AI_MOVE_REVEAL_MS = 300;

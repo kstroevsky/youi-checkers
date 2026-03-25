@@ -29,6 +29,7 @@ export function getTurnSpans(
   return spans;
 }
 
+
 /** Returns the history cursor the undo action should target in computer mode. */
 export function getComputerUndoTarget(state: GameStoreState): number {
   const spans = getTurnSpans(state.turnLog, state.historyCursor);

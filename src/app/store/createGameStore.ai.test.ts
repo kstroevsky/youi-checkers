@@ -280,6 +280,38 @@ describe('createGameStore AI integration', () => {
     expect(store.getState().gameState.currentPlayer).toBe('white');
   });
 
+  it('redoes the full human-plus-computer turn pair in computer mode', () => {
+    const worker = new FakeAiWorker();
+    const store = createGameStore({
+      createAiWorker: () => worker,
+      storage: undefined,
+    });
+
+    store.getState().startNewGame({
+      opponentMode: 'computer',
+      humanPlayer: 'white',
+      aiDifficulty: 'easy',
+    });
+
+    store.getState().selectCell('A1');
+    store.getState().chooseActionType('climbOne');
+    store.getState().selectCell('B2');
+
+    const aiAction = getLegalActions(store.getState().gameState, store.getState().ruleConfig)[0];
+    worker.reply(createAiResult({ action: aiAction }));
+
+    expect(store.getState().historyCursor).toBe(2);
+
+    store.getState().undo();
+
+    expect(store.getState().historyCursor).toBe(0);
+
+    store.getState().redo();
+
+    expect(store.getState().historyCursor).toBe(2);
+    expect(store.getState().gameState.currentPlayer).toBe('white');
+  });
+
   it('auto-schedules AI only when a loaded computer session is at the live tip', async () => {
     const liveWorker = new FakeAiWorker();
     createGameStore({
