@@ -335,9 +335,9 @@ export function chooseComputerAction({
         -betaWindow,
         -alphaWindow,
         1,
-        [rootPositionKey, makeTableKey(entry.nextState)],
+        [rootPositionKey, entry.nextPositionKey],
         [entry.action],
-        actionKey(entry.action),
+        entry.serializedAction,
         entry.nextParticipationState,
         context,
       );

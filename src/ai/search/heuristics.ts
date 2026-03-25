@@ -49,7 +49,7 @@ export function rememberCutoffMove(
     return;
   }
 
-  const serialized = actionKey(entry.action);
+  const serialized = entry.serializedAction;
   const bonus = Math.max(1, depth * depth);
   const historyScore = context.historyScores.get(serialized) ?? 0;
 

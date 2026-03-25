@@ -9,7 +9,7 @@ import {
   rememberCutoffMove,
   TRANSPOSITION_LIMIT,
 } from '@/ai/search/heuristics';
-import { actionKey, makeTableKey, throwIfTimedOut } from '@/ai/search/shared';
+import { makeTableKey, throwIfTimedOut } from '@/ai/search/shared';
 import type { BoundFlag, SearchContext } from '@/ai/search/types';
 import { quiescence } from '@/ai/search/quiescence';
 
@@ -115,8 +115,7 @@ export function negamax(
   let searchedFirstChild = false;
 
   for (const entry of orderedMoves) {
-    const nextPositionKey = makeTableKey(entry.nextState);
-    const nextAncestorPositionKeys = [...ancestorPositionKeys, nextPositionKey];
+    const nextAncestorPositionKeys = [...ancestorPositionKeys, entry.nextPositionKey];
     const nextAncestorActions = [...ancestorActions, entry.action];
     let score: number;
 
@@ -129,7 +128,7 @@ export function negamax(
         currentDepth + 1,
         nextAncestorPositionKeys,
         nextAncestorActions,
-        actionKey(entry.action),
+        entry.serializedAction,
         entry.nextParticipationState,
         context,
       );
@@ -143,7 +142,7 @@ export function negamax(
         currentDepth + 1,
         nextAncestorPositionKeys,
         nextAncestorActions,
-        actionKey(entry.action),
+        entry.serializedAction,
         entry.nextParticipationState,
         context,
       );
@@ -158,7 +157,7 @@ export function negamax(
           currentDepth + 1,
           nextAncestorPositionKeys,
           nextAncestorActions,
-          actionKey(entry.action),
+          entry.serializedAction,
           entry.nextParticipationState,
           context,
         );

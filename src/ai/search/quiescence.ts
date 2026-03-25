@@ -6,7 +6,7 @@ import { FRONT_HOME_ROW, HOME_ROWS } from '@/domain/model/constants';
 import { parseCoord } from '@/domain/model/coordinates';
 
 import { getGrandparentPositionKey, getMovePenalty } from '@/ai/search/heuristics';
-import { actionKey, makeTableKey, throwIfTimedOut } from '@/ai/search/shared';
+import { makeTableKey, throwIfTimedOut } from '@/ai/search/shared';
 import type { SearchContext } from '@/ai/search/types';
 
 /** Chooses forcing moves only for the quiescence tail below the main search frontier. */
@@ -140,15 +140,14 @@ export function quiescence(
   let bestScore = standPat;
 
   for (const entry of forcingMoves) {
-    const nextPositionKey = makeTableKey(entry.nextState);
     let score = -quiescence(
       entry.nextState,
       -beta,
       -alpha,
       currentDepth + 1,
-      [...ancestorPositionKeys, nextPositionKey],
+      [...ancestorPositionKeys, entry.nextPositionKey],
       [...ancestorActions, entry.action],
-      actionKey(entry.action),
+      entry.serializedAction,
       entry.nextParticipationState,
       context,
     );

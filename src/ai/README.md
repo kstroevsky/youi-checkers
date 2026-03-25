@@ -250,6 +250,8 @@ The expensive part of ordering is also intentionally split in two:
 
 `search/rootSearch.ts` reuses that precomputed root set across iterative-deepening passes instead of rebuilding the full static ordering payload at every depth. This preserves move quality because the same dynamic ordering terms are still re-scored each pass, and parity is locked by [`moveOrdering.test.ts`](./moveOrdering.test.ts).
 
+Those ordered entries also carry the serialized action key and child position key forward, so `negamax`, `quiescence`, and root orchestration do not need to re-serialize the same move or re-hash the same child state later in the same search.
+
 Why this file exists separately from search:
 
 - ordering logic is rich enough to deserve independent tests and documentation;

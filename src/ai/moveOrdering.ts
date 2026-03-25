@@ -32,6 +32,7 @@ export type OrderedAction = {
   isSelfUndo: boolean;
   isTactical: boolean;
   movedMass: number;
+  nextPositionKey: string;
   nextState: EngineState;
   nextParticipationState: ParticipationState;
   participationDelta: number;
@@ -40,6 +41,7 @@ export type OrderedAction = {
   repeatsSourceFamily: boolean;
   repeatsSourceRegion: boolean;
   score: number;
+  serializedAction: string;
   sourceFamily: string;
   sourceRegion: SourceRegion;
   tags: AiStrategicTag[];
@@ -47,7 +49,6 @@ export type OrderedAction = {
 };
 
 export type PrecomputedOrderedAction = Omit<OrderedAction, 'score'> & {
-  serializedAction: string;
   staticScore: number;
 };
 
@@ -445,6 +446,7 @@ export function precomputeOrderedActions(
       isSelfUndo,
       isTactical,
       movedMass: participationProfile.movedMass,
+      nextPositionKey,
       nextState,
       nextParticipationState: participationProfile.nextParticipationState,
       participationDelta: participationProfile.participationDelta,
