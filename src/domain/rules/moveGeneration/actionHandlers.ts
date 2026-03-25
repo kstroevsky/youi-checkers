@@ -6,6 +6,7 @@ import {
   getController,
   getTopChecker,
   isEmptyCell,
+  isSingleChecker,
   isStack,
   removeTopCheckers,
   setSingleCheckerFrozen,
@@ -26,7 +27,6 @@ import {
   canLandOnOccupiedCell,
   isControlledStack,
   isFrozenSingle,
-  isMovableSingle,
 } from '@/domain/validators/stateValidators';
 
 import {
@@ -62,40 +62,34 @@ const ACTION_GENERATION_ORDER: Array<Exclude<ActionKind, 'manualUnfreeze'>> = [
   'friendlyStackTransfer',
 ];
 
-function getClimbTargets(board: EngineState['board'], source: Coord): Coord[] {
-  return DIRECTION_VECTORS.flatMap((direction) => {
+function collectAdjacentTargets(
+  board: EngineState['board'],
+  source: Coord,
+  isValidTarget: (board: EngineState['board'], target: Coord) => boolean,
+): Coord[] {
+  const targets: Coord[] = [];
+
+  for (const direction of DIRECTION_VECTORS) {
     const target = getAdjacentCoord(source, direction);
 
-    if (!target || !canLandOnOccupiedCell(board, target)) {
-      return [];
+    if (target && isValidTarget(board, target)) {
+      targets.push(target);
     }
+  }
 
-    return [target];
-  });
+  return targets;
+}
+
+function getClimbTargets(board: EngineState['board'], source: Coord): Coord[] {
+  return collectAdjacentTargets(board, source, canLandOnOccupiedCell);
 }
 
 function getSingleStepTargets(board: EngineState['board'], source: Coord): Coord[] {
-  return DIRECTION_VECTORS.flatMap((direction) => {
-    const target = getAdjacentCoord(source, direction);
-
-    if (!target || !isEmptyCell(board, target)) {
-      return [];
-    }
-
-    return [target];
-  });
+  return collectAdjacentTargets(board, source, isEmptyCell);
 }
 
 function getSplitTargets(board: EngineState['board'], source: Coord): Coord[] {
-  return DIRECTION_VECTORS.flatMap((direction) => {
-    const target = getAdjacentCoord(source, direction);
-
-    if (!target || !isEmptyCell(board, target)) {
-      return [];
-    }
-
-    return [target];
-  });
+  return collectAdjacentTargets(board, source, isEmptyCell);
 }
 
 function getFriendlyTransferTargets(
@@ -108,17 +102,23 @@ function getFriendlyTransferTargets(
     return [];
   }
 
-  return allCoords().filter((coord) => {
+  const targets: Coord[] = [];
+
+  for (const coord of allCoords()) {
     if (coord === source) {
-      return false;
+      continue;
     }
 
-    return (
+    if (
       isStack(board, coord) &&
       getController(board, coord) === player &&
       getCellHeight(board, coord) < 3
-    );
-  });
+    ) {
+      targets.push(coord);
+    }
+  }
+
+  return targets;
 }
 
 function moveCheckers(
@@ -142,14 +142,7 @@ const actionHandlers = {
   manualUnfreeze: {
     kind: 'manualUnfreeze',
     getActions: (state, coord, _config) => {
-      if (
-        isFrozenSingle(state.board, coord) &&
-        getTopChecker(state.board, coord)?.owner === state.currentPlayer
-      ) {
-        return [{ type: 'manualUnfreeze', coord }];
-      }
-
-      return [];
+      return [{ type: 'manualUnfreeze', coord }];
     },
     applyValidated: (state, action) => {
       if (action.type !== 'manualUnfreeze') {
@@ -171,14 +164,6 @@ const actionHandlers = {
   jumpSequence: {
     kind: 'jumpSequence',
     getActions: (state, coord, _config) => {
-      const player = state.currentPlayer;
-      const isPlayerSingle = isMovableSingle(state.board, coord, player);
-      const isPlayerStack = isControlledStack(state.board, coord, player);
-
-      if (!isPlayerSingle && !isPlayerStack) {
-        return [];
-      }
-
       return getJumpContinuationTargets(state, coord, []).map<JumpSequenceAction>((target) => ({
         type: 'jumpSequence',
         source: coord,
@@ -230,14 +215,6 @@ const actionHandlers = {
   climbOne: {
     kind: 'climbOne',
     getActions: (state, coord, _config) => {
-      const player = state.currentPlayer;
-      const isPlayerSingle = isMovableSingle(state.board, coord, player);
-      const isPlayerStack = isControlledStack(state.board, coord, player);
-
-      if (!isPlayerSingle && !isPlayerStack) {
-        return [];
-      }
-
       return getClimbTargets(state.board, coord).map((target) => ({
         type: 'climbOne' as const,
         source: coord,
@@ -256,14 +233,6 @@ const actionHandlers = {
   moveSingleToEmpty: {
     kind: 'moveSingleToEmpty',
     getActions: (state, coord, _config) => {
-      const player = state.currentPlayer;
-      const isPlayerSingle = isMovableSingle(state.board, coord, player);
-      const isPlayerStack = isControlledStack(state.board, coord, player);
-
-      if (!isPlayerSingle && !isPlayerStack) {
-        return [];
-      }
-
       return getSingleStepTargets(state.board, coord).map((target) => ({
         type: 'moveSingleToEmpty' as const,
         source: coord,
@@ -283,10 +252,6 @@ const actionHandlers = {
   splitOneFromStack: {
     kind: 'splitOneFromStack',
     getActions: (state, coord, _config) => {
-      if (!isControlledStack(state.board, coord, state.currentPlayer)) {
-        return [];
-      }
-
       return getSplitTargets(state.board, coord).map((target) => ({
         type: 'splitOneFromStack' as const,
         source: coord,
@@ -305,13 +270,6 @@ const actionHandlers = {
   splitTwoFromStack: {
     kind: 'splitTwoFromStack',
     getActions: (state, coord, _config) => {
-      if (
-        !isControlledStack(state.board, coord, state.currentPlayer) ||
-        getCellHeight(state.board, coord) < 2
-      ) {
-        return [];
-      }
-
       return getSplitTargets(state.board, coord).map((target) => ({
         type: 'splitTwoFromStack' as const,
         source: coord,
@@ -330,10 +288,6 @@ const actionHandlers = {
   friendlyStackTransfer: {
     kind: 'friendlyStackTransfer',
     getActions: (state, coord, config) => {
-      if (!isControlledStack(state.board, coord, state.currentPlayer)) {
-        return [];
-      }
-
       return getFriendlyTransferTargets(
         state.board,
         coord,
@@ -370,15 +324,41 @@ export function getGeneratedActionsForCell(
   coord: Coord,
   config: RuleConfig,
 ): TurnAction[] {
-  const manualUnfreezeActions = actionHandlers.manualUnfreeze.getActions(state, coord, config);
+  const topChecker = getTopChecker(state.board, coord);
 
-  if (manualUnfreezeActions.length) {
-    return manualUnfreezeActions;
+  if (!topChecker || topChecker.owner !== state.currentPlayer) {
+    return [];
+  }
+
+  if (topChecker.frozen) {
+    return isFrozenSingle(state.board, coord)
+      ? actionHandlers.manualUnfreeze.getActions(state, coord, config)
+      : [];
+  }
+
+  const isPlayerSingle = isSingleChecker(state.board, coord);
+  const isPlayerStack = !isPlayerSingle && isStack(state.board, coord);
+
+  if (!isPlayerSingle && !isPlayerStack) {
+    return [];
   }
 
   const actions: TurnAction[] = [];
 
   for (const kind of ACTION_GENERATION_ORDER) {
+    if (
+      (kind === 'splitOneFromStack' ||
+        kind === 'splitTwoFromStack' ||
+        kind === 'friendlyStackTransfer') &&
+      !isPlayerStack
+    ) {
+      continue;
+    }
+
+    if (kind === 'splitTwoFromStack' && getCellHeight(state.board, coord) < 2) {
+      continue;
+    }
+
     actions.push(...actionHandlers[kind].getActions(state, coord, config));
   }
 

@@ -8,7 +8,9 @@ export function advanceEngineState(
   action: TurnAction,
   config: Partial<RuleConfig> = {},
 ): EngineState {
-  return runEngineCommand(state, { type: 'submitAction', action }, config).state;
+  return runEngineCommand(state, { type: 'submitAction', action }, config, {
+    emitEvents: false,
+  }).state;
 }
 
 /** Authoritative state transition: validate, apply, resolve pass/victory, append history. */

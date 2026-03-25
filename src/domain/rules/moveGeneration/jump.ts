@@ -244,24 +244,28 @@ export function resolveJumpPath(
 
 /** Returns immediate legal jump landings from a coordinate on a specific board. */
 function getJumpTargetsOnBoard(board: Board, source: Coord, _movingPlayer: Player): Coord[] {
-  return DIRECTION_VECTORS.flatMap((direction) => {
+  const targets: Coord[] = [];
+
+  for (const direction of DIRECTION_VECTORS) {
     const jumpedCoord = getAdjacentCoord(source, direction);
     const landingCoord = getJumpLandingCoord(source, direction);
 
     if (!jumpedCoord || !landingCoord) {
-      return [];
+      continue;
     }
 
     if (!canJumpOverCell(board, jumpedCoord)) {
-      return [];
+      continue;
     }
 
     if (!isEmptyCell(board, landingCoord)) {
-      return [];
+      continue;
     }
 
-    return [landingCoord];
-  });
+    targets.push(landingCoord);
+  }
+
+  return targets;
 }
 
 /** Returns jumped-checker ids carried by the engine state or reconstructed from history. */
@@ -307,11 +311,19 @@ export function getJumpTargetsForContext(
   movingPlayer: Player,
   jumpedCheckerIds: Set<string>,
 ): Coord[] {
-  return getJumpTargetsOnBoard(board, source, movingPlayer).filter((target) => {
-    const resolution = resolveJumpPath(board, source, [target], movingPlayer, jumpedCheckerIds);
+  const targets: Coord[] = [];
 
-    return 'board' in resolution;
-  });
+  for (const target of getJumpTargetsOnBoard(board, source, movingPlayer)) {
+    const jumpedCheckerId = getJumpedCheckerId(board, source, target);
+
+    if (!jumpedCheckerId || jumpedCheckerIds.has(jumpedCheckerId)) {
+      continue;
+    }
+
+    targets.push(target);
+  }
+
+  return targets;
 }
 
 /** Returns next legal jump targets from a source plus optional pre-applied draft path. */

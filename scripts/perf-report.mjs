@@ -437,7 +437,7 @@ async function waitForImportedSession(page, expectedMoveNumber) {
     () => {
       const importField = document.querySelector('#import-session');
 
-      return importField instanceof HTMLTextAreaElement && importField.value === '';
+      return importField?.tagName === 'TEXTAREA' && importField.value === '';
     },
     { timeout: 20000 },
   );

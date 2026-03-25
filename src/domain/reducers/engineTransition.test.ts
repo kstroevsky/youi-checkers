@@ -45,6 +45,45 @@ describe('engine transition pipeline', () => {
     });
   });
 
+  it('can skip event materialization for engine-only callers without changing the resulting state', () => {
+    const state = gameStateWithBoard(
+      boardWithPieces({
+        A1: [checker('white')],
+        B2: [checker('white')],
+        D4: [checker('black')],
+      }),
+    );
+    const withEvents = runEngineCommand(
+      state,
+      {
+        type: 'submitAction',
+        action: {
+          type: 'jumpSequence',
+          source: 'A1',
+          path: ['C3'],
+        },
+      },
+      withConfig(),
+    );
+    const withoutEvents = runEngineCommand(
+      state,
+      {
+        type: 'submitAction',
+        action: {
+          type: 'jumpSequence',
+          source: 'A1',
+          path: ['C3'],
+        },
+      },
+      withConfig(),
+      { emitEvents: false },
+    );
+
+    expect(withoutEvents.events).toEqual([]);
+    expect(withoutEvents.state).toEqual(withEvents.state);
+    expect(withoutEvents.positionHash).toBe(withEvents.positionHash);
+  });
+
   it('emits game-over events for winning moves', () => {
     const homeCoords = [
       'A4',

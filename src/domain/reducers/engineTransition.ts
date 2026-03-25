@@ -18,6 +18,10 @@ export type EngineCommand = {
   action: TurnAction;
 };
 
+export type EngineTransitionOptions = {
+  emitEvents?: boolean;
+};
+
 export type DomainEvent =
   | { type: 'actionAccepted'; actor: Player; action: TurnAction }
   | { type: 'boardChanged'; actor: Player; action: TurnAction }
@@ -135,12 +139,20 @@ function buildEvents(
   return events;
 }
 
-/** Authoritative event-driven engine transition used by reducers, store, and tests. */
-export function runEngineCommand(
+type ResolvedEngineTransition = {
+  actor: Player;
+  autoPasses: Player[];
+  continuationTargets: Coord[];
+  positionHash: string;
+  state: EngineState;
+};
+
+/** Shared engine transition core used by both state-only and eventful command paths. */
+function resolveEngineCommand(
   state: EngineState,
   command: EngineCommand,
   config: Partial<RuleConfig> = {},
-): EngineTransitionResult {
+): ResolvedEngineTransition {
   const resolvedConfig = withRuleDefaults(config);
   const validation = validateAction(state, command.action, resolvedConfig);
 
@@ -227,16 +239,37 @@ export function runEngineCommand(
   return {
     actor,
     autoPasses,
-    events: buildEvents(
-      actor,
-      command.action,
-      finalState,
-      autoPasses,
-      positionHash,
-      appliedState.continuationTargets ?? [],
-    ),
+    continuationTargets: appliedState.continuationTargets ?? [],
     positionHash,
     state: finalState,
+  };
+}
+
+/** Authoritative event-driven engine transition used by reducers, store, and tests. */
+export function runEngineCommand(
+  state: EngineState,
+  command: EngineCommand,
+  config: Partial<RuleConfig> = {},
+  options: EngineTransitionOptions = {},
+): EngineTransitionResult {
+  const result = resolveEngineCommand(state, command, config);
+
+  return {
+    actor: result.actor,
+    autoPasses: result.autoPasses,
+    events:
+      options.emitEvents === false
+        ? []
+        : buildEvents(
+            result.actor,
+            command.action,
+            result.state,
+            result.autoPasses,
+            result.positionHash,
+            result.continuationTargets,
+          ),
+    positionHash: result.positionHash,
+    state: result.state,
   };
 }
 

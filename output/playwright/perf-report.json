@@ -1,7 +1,7 @@
 {
   "chunkSizes": {
     "entryScripts": [
-      "index-GZCPVNZi.js"
+      "index-Z1y7enug.js"
     ],
     "jsAssets": [
       {
@@ -9,19 +9,19 @@
         "bytes": 398848
       },
       {
-        "assetName": "index-GZCPVNZi.js",
-        "bytes": 277130
+        "assetName": "index-Z1y7enug.js",
+        "bytes": 277239
       },
       {
-        "assetName": "ai.worker-CHfgYEdL.js",
-        "bytes": 49004
+        "assetName": "ai.worker-CgYovw3G.js",
+        "bytes": 49210
       },
       {
-        "assetName": "index-Jm1_Fyfc.js",
+        "assetName": "index-DjD9Uj6v.js",
         "bytes": 33828
       },
       {
-        "assetName": "index-CTuAJJV7.js",
+        "assetName": "index-T8i0eKCX.js",
         "bytes": 18255
       },
       {
@@ -29,27 +29,27 @@
         "bytes": 5761
       },
       {
-        "assetName": "index-luBneKfI.js",
+        "assetName": "index-Cn-PS8q_.js",
         "bytes": 3125
       },
       {
-        "assetName": "MoveInputModal-B-icUQDb.js",
+        "assetName": "MoveInputModal-WEFTXBYt.js",
         "bytes": 1720
       },
       {
-        "assetName": "GameResultModal-K_iYEicH.js",
+        "assetName": "GameResultModal-DdUq6CVk.js",
         "bytes": 1374
       },
       {
-        "assetName": "TurnOverlay-8MHQr5l_.js",
+        "assetName": "TurnOverlay-BFG_StSt.js",
         "bytes": 739
       },
       {
-        "assetName": "GlossaryTooltipDialog-CPDOBkoq.js",
+        "assetName": "GlossaryTooltipDialog-DexjwUuR.js",
         "bytes": 592
       },
       {
-        "assetName": "Panel-CTpwwLIU.js",
+        "assetName": "Panel-C9EIncU1.js",
         "bytes": 221
       }
     ],
@@ -59,16 +59,16 @@
       "glossaryTooltipDialog": true,
       "turnOverlay": true
     },
-    "totalJsBytes": 790597
+    "totalJsBytes": 790912
   },
   "desktop": {
     "cpuRate": 1,
     "load": {
-      "domContentLoadedMs": 52.4,
+      "domContentLoadedMs": 50.7,
       "firstContentfulPaintMs": 84,
-      "firstPaintMs": 40,
+      "firstPaintMs": 36,
       "largestContentfulPaintMs": 84,
-      "loadEventMs": 52.5,
+      "loadEventMs": 50.8,
       "longTaskCount": 0,
       "longTaskMaxMs": 0,
       "totalLayoutShift": 0.04
@@ -90,21 +90,21 @@
     },
     "ui": {
       "chooseAction": {
-        "elapsedMs": 48.3,
+        "elapsedMs": 46.3,
         "layoutShiftScore": 0,
         "longTaskCount": 0,
         "maxLongTaskMs": 0,
         "totalLongTaskMs": 0
       },
       "commitMove": {
-        "elapsedMs": 47.4,
+        "elapsedMs": 39.9,
         "layoutShiftScore": 0,
         "longTaskCount": 0,
         "maxLongTaskMs": 0,
         "totalLongTaskMs": 0
       },
       "openMoveDialog": {
-        "elapsedMs": 375.7,
+        "elapsedMs": 375.2,
         "layoutShiftScore": 0,
         "longTaskCount": 0,
         "maxLongTaskMs": 0,
@@ -117,54 +117,80 @@
     }
   },
   "domain": {
-    "generatedAt": "2026-03-25T17:43:50.436Z",
+    "generatedAt": "2026-03-25T18:08:23.919Z",
     "domain": {
       "hashPosition": {
-        "avgMs": 0.0053,
+        "avgMs": 0.0051,
         "iterations": 6000,
-        "totalMs": 31.74
+        "totalMs": 30.82
       },
       "getLegalActions": {
-        "avgMs": 0.1421,
+        "avgMs": 0.1003,
         "iterations": 750,
-        "totalMs": 106.58
+        "totalMs": 75.25
       },
       "getLegalActionsForCell": {
-        "avgMs": 0.0007,
+        "avgMs": 0.0002,
         "iterations": 1500,
-        "totalMs": 1.05
+        "totalMs": 0.28
       },
       "selectableCoordsScan": {
-        "avgMs": 0.1373,
+        "avgMs": 0.0966,
         "iterations": 280,
-        "totalMs": 38.43
+        "totalMs": 27.06
       },
       "hasLegalActionCheck": {
-        "avgMs": 0.0472,
+        "avgMs": 0.0123,
         "iterations": 420,
-        "totalMs": 19.81
+        "totalMs": 5.18
       },
       "advanceEngineState": {
-        "avgMs": 0.1713,
+        "avgMs": 0.1109,
         "iterations": 700,
-        "totalMs": 119.93
+        "totalMs": 77.65
       }
     },
     "comparisons": {
-      "cellActionVsFullActionSpeedup": 203,
-      "hashVsFullActionSpeedup": 26.81
+      "cellActionVsFullActionSpeedup": 501.5,
+      "hashVsFullActionSpeedup": 19.67
     },
     "ai": {
       "easy": {
-        "avgWallTimeMs": 107.03,
+        "avgWallTimeMs": 101.93,
         "states": [
           {
             "action": "climbOne:C4:B3",
             "completedDepth": 0,
-            "cutoffRate": 0.0556,
+            "cutoffRate": 0.0385,
             "diagnostics": {
               "aspirationResearches": 0,
               "betaCutoffs": 1,
+              "orderedFallbacks": 1,
+              "participationPenalties": 6,
+              "policyPriorHits": 0,
+              "pvsResearches": 0,
+              "quiescenceNodes": 26,
+              "repetitionPenalties": 0,
+              "selfUndoPenalties": 0,
+              "sourceFamilyCollisions": 5,
+              "transpositionHits": 0
+            },
+            "evaluatedNodes": 26,
+            "label": "afterOpening",
+            "principalVariationLength": 0,
+            "reportedElapsedMs": 128.19,
+            "rootCandidates": 4,
+            "timeBudgetMs": 120,
+            "transpositionHitRate": 0,
+            "wallTimeMs": 128.57
+          },
+          {
+            "action": "climbOne:C3:B4",
+            "completedDepth": 0,
+            "cutoffRate": 0.1111,
+            "diagnostics": {
+              "aspirationResearches": 0,
+              "betaCutoffs": 2,
               "orderedFallbacks": 1,
               "participationPenalties": 4,
               "policyPriorHits": 0,
@@ -176,39 +202,13 @@
               "transpositionHits": 0
             },
             "evaluatedNodes": 18,
-            "label": "afterOpening",
-            "principalVariationLength": 0,
-            "reportedElapsedMs": 128.53,
-            "rootCandidates": 4,
-            "timeBudgetMs": 120,
-            "transpositionHitRate": 0,
-            "wallTimeMs": 129.01
-          },
-          {
-            "action": "climbOne:C3:B4",
-            "completedDepth": 0,
-            "cutoffRate": 0.125,
-            "diagnostics": {
-              "aspirationResearches": 0,
-              "betaCutoffs": 2,
-              "orderedFallbacks": 1,
-              "participationPenalties": 4,
-              "policyPriorHits": 0,
-              "pvsResearches": 0,
-              "quiescenceNodes": 16,
-              "repetitionPenalties": 0,
-              "selfUndoPenalties": 0,
-              "sourceFamilyCollisions": 4,
-              "transpositionHits": 0
-            },
-            "evaluatedNodes": 16,
             "label": "initialState",
             "principalVariationLength": 0,
-            "reportedElapsedMs": 120.16,
+            "reportedElapsedMs": 120.19,
             "rootCandidates": 4,
             "timeBudgetMs": 120,
             "transpositionHitRate": 0,
-            "wallTimeMs": 120.21
+            "wallTimeMs": 120.24
           },
           {
             "action": "jumpSequence:C3:E5",
@@ -230,94 +230,94 @@
             "evaluatedNodes": 80,
             "label": "jumpContinuation",
             "principalVariationLength": 2,
-            "reportedElapsedMs": 58.59,
+            "reportedElapsedMs": 38.68,
             "rootCandidates": 4,
             "timeBudgetMs": 120,
             "transpositionHitRate": 0,
-            "wallTimeMs": 58.75
+            "wallTimeMs": 38.79
           },
           {
             "action": "manualUnfreeze:D5",
             "completedDepth": 0,
-            "cutoffRate": 0.025,
+            "cutoffRate": 0.0367,
             "diagnostics": {
               "aspirationResearches": 0,
-              "betaCutoffs": 2,
+              "betaCutoffs": 4,
               "orderedFallbacks": 1,
-              "participationPenalties": 31,
+              "participationPenalties": 43,
               "policyPriorHits": 0,
               "pvsResearches": 0,
-              "quiescenceNodes": 80,
+              "quiescenceNodes": 109,
               "repetitionPenalties": 0,
               "selfUndoPenalties": 0,
-              "sourceFamilyCollisions": 33,
+              "sourceFamilyCollisions": 47,
               "transpositionHits": 0
             },
-            "evaluatedNodes": 80,
+            "evaluatedNodes": 109,
             "label": "threatState",
             "principalVariationLength": 0,
-            "reportedElapsedMs": 120.14,
+            "reportedElapsedMs": 120.11,
             "rootCandidates": 4,
             "timeBudgetMs": 120,
             "transpositionHitRate": 0,
-            "wallTimeMs": 120.16
+            "wallTimeMs": 120.13
           }
         ]
       },
       "medium": {
-        "avgWallTimeMs": 400.19,
+        "avgWallTimeMs": 343.61,
         "states": [
           {
             "action": "climbOne:C4:B3",
             "completedDepth": 0,
-            "cutoffRate": 0.1,
+            "cutoffRate": 0.103,
             "diagnostics": {
               "aspirationResearches": 0,
-              "betaCutoffs": 12,
+              "betaCutoffs": 17,
               "orderedFallbacks": 1,
-              "participationPenalties": 37,
+              "participationPenalties": 62,
               "policyPriorHits": 0,
               "pvsResearches": 0,
-              "quiescenceNodes": 120,
+              "quiescenceNodes": 165,
               "repetitionPenalties": 0,
               "selfUndoPenalties": 0,
-              "sourceFamilyCollisions": 35,
+              "sourceFamilyCollisions": 54,
               "transpositionHits": 0
             },
-            "evaluatedNodes": 120,
+            "evaluatedNodes": 165,
             "label": "afterOpening",
             "principalVariationLength": 0,
-            "reportedElapsedMs": 400.61,
+            "reportedElapsedMs": 400.49,
             "rootCandidates": 5,
             "timeBudgetMs": 400,
             "transpositionHitRate": 0,
-            "wallTimeMs": 400.65
+            "wallTimeMs": 400.54
           },
           {
             "action": "climbOne:C3:B4",
             "completedDepth": 0,
-            "cutoffRate": 0.1429,
+            "cutoffRate": 0.1273,
             "diagnostics": {
               "aspirationResearches": 0,
-              "betaCutoffs": 12,
+              "betaCutoffs": 14,
               "orderedFallbacks": 1,
-              "participationPenalties": 26,
+              "participationPenalties": 32,
               "policyPriorHits": 0,
               "pvsResearches": 0,
-              "quiescenceNodes": 84,
+              "quiescenceNodes": 110,
               "repetitionPenalties": 0,
               "selfUndoPenalties": 0,
-              "sourceFamilyCollisions": 26,
+              "sourceFamilyCollisions": 30,
               "transpositionHits": 0
             },
-            "evaluatedNodes": 84,
+            "evaluatedNodes": 110,
             "label": "initialState",
             "principalVariationLength": 0,
-            "reportedElapsedMs": 400.24,
+            "reportedElapsedMs": 400.38,
             "rootCandidates": 5,
             "timeBudgetMs": 400,
             "transpositionHitRate": 0,
-            "wallTimeMs": 400.27
+            "wallTimeMs": 400.4
           },
           {
             "action": "climbOne:C3:D4",
@@ -339,146 +339,146 @@
             "evaluatedNodes": 439,
             "label": "jumpContinuation",
             "principalVariationLength": 4,
-            "reportedElapsedMs": 399.31,
+            "reportedElapsedMs": 173.24,
             "rootCandidates": 5,
             "timeBudgetMs": 400,
             "transpositionHitRate": 0.0888,
-            "wallTimeMs": 399.56
+            "wallTimeMs": 173.36
           },
           {
             "action": "manualUnfreeze:D5",
             "completedDepth": 0,
-            "cutoffRate": 0.0497,
+            "cutoffRate": 0.0588,
             "diagnostics": {
               "aspirationResearches": 0,
-              "betaCutoffs": 16,
+              "betaCutoffs": 25,
               "orderedFallbacks": 1,
-              "participationPenalties": 123,
+              "participationPenalties": 159,
               "policyPriorHits": 0,
               "pvsResearches": 0,
-              "quiescenceNodes": 322,
+              "quiescenceNodes": 425,
               "repetitionPenalties": 0,
               "selfUndoPenalties": 0,
-              "sourceFamilyCollisions": 130,
+              "sourceFamilyCollisions": 166,
               "transpositionHits": 0
             },
-            "evaluatedNodes": 322,
+            "evaluatedNodes": 425,
             "label": "threatState",
             "principalVariationLength": 0,
-            "reportedElapsedMs": 400.24,
+            "reportedElapsedMs": 400.12,
             "rootCandidates": 5,
             "timeBudgetMs": 400,
             "transpositionHitRate": 0,
-            "wallTimeMs": 400.26
+            "wallTimeMs": 400.13
           }
         ]
       },
       "hard": {
-        "avgWallTimeMs": 1200.34,
+        "avgWallTimeMs": 1200.27,
         "states": [
           {
             "action": "climbOne:C4:B3",
             "completedDepth": 0,
-            "cutoffRate": 0.1405,
+            "cutoffRate": 0.136,
             "diagnostics": {
               "aspirationResearches": 0,
-              "betaCutoffs": 60,
+              "betaCutoffs": 79,
               "orderedFallbacks": 1,
-              "participationPenalties": 160,
+              "participationPenalties": 202,
               "policyPriorHits": 0,
               "pvsResearches": 0,
-              "quiescenceNodes": 427,
+              "quiescenceNodes": 581,
               "repetitionPenalties": 0,
               "selfUndoPenalties": 0,
-              "sourceFamilyCollisions": 118,
+              "sourceFamilyCollisions": 152,
               "transpositionHits": 0
             },
-            "evaluatedNodes": 427,
+            "evaluatedNodes": 581,
             "label": "afterOpening",
             "principalVariationLength": 0,
-            "reportedElapsedMs": 1200.25,
+            "reportedElapsedMs": 1200.39,
             "rootCandidates": 6,
             "timeBudgetMs": 1200,
             "transpositionHitRate": 0,
-            "wallTimeMs": 1200.28
+            "wallTimeMs": 1200.42
           },
           {
             "action": "climbOne:C3:B4",
             "completedDepth": 0,
-            "cutoffRate": 0.1209,
+            "cutoffRate": 0.1305,
             "diagnostics": {
               "aspirationResearches": 0,
-              "betaCutoffs": 33,
+              "betaCutoffs": 53,
               "orderedFallbacks": 1,
-              "participationPenalties": 69,
+              "participationPenalties": 104,
               "policyPriorHits": 0,
               "pvsResearches": 0,
-              "quiescenceNodes": 273,
+              "quiescenceNodes": 406,
               "repetitionPenalties": 0,
               "selfUndoPenalties": 0,
-              "sourceFamilyCollisions": 58,
+              "sourceFamilyCollisions": 83,
               "transpositionHits": 0
             },
-            "evaluatedNodes": 273,
+            "evaluatedNodes": 406,
             "label": "initialState",
             "principalVariationLength": 0,
-            "reportedElapsedMs": 1200.23,
+            "reportedElapsedMs": 1200.16,
             "rootCandidates": 6,
             "timeBudgetMs": 1200,
             "transpositionHitRate": 0,
-            "wallTimeMs": 1200.26
+            "wallTimeMs": 1200.19
           },
           {
             "action": "climbOne:C3:D4",
             "completedDepth": 5,
-            "cutoffRate": 0.2621,
+            "cutoffRate": 0.3368,
             "diagnostics": {
               "aspirationResearches": 1,
-              "betaCutoffs": 525,
+              "betaCutoffs": 994,
               "orderedFallbacks": 0,
-              "participationPenalties": 2145,
+              "participationPenalties": 3593,
               "policyPriorHits": 0,
-              "pvsResearches": 44,
-              "quiescenceNodes": 2003,
-              "repetitionPenalties": 281,
-              "selfUndoPenalties": 134,
-              "sourceFamilyCollisions": 2114,
-              "transpositionHits": 311
+              "pvsResearches": 56,
+              "quiescenceNodes": 2951,
+              "repetitionPenalties": 377,
+              "selfUndoPenalties": 228,
+              "sourceFamilyCollisions": 3469,
+              "transpositionHits": 778
             },
-            "evaluatedNodes": 2003,
+            "evaluatedNodes": 2951,
             "label": "jumpContinuation",
             "principalVariationLength": 5,
-            "reportedElapsedMs": 1200.14,
+            "reportedElapsedMs": 1200.08,
             "rootCandidates": 6,
             "timeBudgetMs": 1200,
-            "transpositionHitRate": 0.1553,
-            "wallTimeMs": 1200.5
+            "transpositionHitRate": 0.2636,
+            "wallTimeMs": 1200.23
           },
           {
             "action": "climbOne:B2:A1",
             "completedDepth": 1,
-            "cutoffRate": 0.0609,
+            "cutoffRate": 0.0413,
             "diagnostics": {
               "aspirationResearches": 1,
-              "betaCutoffs": 83,
+              "betaCutoffs": 103,
               "orderedFallbacks": 0,
-              "participationPenalties": 284,
+              "participationPenalties": 388,
               "policyPriorHits": 0,
-              "pvsResearches": 3,
-              "quiescenceNodes": 1353,
+              "pvsResearches": 21,
+              "quiescenceNodes": 2383,
               "repetitionPenalties": 0,
               "selfUndoPenalties": 0,
-              "sourceFamilyCollisions": 327,
-              "transpositionHits": 3
+              "sourceFamilyCollisions": 443,
+              "transpositionHits": 20
             },
-            "evaluatedNodes": 1363,
+            "evaluatedNodes": 2492,
             "label": "threatState",
             "principalVariationLength": 1,
-            "reportedElapsedMs": 1200.18,
+            "reportedElapsedMs": 1200.13,
             "rootCandidates": 6,
             "timeBudgetMs": 1200,
-            "transpositionHitRate": 0.0022,
-            "wallTimeMs": 1200.31
+            "transpositionHitRate": 0.008,
+            "wallTimeMs": 1200.22
           }
         ]
       }
@@ -535,48 +535,48 @@
     ],
     "rootOrderingCacheBenchmark": [
       {
-        "baselineMs": 166.6921,
-        "gainMs": 139.4431,
-        "gainPercent": 83.65,
+        "baselineMs": 116.0214,
+        "gainMs": 96.7691,
+        "gainPercent": 83.41,
         "label": "opening",
-        "optimizedMs": 27.249,
+        "optimizedMs": 19.2523,
         "turnCount": 0
       },
       {
-        "baselineMs": 152.279,
-        "gainMs": 127.5618,
-        "gainPercent": 83.77,
+        "baselineMs": 94.294,
+        "gainMs": 79.0027,
+        "gainPercent": 83.78,
         "label": "turn50",
-        "optimizedMs": 24.7172,
+        "optimizedMs": 15.2912,
         "turnCount": 50
       },
       {
-        "baselineMs": 148.2932,
-        "gainMs": 123.5178,
-        "gainPercent": 83.29,
+        "baselineMs": 91.1853,
+        "gainMs": 75.7829,
+        "gainPercent": 83.11,
         "label": "turn100",
-        "optimizedMs": 24.7755,
+        "optimizedMs": 15.4024,
         "turnCount": 100
       },
       {
-        "baselineMs": 148.0415,
-        "gainMs": 123.5988,
-        "gainPercent": 83.49,
+        "baselineMs": 92.4186,
+        "gainMs": 77.0327,
+        "gainPercent": 83.35,
         "label": "turn200",
-        "optimizedMs": 24.4427,
+        "optimizedMs": 15.3859,
         "turnCount": 200
       }
     ]
   },
-  "generatedAt": "2026-03-25T17:44:47.219Z",
+  "generatedAt": "2026-03-25T18:09:12.349Z",
   "mobile": {
     "cpuRate": 1,
     "load": {
-      "domContentLoadedMs": 22.1,
-      "firstContentfulPaintMs": 44,
+      "domContentLoadedMs": 21.5,
+      "firstContentfulPaintMs": 40,
       "firstPaintMs": 12,
-      "largestContentfulPaintMs": 176,
-      "loadEventMs": 22.1,
+      "largestContentfulPaintMs": 172,
+      "loadEventMs": 21.5,
       "longTaskCount": 0,
       "longTaskMaxMs": 0,
       "totalLayoutShift": 0.12
@@ -598,21 +598,21 @@
     },
     "ui": {
       "chooseAction": {
-        "elapsedMs": 54.6,
+        "elapsedMs": 50.8,
         "layoutShiftScore": 0,
         "longTaskCount": 0,
         "maxLongTaskMs": 0,
         "totalLongTaskMs": 0
       },
       "commitMove": {
-        "elapsedMs": 41.6,
+        "elapsedMs": 41.4,
         "layoutShiftScore": 0,
         "longTaskCount": 0,
         "maxLongTaskMs": 0,
         "totalLongTaskMs": 0
       },
       "openMoveDialog": {
-        "elapsedMs": 355.9,
+        "elapsedMs": 364.8,
         "layoutShiftScore": 0,
         "longTaskCount": 0,
         "maxLongTaskMs": 0,
@@ -625,14 +625,14 @@
     },
     "compactTabs": {
       "toHistory": {
-        "elapsedMs": 57.8,
+        "elapsedMs": 57,
         "layoutShiftScore": 0,
         "longTaskCount": 0,
         "maxLongTaskMs": 0,
         "totalLongTaskMs": 0
       },
       "toInfo": {
-        "elapsedMs": 54.4,
+        "elapsedMs": 58.2,
         "layoutShiftScore": 0,
         "longTaskCount": 0,
         "maxLongTaskMs": 0,
@@ -642,21 +642,21 @@
     "ai": {
       "black": {
         "easy": {
-          "elapsedMs": 198.3,
+          "elapsedMs": 192.3,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "medium": {
-          "elapsedMs": 474.9,
+          "elapsedMs": 469.4,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "hard": {
-          "elapsedMs": 1270.1,
+          "elapsedMs": 1271.7,
           "layoutShiftScore": 0.01,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
@@ -665,21 +665,21 @@
       },
       "white": {
         "easy": {
-          "elapsedMs": 174.1,
+          "elapsedMs": 184,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "medium": {
-          "elapsedMs": 455.2,
+          "elapsedMs": 466.6,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "hard": {
-          "elapsedMs": 1265,
+          "elapsedMs": 1259.8,
           "layoutShiftScore": 0.01,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
@@ -689,28 +689,28 @@
     },
     "lateGameAi": {
       "opening": {
-        "elapsedMs": 1265.8,
+        "elapsedMs": 1260.3,
         "layoutShiftScore": 0,
         "longTaskCount": 0,
         "maxLongTaskMs": 0,
         "totalLongTaskMs": 0
       },
       "turn50": {
-        "elapsedMs": 1259.7,
+        "elapsedMs": 1260.3,
         "layoutShiftScore": 0,
         "longTaskCount": 0,
         "maxLongTaskMs": 0,
         "totalLongTaskMs": 0
       },
       "turn100": {
-        "elapsedMs": 1277.9,
+        "elapsedMs": 1265.5,
         "layoutShiftScore": 0,
         "longTaskCount": 0,
         "maxLongTaskMs": 0,
         "totalLongTaskMs": 0
       },
       "turn200": {
-        "elapsedMs": 1305.1,
+        "elapsedMs": 1300,
         "layoutShiftScore": 0,
         "longTaskCount": 0,
         "maxLongTaskMs": 0,
@@ -722,11 +722,11 @@
     "1x": {
       "cpuRate": 1,
       "load": {
-        "domContentLoadedMs": 22.1,
-        "firstContentfulPaintMs": 44,
+        "domContentLoadedMs": 21.5,
+        "firstContentfulPaintMs": 40,
         "firstPaintMs": 12,
-        "largestContentfulPaintMs": 176,
-        "loadEventMs": 22.1,
+        "largestContentfulPaintMs": 172,
+        "loadEventMs": 21.5,
         "longTaskCount": 0,
         "longTaskMaxMs": 0,
         "totalLayoutShift": 0.12
@@ -748,21 +748,21 @@
       },
       "ui": {
         "chooseAction": {
-          "elapsedMs": 54.6,
+          "elapsedMs": 50.8,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "commitMove": {
-          "elapsedMs": 41.6,
+          "elapsedMs": 41.4,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "openMoveDialog": {
-          "elapsedMs": 355.9,
+          "elapsedMs": 364.8,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
@@ -775,14 +775,14 @@
       },
       "compactTabs": {
         "toHistory": {
-          "elapsedMs": 57.8,
+          "elapsedMs": 57,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "toInfo": {
-          "elapsedMs": 54.4,
+          "elapsedMs": 58.2,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
@@ -792,21 +792,21 @@
       "ai": {
         "black": {
           "easy": {
-            "elapsedMs": 198.3,
+            "elapsedMs": 192.3,
             "layoutShiftScore": 0,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
             "totalLongTaskMs": 0
           },
           "medium": {
-            "elapsedMs": 474.9,
+            "elapsedMs": 469.4,
             "layoutShiftScore": 0,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
             "totalLongTaskMs": 0
           },
           "hard": {
-            "elapsedMs": 1270.1,
+            "elapsedMs": 1271.7,
             "layoutShiftScore": 0.01,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
@@ -815,21 +815,21 @@
         },
         "white": {
           "easy": {
-            "elapsedMs": 174.1,
+            "elapsedMs": 184,
             "layoutShiftScore": 0,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
             "totalLongTaskMs": 0
           },
           "medium": {
-            "elapsedMs": 455.2,
+            "elapsedMs": 466.6,
             "layoutShiftScore": 0,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
             "totalLongTaskMs": 0
           },
           "hard": {
-            "elapsedMs": 1265,
+            "elapsedMs": 1259.8,
             "layoutShiftScore": 0.01,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
@@ -839,28 +839,28 @@
       },
       "lateGameAi": {
         "opening": {
-          "elapsedMs": 1265.8,
+          "elapsedMs": 1260.3,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "turn50": {
-          "elapsedMs": 1259.7,
+          "elapsedMs": 1260.3,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "turn100": {
-          "elapsedMs": 1277.9,
+          "elapsedMs": 1265.5,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "turn200": {
-          "elapsedMs": 1305.1,
+          "elapsedMs": 1300,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
@@ -871,11 +871,11 @@
     "4x": {
       "cpuRate": 4,
       "load": {
-        "domContentLoadedMs": 55.2,
+        "domContentLoadedMs": 55.9,
         "firstContentfulPaintMs": 132,
-        "firstPaintMs": 64,
-        "largestContentfulPaintMs": 292,
-        "loadEventMs": 56.7,
+        "firstPaintMs": 20,
+        "largestContentfulPaintMs": 288,
+        "loadEventMs": 55.9,
         "longTaskCount": 0,
         "longTaskMaxMs": 0,
         "totalLayoutShift": 0.12
@@ -897,21 +897,21 @@
       },
       "ui": {
         "chooseAction": {
-          "elapsedMs": 69.1,
+          "elapsedMs": 75.6,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "commitMove": {
-          "elapsedMs": 65.4,
+          "elapsedMs": 74.4,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "openMoveDialog": {
-          "elapsedMs": 387,
+          "elapsedMs": 379.5,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
@@ -924,14 +924,14 @@
       },
       "compactTabs": {
         "toHistory": {
-          "elapsedMs": 49.2,
+          "elapsedMs": 49.4,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "toInfo": {
-          "elapsedMs": 63.9,
+          "elapsedMs": 63.6,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
@@ -941,21 +941,21 @@
       "ai": {
         "black": {
           "easy": {
-            "elapsedMs": 212,
+            "elapsedMs": 209.6,
             "layoutShiftScore": 0,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
             "totalLongTaskMs": 0
           },
           "medium": {
-            "elapsedMs": 489.5,
+            "elapsedMs": 495.6,
             "layoutShiftScore": 0,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
             "totalLongTaskMs": 0
           },
           "hard": {
-            "elapsedMs": 1301.1,
+            "elapsedMs": 1298.4,
             "layoutShiftScore": 0.01,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
@@ -964,21 +964,21 @@
         },
         "white": {
           "easy": {
-            "elapsedMs": 213.7,
+            "elapsedMs": 198.5,
             "layoutShiftScore": 0,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
             "totalLongTaskMs": 0
           },
           "medium": {
-            "elapsedMs": 495,
+            "elapsedMs": 488.7,
             "layoutShiftScore": 0,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
             "totalLongTaskMs": 0
           },
           "hard": {
-            "elapsedMs": 1302.5,
+            "elapsedMs": 1289.7,
             "layoutShiftScore": 0.01,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
@@ -988,45 +988,45 @@
       },
       "lateGameAi": {
         "opening": {
-          "elapsedMs": 1422.3,
+          "elapsedMs": 1295.7,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "turn50": {
-          "elapsedMs": 1434.8,
+          "elapsedMs": 1338.8,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "turn100": {
-          "elapsedMs": 1452.9,
+          "elapsedMs": 1399.8,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "turn200": {
-          "elapsedMs": 2055,
+          "elapsedMs": 1478,
           "layoutShiftScore": 0,
-          "longTaskCount": 1,
-          "maxLongTaskMs": 52,
-          "totalLongTaskMs": 52
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0,
+          "totalLongTaskMs": 0
         }
       }
     },
     "6x": {
       "cpuRate": 6,
       "load": {
-        "domContentLoadedMs": 101.9,
-        "firstContentfulPaintMs": 232,
-        "firstPaintMs": 32,
-        "largestContentfulPaintMs": 424,
-        "loadEventMs": 101.9,
+        "domContentLoadedMs": 87.6,
+        "firstContentfulPaintMs": 200,
+        "firstPaintMs": 28,
+        "largestContentfulPaintMs": 380,
+        "loadEventMs": 87.6,
         "longTaskCount": 1,
-        "longTaskMaxMs": 70,
+        "longTaskMaxMs": 61,
         "totalLayoutShift": 0.12
       },
       "render": {
@@ -1046,21 +1046,21 @@
       },
       "ui": {
         "chooseAction": {
-          "elapsedMs": 109.5,
+          "elapsedMs": 96.4,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "commitMove": {
-          "elapsedMs": 122.4,
+          "elapsedMs": 90.2,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "openMoveDialog": {
-          "elapsedMs": 437.1,
+          "elapsedMs": 420.5,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
@@ -1073,14 +1073,14 @@
       },
       "compactTabs": {
         "toHistory": {
-          "elapsedMs": 88.5,
+          "elapsedMs": 62.6,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "toInfo": {
-          "elapsedMs": 98,
+          "elapsedMs": 88.8,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
@@ -1090,21 +1090,21 @@
       "ai": {
         "black": {
           "easy": {
-            "elapsedMs": 296.6,
+            "elapsedMs": 242.8,
             "layoutShiftScore": 0,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
             "totalLongTaskMs": 0
           },
           "medium": {
-            "elapsedMs": 572.9,
+            "elapsedMs": 524.8,
             "layoutShiftScore": 0,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
             "totalLongTaskMs": 0
           },
           "hard": {
-            "elapsedMs": 1355.4,
+            "elapsedMs": 1321.1,
             "layoutShiftScore": 0.01,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
@@ -1113,21 +1113,21 @@
         },
         "white": {
           "easy": {
-            "elapsedMs": 259.9,
+            "elapsedMs": 224.1,
             "layoutShiftScore": 0,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
             "totalLongTaskMs": 0
           },
           "medium": {
-            "elapsedMs": 556.3,
+            "elapsedMs": 516.3,
             "layoutShiftScore": 0,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
             "totalLongTaskMs": 0
           },
           "hard": {
-            "elapsedMs": 1345.1,
+            "elapsedMs": 1310.1,
             "layoutShiftScore": 0.01,
             "longTaskCount": 0,
             "maxLongTaskMs": 0,
@@ -1137,32 +1137,32 @@
       },
       "lateGameAi": {
         "opening": {
-          "elapsedMs": 1363.6,
+          "elapsedMs": 1334.2,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "turn50": {
-          "elapsedMs": 1450.3,
+          "elapsedMs": 1415.9,
           "layoutShiftScore": 0,
           "longTaskCount": 0,
           "maxLongTaskMs": 0,
           "totalLongTaskMs": 0
         },
         "turn100": {
-          "elapsedMs": 1493.1,
+          "elapsedMs": 1465.3,
           "layoutShiftScore": 0,
-          "longTaskCount": 1,
-          "maxLongTaskMs": 50,
-          "totalLongTaskMs": 50
+          "longTaskCount": 0,
+          "maxLongTaskMs": 0,
+          "totalLongTaskMs": 0
         },
         "turn200": {
-          "elapsedMs": 1625.2,
+          "elapsedMs": 1596.2,
           "layoutShiftScore": 0,
           "longTaskCount": 3,
-          "maxLongTaskMs": 75,
-          "totalLongTaskMs": 216
+          "maxLongTaskMs": 74,
+          "totalLongTaskMs": 209
         }
       }
     }

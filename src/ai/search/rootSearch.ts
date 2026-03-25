@@ -1,9 +1,9 @@
 import { evaluateState } from '@/ai/evaluation';
 import {
-  orderMoves,
   orderPrecomputedMoves,
   precomputeOrderedActions,
   type PrecomputedOrderedAction,
+  type orderMoves,
 } from '@/ai/moveOrdering';
 import { buildParticipationState } from '@/ai/participation';
 import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';

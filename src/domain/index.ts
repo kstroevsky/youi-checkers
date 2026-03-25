@@ -50,6 +50,7 @@ export type {
 export type {
   DomainEvent,
   EngineCommand,
+  EngineTransitionOptions,
   EngineTransitionResult,
   GameTransitionResult,
 } from '@/domain/reducers/engineTransition';
