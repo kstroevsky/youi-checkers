@@ -35,7 +35,7 @@ export function PwaStatusBanner({
       role={isUpdateBanner ? 'alert' : 'status'}
       aria-live={isUpdateBanner ? 'assertive' : 'polite'}
     >
-      <p>{text(language, isUpdateBanner ? 'pwaUpdateReady' : 'pwaOfflineReady')}</p>
+      {isUpdateBanner ? <p>{text(language, 'pwaUpdateReady')}</p> : null}
 
       <div className={styles.actions}>
         {isUpdateBanner ? (

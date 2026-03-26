@@ -25,7 +25,6 @@ export function AppHeader({
       <div className={styles.main}>
         <div className={styles.title}>
           <h1>{text(language, 'appTitle')}</h1>
-          <p>{text(language, 'appTagline')}</p>
         </div>
         <div className={styles.tabs}>
           <AppTabs activeTab={activeTab} language={language} onChange={onChangeTab} />
