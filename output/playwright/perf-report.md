@@ -1,55 +1,55 @@
 # Performance Report
 
-Generated: 2026-03-25T18:09:12.349Z
+Generated: 2026-03-26T20:33:35.663Z
 
 ## Summary
-- [GOOD] Desktop FCP: 84ms
-- [GOOD] Mobile FCP: 40ms
-- [BAD] Desktop move dialog: 375.2ms
-- [BAD] Mobile move dialog: 364.8ms
-- [GOOD] Mobile hard AI opening: 1271.7ms
-- [GOOD] Domain full action scan: 0.1003ms
+- [GOOD] Desktop FCP: 92ms
+- [GOOD] Mobile FCP: 48ms
+- [BAD] Desktop move dialog: 363.1ms
+- [BAD] Mobile move dialog: 340.2ms
+- [GOOD] Mobile hard AI opening: 1276.4ms
+- [GOOD] Domain full action scan: 0.1146ms
 - [GOOD] Domain cell action scan: 0.0002ms
-- [GOOD] Hash position: 0.0051ms
+- [GOOD] Hash position: 0.0058ms
 
 ## Load
-- Desktop: FCP 84ms, LCP 84ms, load 50.8ms
-- Mobile: FCP 40ms, LCP 172ms, load 21.5ms
+- Desktop: FCP 92ms, LCP 308ms, load 55.7ms
+- Mobile: FCP 48ms, LCP 216ms, load 24.2ms
 
 ## Render / UI
-- Desktop DOM nodes: 421, checker nodes: 36
-- Mobile DOM nodes: 351, checker nodes: 36
-- Desktop move dialog open: 375.2ms
-- Mobile move dialog open: 364.8ms
-- Mobile tab switch: Info 58.2ms, History 57ms
+- Desktop DOM nodes: 419, checker nodes: 36
+- Mobile DOM nodes: 349, checker nodes: 36
+- Desktop move dialog open: 363.1ms
+- Mobile move dialog open: 340.2ms
+- Mobile tab switch: Info 54.6ms, History 57.7ms
 
 ## AI
-- Mobile opening turn: easy 192.3ms, medium 469.4ms, hard 1271.7ms
-- Mobile reply turn: easy 184ms, medium 466.6ms, hard 1259.8ms
+- Mobile opening turn: easy 201.6ms, medium 476.7ms, hard 1276.4ms
+- Mobile reply turn: easy 187.1ms, medium 469.6ms, hard 1261.6ms
 
 ## Weak Device (CPU Throttle)
-- 4x: move dialog 379.5ms, hard opening 1298.4ms, hard reply 1289.7ms
-- 6x: move dialog 420.5ms, hard opening 1321.1ms, hard reply 1310.1ms
+- 4x: move dialog 416.4ms, hard opening 1337.7ms, hard reply 1322.5ms
+- 6x: move dialog 446.6ms, hard opening 1386.4ms, hard reply 1371.6ms
 
 ## Late-Game AI (Hard)
-- 1x: opening 1260.3ms, turn50 1260.3ms, turn100 1265.5ms, turn200 1300ms
-- 4x: opening 1295.7ms, turn50 1338.8ms, turn100 1399.8ms, turn200 1478ms
-- 6x: opening 1334.2ms, turn50 1415.9ms, turn100 1465.3ms, turn200 1596.2ms
+- 1x: opening 1261.5ms, turn50 2777.9ms, turn100 1286.2ms, turn200 1304.6ms
+- 4x: opening 1377.1ms, turn50 2943.7ms, turn100 1548.6ms, turn200 1714.9ms
+- 6x: opening 1441.4ms, turn50 3038.6ms, turn100 1596.8ms, turn200 1765.8ms
 
 ## Domain
-- hashPosition avg: 0.0051ms
-- getLegalActions avg: 0.1003ms
+- hashPosition avg: 0.0058ms
+- getLegalActions avg: 0.1146ms
 - getLegalActionsForCell avg: 0.0002ms
-- selectable scan avg: 0.0966ms
-- hasLegalAction check avg: 0.0123ms
-- Cell-vs-full action speedup: 501.5x
-- Hash-vs-full action speedup: 19.67x
+- selectable scan avg: 0.1089ms
+- hasLegalAction check avg: 0.0084ms
+- Cell-vs-full action speedup: 573x
+- Hash-vs-full action speedup: 19.76x
 
 ## Root Ordering Cache Benchmark
-- opening: baseline 116.0214ms, optimized 19.2523ms, gain 96.7691ms (83.41%)
-- turn50: baseline 94.294ms, optimized 15.2912ms, gain 79.0027ms (83.78%)
-- turn100: baseline 91.1853ms, optimized 15.4024ms, gain 75.7829ms (83.11%)
-- turn200: baseline 92.4186ms, optimized 15.3859ms, gain 77.0327ms (83.35%)
+- opening: baseline 127.6285ms, optimized 21.1755ms, gain 106.4529ms (83.41%)
+- turn50: baseline 97.3935ms, optimized 18.7821ms, gain 78.6114ms (80.72%)
+- turn100: baseline 105.6968ms, optimized 16.8351ms, gain 88.8617ms (84.07%)
+- turn200: baseline 96.7104ms, optimized 17.9219ms, gain 78.7885ms (81.47%)
 
 ## Lifecycle
 - Store lifecycle now terminates AI workers on `visibilitychange:hidden`, `pagehide`, and store destroy/unmount.

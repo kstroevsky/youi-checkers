@@ -234,6 +234,41 @@ describe('game engine action application', () => {
     ).toBe(false);
   });
 
+  it('rejects manual unfreeze away from the pending jump source', () => {
+    const config = withConfig();
+    const state = gameStateWithBoard(
+      boardWithPieces({
+        A1: [checker('white')],
+        B2: [checker('black')],
+        D4: [checker('black')],
+        F6: [checker('white', true)],
+      }),
+    );
+    const afterFirstJump = applyAction(
+      state,
+      {
+        type: 'jumpSequence',
+        source: 'A1',
+        path: ['C3'],
+      },
+      config,
+    );
+
+    expect(
+      validateAction(
+        afterFirstJump,
+        {
+          type: 'manualUnfreeze',
+          coord: 'F6',
+        },
+        config,
+      ),
+    ).toEqual({
+      valid: false,
+      reason: 'Only C3 may act during jump continuation.',
+    });
+  });
+
   it('applies legal stack jump segments and records history correctly', () => {
     const state = gameStateWithBoard(
       boardWithPieces({

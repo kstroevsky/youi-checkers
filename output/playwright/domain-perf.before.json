@@ -1,96 +1,96 @@
 {
-  "generatedAt": "2026-03-25T17:42:32.827Z",
+  "generatedAt": "2026-03-26T19:57:24.173Z",
   "domain": {
     "hashPosition": {
-      "avgMs": 0.0052,
+      "avgMs": 0.0054,
       "iterations": 6000,
-      "totalMs": 31.17
+      "totalMs": 32.53
     },
     "getLegalActions": {
-      "avgMs": 0.1189,
+      "avgMs": 0.0998,
       "iterations": 750,
-      "totalMs": 89.19
+      "totalMs": 74.86
     },
     "getLegalActionsForCell": {
       "avgMs": 0.0002,
       "iterations": 1500,
-      "totalMs": 0.32
+      "totalMs": 0.28
     },
     "selectableCoordsScan": {
-      "avgMs": 0.1135,
+      "avgMs": 0.0959,
       "iterations": 280,
-      "totalMs": 31.79
+      "totalMs": 26.85
     },
     "hasLegalActionCheck": {
-      "avgMs": 0.0232,
+      "avgMs": 0.0116,
       "iterations": 420,
-      "totalMs": 9.76
+      "totalMs": 4.89
     },
     "advanceEngineState": {
-      "avgMs": 0.141,
+      "avgMs": 0.1054,
       "iterations": 700,
-      "totalMs": 98.71
+      "totalMs": 73.8
     }
   },
   "comparisons": {
-    "cellActionVsFullActionSpeedup": 594.5,
-    "hashVsFullActionSpeedup": 22.87
+    "cellActionVsFullActionSpeedup": 499,
+    "hashVsFullActionSpeedup": 18.48
   },
   "ai": {
     "easy": {
-      "avgWallTimeMs": 103.52,
+      "avgWallTimeMs": 101.8,
       "states": [
         {
           "action": "climbOne:C4:B3",
           "completedDepth": 0,
-          "cutoffRate": 0.0526,
+          "cutoffRate": 0.037,
           "diagnostics": {
             "aspirationResearches": 0,
             "betaCutoffs": 1,
             "orderedFallbacks": 1,
-            "participationPenalties": 4,
+            "participationPenalties": 6,
             "policyPriorHits": 0,
             "pvsResearches": 0,
-            "quiescenceNodes": 19,
+            "quiescenceNodes": 27,
             "repetitionPenalties": 0,
             "selfUndoPenalties": 0,
-            "sourceFamilyCollisions": 4,
+            "sourceFamilyCollisions": 5,
             "transpositionHits": 0
           },
-          "evaluatedNodes": 19,
+          "evaluatedNodes": 27,
           "label": "afterOpening",
           "principalVariationLength": 0,
-          "reportedElapsedMs": 128.46,
+          "reportedElapsedMs": 127.9,
           "rootCandidates": 4,
           "timeBudgetMs": 120,
           "transpositionHitRate": 0,
-          "wallTimeMs": 128.88
+          "wallTimeMs": 128.31
         },
         {
           "action": "climbOne:C3:B4",
           "completedDepth": 0,
-          "cutoffRate": 0.1111,
+          "cutoffRate": 0.15,
           "diagnostics": {
             "aspirationResearches": 0,
-            "betaCutoffs": 2,
+            "betaCutoffs": 3,
             "orderedFallbacks": 1,
-            "participationPenalties": 4,
+            "participationPenalties": 5,
             "policyPriorHits": 0,
             "pvsResearches": 0,
-            "quiescenceNodes": 18,
+            "quiescenceNodes": 20,
             "repetitionPenalties": 0,
             "selfUndoPenalties": 0,
-            "sourceFamilyCollisions": 4,
+            "sourceFamilyCollisions": 5,
             "transpositionHits": 0
           },
-          "evaluatedNodes": 18,
+          "evaluatedNodes": 20,
           "label": "initialState",
           "principalVariationLength": 0,
-          "reportedElapsedMs": 120.32,
+          "reportedElapsedMs": 120.39,
           "rootCandidates": 4,
           "timeBudgetMs": 120,
           "transpositionHitRate": 0,
-          "wallTimeMs": 120.38
+          "wallTimeMs": 120.44
         },
         {
           "action": "jumpSequence:C3:E5",
@@ -112,94 +112,94 @@
           "evaluatedNodes": 80,
           "label": "jumpContinuation",
           "principalVariationLength": 2,
-          "reportedElapsedMs": 44.38,
+          "reportedElapsedMs": 38.18,
           "rootCandidates": 4,
           "timeBudgetMs": 120,
           "transpositionHitRate": 0,
-          "wallTimeMs": 44.6
+          "wallTimeMs": 38.3
         },
         {
           "action": "manualUnfreeze:D5",
           "completedDepth": 0,
-          "cutoffRate": 0.0316,
+          "cutoffRate": 0.0367,
           "diagnostics": {
             "aspirationResearches": 0,
-            "betaCutoffs": 3,
-            "orderedFallbacks": 1,
-            "participationPenalties": 40,
-            "policyPriorHits": 0,
-            "pvsResearches": 0,
-            "quiescenceNodes": 95,
-            "repetitionPenalties": 0,
-            "selfUndoPenalties": 0,
-            "sourceFamilyCollisions": 43,
-            "transpositionHits": 0
-          },
-          "evaluatedNodes": 95,
-          "label": "threatState",
-          "principalVariationLength": 0,
-          "reportedElapsedMs": 120.19,
-          "rootCandidates": 4,
-          "timeBudgetMs": 120,
-          "transpositionHitRate": 0,
-          "wallTimeMs": 120.22
-        }
-      ]
-    },
-    "medium": {
-      "avgWallTimeMs": 354.15,
-      "states": [
-        {
-          "action": "climbOne:C4:B3",
-          "completedDepth": 0,
-          "cutoffRate": 0.097,
-          "diagnostics": {
-            "aspirationResearches": 0,
-            "betaCutoffs": 13,
+            "betaCutoffs": 4,
             "orderedFallbacks": 1,
             "participationPenalties": 43,
             "policyPriorHits": 0,
             "pvsResearches": 0,
-            "quiescenceNodes": 134,
+            "quiescenceNodes": 109,
             "repetitionPenalties": 0,
             "selfUndoPenalties": 0,
-            "sourceFamilyCollisions": 39,
+            "sourceFamilyCollisions": 47,
             "transpositionHits": 0
           },
-          "evaluatedNodes": 134,
+          "evaluatedNodes": 109,
+          "label": "threatState",
+          "principalVariationLength": 0,
+          "reportedElapsedMs": 120.13,
+          "rootCandidates": 4,
+          "timeBudgetMs": 120,
+          "transpositionHitRate": 0,
+          "wallTimeMs": 120.15
+        }
+      ]
+    },
+    "medium": {
+      "avgWallTimeMs": 350.59,
+      "states": [
+        {
+          "action": "climbOne:C4:B3",
+          "completedDepth": 0,
+          "cutoffRate": 0.1024,
+          "diagnostics": {
+            "aspirationResearches": 0,
+            "betaCutoffs": 17,
+            "orderedFallbacks": 1,
+            "participationPenalties": 62,
+            "policyPriorHits": 0,
+            "pvsResearches": 0,
+            "quiescenceNodes": 166,
+            "repetitionPenalties": 0,
+            "selfUndoPenalties": 0,
+            "sourceFamilyCollisions": 54,
+            "transpositionHits": 0
+          },
+          "evaluatedNodes": 166,
           "label": "afterOpening",
           "principalVariationLength": 0,
-          "reportedElapsedMs": 400.63,
+          "reportedElapsedMs": 400.69,
           "rootCandidates": 5,
           "timeBudgetMs": 400,
           "transpositionHitRate": 0,
-          "wallTimeMs": 400.67
+          "wallTimeMs": 400.73
         },
         {
           "action": "climbOne:C3:B4",
           "completedDepth": 0,
-          "cutoffRate": 0.1368,
+          "cutoffRate": 0.125,
           "diagnostics": {
             "aspirationResearches": 0,
-            "betaCutoffs": 13,
+            "betaCutoffs": 14,
             "orderedFallbacks": 1,
-            "participationPenalties": 28,
+            "participationPenalties": 32,
             "policyPriorHits": 0,
             "pvsResearches": 0,
-            "quiescenceNodes": 95,
+            "quiescenceNodes": 112,
             "repetitionPenalties": 0,
             "selfUndoPenalties": 0,
-            "sourceFamilyCollisions": 27,
+            "sourceFamilyCollisions": 30,
             "transpositionHits": 0
           },
-          "evaluatedNodes": 95,
+          "evaluatedNodes": 112,
           "label": "initialState",
           "principalVariationLength": 0,
-          "reportedElapsedMs": 400.51,
+          "reportedElapsedMs": 400.39,
           "rootCandidates": 5,
           "timeBudgetMs": 400,
           "transpositionHitRate": 0,
-          "wallTimeMs": 400.53
+          "wallTimeMs": 400.41
         },
         {
           "action": "climbOne:C3:D4",
@@ -221,146 +221,146 @@
           "evaluatedNodes": 439,
           "label": "jumpContinuation",
           "principalVariationLength": 4,
-          "reportedElapsedMs": 215.16,
+          "reportedElapsedMs": 200.92,
           "rootCandidates": 5,
           "timeBudgetMs": 400,
           "transpositionHitRate": 0.0888,
-          "wallTimeMs": 215.3
+          "wallTimeMs": 201.05
         },
         {
           "action": "manualUnfreeze:D5",
           "completedDepth": 0,
-          "cutoffRate": 0.0542,
+          "cutoffRate": 0.0576,
           "diagnostics": {
             "aspirationResearches": 0,
-            "betaCutoffs": 20,
+            "betaCutoffs": 24,
             "orderedFallbacks": 1,
-            "participationPenalties": 138,
+            "participationPenalties": 154,
             "policyPriorHits": 0,
             "pvsResearches": 0,
-            "quiescenceNodes": 369,
+            "quiescenceNodes": 417,
             "repetitionPenalties": 0,
             "selfUndoPenalties": 0,
-            "sourceFamilyCollisions": 145,
+            "sourceFamilyCollisions": 161,
             "transpositionHits": 0
           },
-          "evaluatedNodes": 369,
+          "evaluatedNodes": 417,
           "label": "threatState",
           "principalVariationLength": 0,
-          "reportedElapsedMs": 400.09,
+          "reportedElapsedMs": 400.15,
           "rootCandidates": 5,
           "timeBudgetMs": 400,
           "transpositionHitRate": 0,
-          "wallTimeMs": 400.11
+          "wallTimeMs": 400.16
         }
       ]
     },
     "hard": {
-      "avgWallTimeMs": 1200.32,
+      "avgWallTimeMs": 1201.08,
       "states": [
         {
           "action": "climbOne:C4:B3",
           "completedDepth": 0,
-          "cutoffRate": 0.1443,
+          "cutoffRate": 0.1375,
           "diagnostics": {
             "aspirationResearches": 0,
-            "betaCutoffs": 70,
+            "betaCutoffs": 77,
             "orderedFallbacks": 1,
-            "participationPenalties": 178,
+            "participationPenalties": 195,
             "policyPriorHits": 0,
             "pvsResearches": 0,
-            "quiescenceNodes": 485,
+            "quiescenceNodes": 560,
             "repetitionPenalties": 0,
             "selfUndoPenalties": 0,
-            "sourceFamilyCollisions": 131,
+            "sourceFamilyCollisions": 146,
             "transpositionHits": 0
           },
-          "evaluatedNodes": 485,
+          "evaluatedNodes": 560,
           "label": "afterOpening",
           "principalVariationLength": 0,
-          "reportedElapsedMs": 1200.47,
+          "reportedElapsedMs": 1200.27,
           "rootCandidates": 6,
           "timeBudgetMs": 1200,
           "transpositionHitRate": 0,
-          "wallTimeMs": 1200.5
+          "wallTimeMs": 1200.3
         },
         {
           "action": "climbOne:C3:B4",
           "completedDepth": 0,
-          "cutoffRate": 0.1265,
+          "cutoffRate": 0.1257,
           "diagnostics": {
             "aspirationResearches": 0,
             "betaCutoffs": 43,
             "orderedFallbacks": 1,
-            "participationPenalties": 88,
+            "participationPenalties": 89,
             "policyPriorHits": 0,
             "pvsResearches": 0,
-            "quiescenceNodes": 340,
+            "quiescenceNodes": 342,
             "repetitionPenalties": 0,
             "selfUndoPenalties": 0,
-            "sourceFamilyCollisions": 71,
+            "sourceFamilyCollisions": 72,
             "transpositionHits": 0
           },
-          "evaluatedNodes": 340,
+          "evaluatedNodes": 342,
           "label": "initialState",
           "principalVariationLength": 0,
-          "reportedElapsedMs": 1200.22,
+          "reportedElapsedMs": 1200.25,
           "rootCandidates": 6,
           "timeBudgetMs": 1200,
           "transpositionHitRate": 0,
-          "wallTimeMs": 1200.24
+          "wallTimeMs": 1200.28
         },
         {
           "action": "climbOne:C3:D4",
           "completedDepth": 5,
-          "cutoffRate": 0.2996,
+          "cutoffRate": 0.283,
           "diagnostics": {
             "aspirationResearches": 1,
-            "betaCutoffs": 776,
+            "betaCutoffs": 684,
             "orderedFallbacks": 0,
-            "participationPenalties": 2947,
+            "participationPenalties": 2680,
             "policyPriorHits": 0,
-            "pvsResearches": 49,
-            "quiescenceNodes": 2590,
-            "repetitionPenalties": 362,
-            "selfUndoPenalties": 193,
-            "sourceFamilyCollisions": 2868,
-            "transpositionHits": 543
+            "pvsResearches": 46,
+            "quiescenceNodes": 2417,
+            "repetitionPenalties": 318,
+            "selfUndoPenalties": 175,
+            "sourceFamilyCollisions": 2612,
+            "transpositionHits": 472
           },
-          "evaluatedNodes": 2590,
+          "evaluatedNodes": 2417,
           "label": "jumpContinuation",
           "principalVariationLength": 5,
-          "reportedElapsedMs": 1200.13,
+          "reportedElapsedMs": 1201.13,
           "rootCandidates": 6,
           "timeBudgetMs": 1200,
-          "transpositionHitRate": 0.2097,
-          "wallTimeMs": 1200.34
+          "transpositionHitRate": 0.1953,
+          "wallTimeMs": 1203.56
         },
         {
           "action": "climbOne:B2:A1",
           "completedDepth": 1,
-          "cutoffRate": 0.047,
+          "cutoffRate": 0.0639,
           "diagnostics": {
             "aspirationResearches": 1,
-            "betaCutoffs": 93,
+            "betaCutoffs": 80,
             "orderedFallbacks": 0,
-            "participationPenalties": 355,
+            "participationPenalties": 265,
             "policyPriorHits": 0,
-            "pvsResearches": 13,
-            "quiescenceNodes": 1908,
+            "pvsResearches": 2,
+            "quiescenceNodes": 1247,
             "repetitionPenalties": 0,
             "selfUndoPenalties": 0,
-            "sourceFamilyCollisions": 399,
-            "transpositionHits": 13
+            "sourceFamilyCollisions": 307,
+            "transpositionHits": 1
           },
-          "evaluatedNodes": 1978,
+          "evaluatedNodes": 1251,
           "label": "threatState",
           "principalVariationLength": 1,
           "reportedElapsedMs": 1200.08,
           "rootCandidates": 6,
           "timeBudgetMs": 1200,
-          "transpositionHitRate": 0.0066,
-          "wallTimeMs": 1200.2
+          "transpositionHitRate": 0.0008,
+          "wallTimeMs": 1200.18
         }
       ]
     }
@@ -417,35 +417,35 @@
   ],
   "rootOrderingCacheBenchmark": [
     {
-      "baselineMs": 133.9801,
-      "gainMs": 111.7011,
-      "gainPercent": 83.37,
+      "baselineMs": 113.6228,
+      "gainMs": 94.4726,
+      "gainPercent": 83.15,
       "label": "opening",
-      "optimizedMs": 22.2791,
+      "optimizedMs": 19.1502,
       "turnCount": 0
     },
     {
-      "baselineMs": 126.0666,
-      "gainMs": 105.1169,
-      "gainPercent": 83.38,
+      "baselineMs": 93.5117,
+      "gainMs": 77.7563,
+      "gainPercent": 83.15,
       "label": "turn50",
-      "optimizedMs": 20.9497,
+      "optimizedMs": 15.7554,
       "turnCount": 50
     },
     {
-      "baselineMs": 129.6159,
-      "gainMs": 107.7105,
-      "gainPercent": 83.1,
+      "baselineMs": 93.61,
+      "gainMs": 77.7137,
+      "gainPercent": 83.02,
       "label": "turn100",
-      "optimizedMs": 21.9054,
+      "optimizedMs": 15.8963,
       "turnCount": 100
     },
     {
-      "baselineMs": 129.5422,
-      "gainMs": 107.9916,
-      "gainPercent": 83.36,
+      "baselineMs": 93.9582,
+      "gainMs": 77.8702,
+      "gainPercent": 82.88,
       "label": "turn200",
-      "optimizedMs": 21.5506,
+      "optimizedMs": 16.088,
       "turnCount": 200
     }
   ]

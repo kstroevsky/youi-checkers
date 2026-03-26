@@ -29,6 +29,10 @@ import type { Coord, GameState, TurnAction } from '@/domain/model/types';
 import { actionLabel } from '@/shared/i18n/catalog';
 import { checker, gameStateWithBoard, resetFactoryIds, withConfig } from '@/test/factories';
 import { createSession } from '@/test/factories';
+import {
+  createLateGamePerfState,
+  LATE_GAME_PERF_SCENARIOS,
+} from './lateGamePerfFixtures';
 
 const shouldRun = process.env.WMBL_PERF_REPORT === '1';
 const outputPath = process.env.WMBL_DOMAIN_PERF_OUTPUT;
@@ -178,31 +182,6 @@ function hasLegalAction(state: GameState, config = withConfig()): boolean {
   return getLegalActions(state, config).length > 0;
 }
 
-function advanceDeterministicTurn(state: GameState, config: ReturnType<typeof withConfig>): GameState {
-  const legalActions = getLegalActions(state, config);
-  const action = legalActions[0];
-
-  if (!action) {
-    return state;
-  }
-
-  return applyAction(state, action, config);
-}
-
-function createLateGameState(turnCount: number, config: ReturnType<typeof withConfig>): GameState {
-  let state = createInitialState(config);
-
-  for (let turn = 0; turn < turnCount; turn += 1) {
-    if (state.status === 'gameOver') {
-      state = createInitialState(config);
-    }
-
-    state = advanceDeterministicTurn(state, config);
-  }
-
-  return state;
-}
-
 function pickTurnEndingAction(
   state: GameState,
   config: ReturnType<typeof withConfig>,
@@ -237,14 +216,9 @@ function targetCellLabels(action: TurnAction): string[] {
 function buildLateGameAiFixtures(
   config: ReturnType<typeof withConfig>,
 ): LateGameAiFixture[] {
-  const scenarios = [
-    { label: 'opening', state: createInitialState(config), turnCount: 0 },
-    { label: 'turn50', state: createLateGameState(50, config), turnCount: 50 },
-    { label: 'turn100', state: createLateGameState(100, config), turnCount: 100 },
-    { label: 'turn200', state: createLateGameState(200, config), turnCount: 200 },
-  ];
-
-  return scenarios.map(({ label, state, turnCount }) => {
+  return LATE_GAME_PERF_SCENARIOS.map(({ label, turnCount }) => {
+    const state =
+      turnCount === 0 ? createInitialState(config) : createLateGamePerfState(turnCount, config);
     const { action, nextState } = pickTurnEndingAction(state, config);
     const session = createSession(state, {
       matchSettings: {
@@ -353,14 +327,9 @@ function measureRootOrderingLoop(
 function buildRootCacheBenchmark(
   config: ReturnType<typeof withConfig>,
 ): RootCacheBenchmarkEntry[] {
-  const scenarios = [
-    { label: 'opening', state: createInitialState(config), turnCount: 0 },
-    { label: 'turn50', state: createLateGameState(50, config), turnCount: 50 },
-    { label: 'turn100', state: createLateGameState(100, config), turnCount: 100 },
-    { label: 'turn200', state: createLateGameState(200, config), turnCount: 200 },
-  ];
-
-  return scenarios.map(({ label, state, turnCount }) => {
+  return LATE_GAME_PERF_SCENARIOS.map(({ label, turnCount }) => {
+    const state =
+      turnCount === 0 ? createInitialState(config) : createLateGamePerfState(turnCount, config);
     const baselineMs = measureRootOrderingLoop(state, config, 'baseline');
     const optimizedMs = measureRootOrderingLoop(state, config, 'optimized');
     const gainMs = baselineMs - optimizedMs;

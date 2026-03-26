@@ -84,6 +84,11 @@ function fillBlackReserve(
     'E3',
     'F3',
   ];
+  const missingReserveSlots = reserveCoords.filter((coord) => excluded.has(coord)).length;
+  const stackCoord =
+    frozenSingles && missingReserveSlots > 0
+      ? reserveCoords.find((coord) => !excluded.has(coord)) ?? null
+      : null;
   let blackCount = 0;
 
   for (const coord of reserveCoords) {
@@ -91,12 +96,16 @@ function fillBlackReserve(
       continue;
     }
 
-    board[coord].checkers.push(checker('black', frozenSingles));
+    board[coord].checkers.push(checker('black', coord === stackCoord ? false : frozenSingles));
     blackCount += 1;
   }
 
   while (blackCount < 18) {
-    board.A1.checkers.push(checker('black'));
+    if (!stackCoord) {
+      throw new Error('Black reserve could not place a valid overflow stack.');
+    }
+
+    board[stackCoord].checkers.push(checker('black'));
     blackCount += 1;
   }
 }

@@ -85,9 +85,11 @@ describe('performance-oriented helpers', () => {
     const selectableFromActions = Object.keys(afterFirstJump.board).filter((coord) =>
       getLegalActionsForCell(afterFirstJump, coord as keyof typeof afterFirstJump.board, config).length > 0,
     );
+    const forcedSourceActions = getLegalActionsForCell(afterFirstJump, 'C3', config);
 
     expect(getLegalActions(createInitialState(config), config).length).toBeGreaterThan(0);
     expect(getLegalActions(afterFirstJump, config).length).toBeGreaterThan(0);
+    expect(getLegalActions(afterFirstJump, config)).toEqual(forcedSourceActions);
     expect(selectableFromActions).toEqual(['C3']);
   });
 });

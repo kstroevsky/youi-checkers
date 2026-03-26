@@ -408,18 +408,16 @@ describe('createGameStore AI integration', () => {
     expect(worker.requests[1]?.state.pendingJump?.source).toBe('C3');
   });
 
-  it('keeps scheduling AI jumps while each jump leaves another continuation', async () => {
+  it('keeps scheduling AI jumps while the same jumper keeps leaving another continuation', async () => {
     vi.useFakeTimers();
 
     const worker = new FakeAiWorker();
     const state = gameStateWithBoard(
       boardWithPieces({
         A1: [checker('white')],
-        A3: [checker('white')],
         B2: [checker('white')],
-        B4: [checker('white')],
         D4: [checker('white')],
-        F6: [checker('black')],
+        E4: [checker('white')],
       }),
     );
     createGameStore({
@@ -457,8 +455,8 @@ describe('createGameStore AI integration', () => {
       createAiResult({
         action: {
           type: 'jumpSequence',
-          source: 'A3',
-          path: ['C5'],
+          source: 'C3',
+          path: ['E5'],
         },
       }),
     );
@@ -467,7 +465,7 @@ describe('createGameStore AI integration', () => {
 
     expect(worker.requests).toHaveLength(3);
     expect(worker.requests[2]?.state.currentPlayer).toBe('white');
-    expect(worker.requests[2]?.state.pendingJump?.source).toBe('C5');
+    expect(worker.requests[2]?.state.pendingJump?.source).toBe('E5');
   });
 
   it('recovers from a hung computer worker via the watchdog timeout', () => {

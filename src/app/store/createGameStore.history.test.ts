@@ -239,9 +239,7 @@ describe('createGameStore history and interaction', () => {
     if (interactionAfterJump.type === 'jumpFollowUp') {
       expect(interactionAfterJump.availableTargets).toEqual(expect.arrayContaining(['E5']));
     }
-    expect(store.getState().selectableCoords).toEqual(
-      expect.arrayContaining(['B2', 'C3', 'D4']),
-    );
+    expect(store.getState().selectableCoords).toEqual(['C3']);
 
     store.getState().cancelInteraction();
 
@@ -278,9 +276,9 @@ describe('createGameStore history and interaction', () => {
 
     expect(store.getState().interaction.type).toBe('jumpFollowUp');
 
-    store.getState().selectCell('D4');
+    store.getState().selectCell('C3');
     store.getState().chooseActionType('moveSingleToEmpty');
-    store.getState().selectCell('E4');
+    store.getState().selectCell('B3');
 
     expect(store.getState().gameState.currentPlayer).toBe('black');
     expect(store.getState().interaction).toEqual({
@@ -289,15 +287,13 @@ describe('createGameStore history and interaction', () => {
     });
   });
 
-  it('keeps the neutral jump follow-up state after another jump also leaves continuations', () => {
+  it('keeps the neutral jump follow-up state after the same jumper continues into another jump', () => {
     const state = gameStateWithBoard(
       boardWithPieces({
         A1: [checker('white')],
-        A3: [checker('white')],
         B2: [checker('white')],
-        B4: [checker('white')],
         D4: [checker('white')],
-        F6: [checker('black')],
+        E4: [checker('white')],
       }),
     );
     const store = createGameStore({
@@ -321,14 +317,14 @@ describe('createGameStore history and interaction', () => {
       );
     }
 
-    store.getState().selectCell('A3');
+    store.getState().selectCell('C3');
     store.getState().chooseActionType('jumpSequence');
-    store.getState().selectCell('C5');
+    store.getState().selectCell('E5');
 
     expect(store.getState().gameState.currentPlayer).toBe('white');
     expect(store.getState().interaction).toMatchObject({
       type: 'jumpFollowUp',
-      source: 'C5',
+      source: 'E5',
     });
     const interactionAfterFollowUpJump = store.getState().interaction;
     expect(interactionAfterFollowUpJump.type).toBe('jumpFollowUp');
@@ -369,8 +365,6 @@ describe('createGameStore history and interaction', () => {
       source: 'C3',
       availableTargets: ['E5'],
     });
-    expect(store.getState().selectableCoords).toEqual(
-      expect.arrayContaining(['B2', 'C3', 'D4']),
-    );
+    expect(store.getState().selectableCoords).toEqual(['C3']);
   });
 });

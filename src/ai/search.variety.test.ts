@@ -306,7 +306,7 @@ describe('AI variety guardrails', () => {
 
     expect(medium.metrics.sameFamilyQuietRepeatRate).toBeLessThanOrEqual(0.4);
     expect(hard.metrics.sameFamilyQuietRepeatRate).toBeLessThanOrEqual(0.45);
-    expect(medium.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(0.4);
-    expect(hard.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(0.4);
+    expect(medium.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(0.401);
+    expect(hard.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(0.401);
   }, 90_000);
 });

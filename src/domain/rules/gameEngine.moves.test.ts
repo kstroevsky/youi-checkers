@@ -183,7 +183,7 @@ describe('game engine moves', () => {
     expect(afterFrozenOwnJump.board.B2.checkers[0].frozen).toBe(false);
   });
 
-  it('keeps the same player on a jump follow-up and allows any legal second action', () => {
+  it('keeps the same player on a jump follow-up and allows any legal second action from the jumping source', () => {
     const state = gameStateWithBoard(
       boardWithPieces({
         A1: [checker('white')],
@@ -214,6 +214,11 @@ describe('game engine moves', () => {
     });
     expect(legalActions).toContainEqual({
       type: 'moveSingleToEmpty',
+      source: 'C3',
+      target: 'B3',
+    });
+    expect(legalActions).not.toContainEqual({
+      type: 'moveSingleToEmpty',
       source: 'B2',
       target: 'A1',
     });
@@ -222,8 +227,8 @@ describe('game engine moves', () => {
       afterFirstJump,
       {
         type: 'moveSingleToEmpty',
-        source: 'B2',
-        target: 'A1',
+        source: 'C3',
+        target: 'B3',
       },
       withConfig(),
     );
@@ -232,15 +237,13 @@ describe('game engine moves', () => {
     expect(afterSecondJump.pendingJump).toBeNull();
   });
 
-  it('keeps the turn alive when the follow-up move is another jump with continuation', () => {
+  it('keeps the turn alive when the same jumper continues into another jump with continuation', () => {
     const state = gameStateWithBoard(
       boardWithPieces({
         A1: [checker('white')],
-        A3: [checker('white')],
         B2: [checker('white')],
-        B4: [checker('white')],
         D4: [checker('white')],
-        F6: [checker('black')],
+        E4: [checker('white')],
       }),
     );
     const afterFirstJump = applyAction(
@@ -255,27 +258,36 @@ describe('game engine moves', () => {
 
     expect(afterFirstJump.currentPlayer).toBe('white');
     expect(
-      getLegalActionsForCell(afterFirstJump, 'A3', withConfig()).filter(
+      getLegalActionsForCell(afterFirstJump, 'C3', withConfig()).filter(
         (action) => action.type === 'jumpSequence',
       ),
     ).toContainEqual({
       type: 'jumpSequence',
-      source: 'A3',
-      path: ['C5'],
+      source: 'C3',
+      path: ['E5'],
     });
 
     const afterFollowUpJump = applyAction(
       afterFirstJump,
       {
         type: 'jumpSequence',
-        source: 'A3',
-        path: ['C5'],
+        source: 'C3',
+        path: ['E5'],
       },
       withConfig(),
     );
 
     expect(afterFollowUpJump.currentPlayer).toBe('white');
-    expect(afterFollowUpJump.pendingJump?.source).toBe('C5');
+    expect(afterFollowUpJump.pendingJump?.source).toBe('E5');
+    expect(
+      getLegalActionsForCell(afterFollowUpJump, 'E5', withConfig()).filter(
+        (action) => action.type === 'jumpSequence',
+      ),
+    ).toContainEqual({
+      type: 'jumpSequence',
+      source: 'E5',
+      path: ['E3'],
+    });
   });
 
   it('ends the game immediately when a winning jump would otherwise leave a follow-up', () => {
