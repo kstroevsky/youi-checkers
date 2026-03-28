@@ -439,10 +439,10 @@ The domain therefore treats imported sessions as claims to be validated, not as 
 flowchart TD
   A["Serialized JSON"] --> B["deserializeSession()"]
   B --> C["runtime guards"]
-  C --> D["migrate v1/v2 to v3 if needed"]
+  C --> D["migrate v1/v2/v3 to v4 if needed"]
   D --> E["normalize turn log and frames"]
   E --> F["validate restored state"]
-  F --> G["return canonical SerializableSessionV3"]
+  F --> G["return canonical SerializableSessionV4"]
 ```
 
 ### File map
@@ -450,18 +450,21 @@ flowchart TD
 | File | Responsibility |
 | --- | --- |
 | [`serialization/session.ts`](./serialization/session.ts) | public serialization entry points |
-| [`serialization/session/deserialization.ts`](./serialization/session/deserialization.ts) | guard validation and migration to `v3` |
+| [`serialization/session/deserialization.ts`](./serialization/session/deserialization.ts) | guard validation and migration to `v4` |
 | [`serialization/session/guards.ts`](./serialization/session/guards.ts) | runtime validation of nested payload fragments |
 | [`serialization/session/normalization.ts`](./serialization/session/normalization.ts) | canonical turn-log and frame normalization |
 | [`serialization/session/frames.ts`](./serialization/session/frames.ts) | `UndoFrame` creation and runtime restoration |
 
 ### Session versions
 
-The serialization layer currently normalizes every imported payload to `SerializableSessionV3`:
+The serialization layer currently normalizes every imported payload to `SerializableSessionV4`:
 
 - `v1`: full nested game states in `present`, `past`, and `future`
 - `v2`: shared `turnLog` plus lightweight `UndoFrame` history cursors
 - `v3`: `v2` plus persisted `matchSettings`
+- `v4`: `v3` plus persisted `aiBehaviorProfile`
+
+The hidden AI persona is validated as part of session shape, but migration from older sessions never invents one. Legacy payloads become canonical `v4` sessions with `aiBehaviorProfile: null`, which keeps imports backward-compatible without retroactively assigning opponent identity to old saves.
 
 This is why the domain layer depends on shared session types even though it otherwise stays UI-agnostic: session shape is a cross-layer contract.
 

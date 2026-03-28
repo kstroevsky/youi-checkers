@@ -8,10 +8,13 @@ No permission is granted to use, copy, modify, merge, publish, distribute, subli
 
 This document is the exact, code-backed reference for YOUI's non-search scoring layer. It explains the current formulas in:
 
+- [`behavior.ts`](./behavior.ts)
 - [`evaluation.ts`](./evaluation.ts)
 - [`strategy.ts`](./strategy.ts)
 - [`participation.ts`](./participation.ts)
 - [`moveOrdering.ts`](./moveOrdering.ts)
+- [`risk.ts`](./risk.ts)
+- [`search/result.ts`](./search/result.ts)
 - [`presets.ts`](./presets.ts)
 
 The AI is deliberately split into two responsibilities:
@@ -209,9 +212,38 @@ Both evaluators return:
 
 - `+1_000_000` for a terminal win from the perspective side;
 - `-1_000_000` for a terminal loss;
-- `0` for a draw.
+- a dynamic draw score for a draw when a preset is supplied.
 
 The term is `TERMINAL_SCORE`, and it is used to dominate all heuristic bonuses.
+
+### Dynamic draw utility
+
+`getDynamicDrawScore()` in [`risk.ts`](./risk.ts) computes:
+
+```text
+structuralScore = getStrategicScore(state, perspectivePlayer)
+aheadness = clamp(structuralScore / 600, -1, 1)
+
+aheadPenalty =
+  drawAversionAhead * max(0, aheadness + 0.15)
+
+behindRelief =
+  drawAversionBehindRelief * max(0, -aheadness - 0.35)
+
+escalationMultiplier =
+  1.65  if riskMode === late
+  1.25  if riskMode === stagnation
+  1     otherwise
+
+drawScore =
+  round(-aheadPenalty * escalationMultiplier + behindRelief)
+```
+
+This is the current implementation of draw aversion:
+
+- equal or favorable draws become negative;
+- clearly losing draws can stay neutral or slightly positive;
+- `stagnation` and `late` modes increase the penalty for sterile draws.
 
 ### `evaluateStructureState()`
 
@@ -219,7 +251,7 @@ The term is `TERMINAL_SCORE`, and it is used to dominate all heuristic bonuses.
 
 ```text
 if terminal:
-  return ±1_000_000 or 0
+  return ±1_000_000 or getDynamicDrawScore(...)
 else:
   return getStrategicScore(state, perspectivePlayer)
 ```
@@ -243,6 +275,12 @@ if pendingJump exists:
   score += 140  if state.currentPlayer === perspectivePlayer
   score -= 140  otherwise
 
+if behaviorProfile exists:
+  score += getBehaviorStateBias(...)
+
+if riskMode is not normal:
+  score += getRiskStateBias(...)
+
 if preset is present:
   score += getParticipationScore(...)
 ```
@@ -254,6 +292,28 @@ What it does **not** include:
 - no exact tactical mobility count.
 
 Model `valueEstimate` is surfaced in `AiModelGuidance` for diagnostics and tests, but it is not injected into `evaluateState()`.
+
+### Persona state bias (`behavior.ts`)
+
+Hidden personas bias equal quiet states differently:
+
+| Persona | State-bias terms |
+| --- | --- |
+| `expander` | `emptyCells * 16 + laneOpenness delta * 34 + jumpLanes delta * 52` |
+| `hunter` | `opponent frozenSingles delta * 90 + opponent frozenCriticalSingles delta * 120 + jumpLanes delta * 44 + controlledEnemyStacks delta * 70` |
+| `builder` | `frontRowControlledHeight delta * 92 + frontRowOwnedTwoStacks delta * 280 + frontRowFullStacks delta * 850 + controlledStacks delta * 44` |
+
+These are style biases, not tactical overrides.
+
+### Risk state bias (`risk.ts`)
+
+When `riskMode` is active, the leaf evaluator also adds:
+
+```text
+round((emptyCells * 10 + progressEdge * 260 + strategicPressure * 0.08) * multiplier)
+```
+
+Where `multiplier = 1.3` in `late` mode and `1` in `stagnation`.
 
 ```mermaid
 flowchart LR
@@ -301,10 +361,12 @@ Then it builds `staticScore` from the following exact terms:
 | strategic delta | `clamp(intentDelta, 6_000)` |
 | participation delta | `clamp(participationDelta, 2_400)` |
 | semantic policy bias | `+policyBias` |
+| behavior action bias | `+getBehaviorActionBias(profileId, tags)` |
+| opening geometry bias | `round(getBehaviorGeometryBias(profileId, action, behaviorSeed) * 6)` while `moveNumber <= 6` |
 | model prior | `round(policyPrior * policyPriorWeight)` |
 | novelty penalty | `-noveltyPenalty` |
 | repetition penalty | `-repetitionPenalty * (repeatedPositionCount - 1)` |
-| self-undo penalty | `-selfUndoPenalty` when `isSelfUndo && !isTactical` |
+| self-undo penalty | `-selfUndoPenalty` when `isSelfUndo && !isForced` |
 
 `clamp(value, limit)` bounds each signed term to `[-limit, limit]`.
 
@@ -324,6 +386,94 @@ The final ordering score is:
 
 ```text
 score = staticScore + dynamicScore
+```
+
+### Persona action bias (`behavior.ts`)
+
+`getBehaviorActionBias()` converts strategic tags into profile-specific ordering pressure:
+
+| Persona | Tag weights |
+| --- | --- |
+| `expander` | `advanceMass = 80`, `decompress = 180`, `openLane = 220` |
+| `hunter` | `captureControl = 180`, `freezeBlock = 240`, `rescue = 90` |
+| `builder` | `advanceMass = 120`, `frontBuild = 260`, `rescue = 110` |
+
+### Persona geometry bias (`behavior.ts`)
+
+Strategic tags are often identical in symmetric openings, so personas also carry a
+seeded source-geometry preference:
+
+- action anchors on files `C` / `D` are treated as `center`
+- files `B` / `E` are treated as `inner`
+- files `A` / `F` are treated as `edge`
+
+Each persona chooses one seeded ordering of those bands and scores them:
+
+- top band: `220`
+- second band: `120`
+- third band: `40`
+
+Current seeded order pools are:
+
+| Persona | Possible seeded band orders |
+| --- | --- |
+| `expander` | `center > inner > edge`, `center > edge > inner`, `inner > center > edge` |
+| `hunter` | `inner > edge > center`, `edge > inner > center`, `inner > center > edge` |
+| `builder` | `edge > inner > center`, `edge > center > inner`, `inner > edge > center` |
+
+During the first six plies, `precomputeOrderedActions()` multiplies that geometry
+bias by `6` and adds it directly into `staticScore`. This is what lets hidden
+personas split low-confidence openings before the search has enough depth to
+separate them structurally.
+
+### Risk-mode ordering bonus
+
+When `riskMode !== normal`, move ordering adds:
+
+```text
+adjustment =
+  max(0, emptyCellsDelta) * 220 +
+  clamp(mobilityDelta - 1, 0, 4) * 150 +
+  max(0, homeFieldDelta + sixStackDelta) * riskProgressBonus +
+  max(0, freezeSwingBonus) * riskTacticalBonus +
+  (decompress && mobilityDelta > 0 ? riskProgressBonus * 0.45 : 0) +
+  (openLane && mobilityDelta > 0 ? riskProgressBonus * 0.35 : 0) +
+  (captureControl ? riskTacticalBonus * 0.2 : 0) +
+  (freezeBlock ? riskTacticalBonus * 0.18 : 0)
+```
+
+Where:
+
+- `riskMultiplier = 1.12` in `late` mode and `1` in `stagnation`;
+- `decompress` and `openLane` only count when they also produce real mobility gain;
+- the plan-progress term is clipped at zero so fake regressions are never rewarded.
+
+The `hasCertifiedRiskProgress()` gate behind that adjustment is:
+
+```text
+planProgress = homeFieldDelta + sixStackDelta
+laneProgress =
+  (decompress || openLane) &&
+  (emptyCellsDelta > 0 || mobilityDelta > 0)
+
+progressCertified =
+  emptyCellsDelta > 0 ||
+  mobilityDelta >= 2 ||
+  planProgress >= 0.04 ||
+  freezeSwingBonus > 0 ||
+  laneProgress
+```
+
+Additional anti-loop pressure is also applied in risk modes:
+
+- non-forced lines that fail `progressCertified` lose `round(riskLoopPenalty * 0.85)`;
+- repeated non-forced lines lose `riskLoopPenalty * max(1, repeatedPositionCount - 1)`;
+- self-undo non-forced lines lose `round(riskLoopPenalty * 1.15)`.
+
+The final value added into move ordering is:
+
+```text
+round(adjustment * riskMultiplier)
 ```
 
 ```mermaid
@@ -360,6 +510,10 @@ flowchart TD
 | `isSelfUndo` | action recreates the root grandparent position or directly reverses the player's previous action |
 | `isTactical` | immediate win, jump, manual unfreeze, positive freeze swing, or semantic `freezeBlock` / `rescue` tag |
 
+`isTactical` is still used for preservation and participation shaping, but it no
+longer gives blanket immunity from anti-loop penalties. Only `isForced` bypasses
+the self-undo and risk-loop punishments.
+
 ### Helper bonuses and penalties
 
 #### `getFreezeSwingBonus()`
@@ -392,7 +546,96 @@ noveltyPenalty = 0
 
 This is a semantic repetition penalty, not a position-hash repetition penalty.
 
-## 6. Strategic Action Tags
+## 6. Risk Profile And Root Candidate Reranking
+
+`risk.ts` computes a root-level `stagnationIndex` once per AI turn from the last six plies when history exists:
+
+```text
+stagnationIndex =
+  (
+    repetitionPressure * stagnationRepetitionWeight +
+    selfUndoPressure * stagnationSelfUndoWeight +
+    displacementPressure * stagnationDisplacementWeight +
+    mobilityPressure * stagnationMobilityWeight +
+    progressPressure * stagnationProgressWeight
+  ) / totalWeight
+```
+
+When history is too short, the fallback index is built from current repetition pressure, structural flatness, and move-number pressure.
+
+Mode selection is:
+
+- `late` if `moveNumber >= 70` and the game is unresolved;
+- else `stagnation` if `stagnationIndex >= stagnationThreshold`;
+- else `normal`.
+
+`selectCandidateAction()` in [`search/result.ts`](./search/result.ts) uses that mode only inside the near-best root band. It widens the tolerance by:
+
+```text
+round(4_000 * riskBandWidening)
+```
+
+Root reranking now has four extra safeguards that are easy to miss when reading
+only the high-level plan:
+
+1. `rootSearch.ts` first probes the root. If risk mode finds no worthwhile
+   candidate that passes `hasCertifiedRiskProgress()`, the search drops back to
+   `normal` mode for that turn.
+2. The first six plies get `bandBoost = 900` so low-confidence openings can
+   split by persona. Risk-active low-confidence roots add another `4_000` when
+   no depth completed or a fallback path was needed.
+3. Opening roots with a hidden persona reduce `policyPriorWeight` to `30%` of
+   the normal root weight so the policy head cannot collapse every game back to
+   the same safe opener.
+4. Candidate filtering excludes only `isForced`, `isRepetition`, and
+   `isSelfUndo`. Non-forced tactical lines are still eligible if they make real
+   progress.
+
+Inside that widened band, `selectCandidateAction()` adds a rerank bonus based on:
+
+- `emptyCellsDelta`
+- `mobilityDelta`
+- `homeFieldDelta + sixStackDelta`
+- `freezeSwingBonus`
+- tactical tags such as `captureControl` and `freezeBlock`
+- minus anti-loop pressure for non-progress, repetition, and self-undo
+
+The root selector also compresses raw score differences when a band boost is
+active:
+
+```text
+scoreCompression =
+  1    when bandBoost <= 0
+  0.2  when bandBoost > 0 and riskMode === normal
+  0.1  when bandBoost > 0 and riskMode !== normal
+```
+
+The adjusted candidate score is:
+
+```text
+compressedScore +
+familyBonus +
+diversityBonus +
+personaTagBonus +
+seededGeometryBonus +
+round(participationDelta * 0.2) +
+round(policyPrior * 40) +
+riskBonus +
+(intent === hybrid ? 15 : 0) -
+index * 5
+```
+
+When `bandBoost > 0`, the selector takes the maximum `adjustedScore`
+deterministically instead of sampling. This is deliberate: weighted sampling was
+still collapsing to one opening under the deterministic test clock, so opening
+variety now comes from bounded deterministic reranking rather than randomness.
+
+This is the safety rail behind the "be riskier" feature. The engine does not
+abandon the best line globally; it only reranks among already near-best
+non-forced candidates after immediate wins and terminal saves have been
+protected.
+
+## 7. Strategic Action Tags
 
 `getActionStrategicProfile()` tags candidate moves according to how they change the structural analysis.
 
@@ -442,7 +685,7 @@ When multiple tags apply, the biases are summed.
 | `openLane` | create space or jump-ready geometry |
 | `rescue` | reduce own frozen or buried liabilities |
 
-## 7. Participation (`participation.ts`)
+## 8. Participation (`participation.ts`)
 
 Participation is YOUI's anti-oscillation layer. It tries to distinguish "good reuse under tactical pressure" from "narrow cycling because several quiet moves look structurally equal."
 
@@ -556,19 +799,31 @@ This is the mechanism that lets the engine keep anti-loop pressure on quiet turn
 
 *The participation layer distinguishes healthy tactical reuse from narrow quiet cycling by tracking families, regions, and frontier breadth over recent turns.*
 
-## 8. Preset-Supplied Coefficients
+## 9. Preset-Supplied Coefficients
 
 Some heuristic formulas are not hard-coded in the evaluator itself; they are supplied by the difficulty preset.
 
-| Difficulty | `policyPriorWeight` | `repetitionPenalty` | `selfUndoPenalty` | `participationBias` | `familyVarietyWeight` | `sourceReusePenalty` | `frontierWidthWeight` |
+| Difficulty | `policyPriorWeight` | `repetitionPenalty` | `selfUndoPenalty` | `drawAversionAhead` | `drawAversionBehindRelief` | `riskLoopPenalty` | `riskProgressBonus` | `riskTacticalBonus` |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `easy` | `80` | `120` | `220` | `220` | `70` | `260` | `420` | `280` |
+| `medium` | `140` | `180` | `320` | `180` | `60` | `220` | `360` | `240` |
+| `hard` | `220` | `240` | `420` | `140` | `50` | `180` | `280` | `200` |
+
+| Difficulty | `participationBias` | `familyVarietyWeight` | `sourceReusePenalty` | `frontierWidthWeight` | `riskBandWidening` | `riskPolicyPriorScale` | `stagnationThreshold` |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `easy` | `80` | `120` | `220` | `14` | `30` | `70` | `20` |
-| `medium` | `140` | `180` | `320` | `18` | `42` | `100` | `28` |
-| `hard` | `220` | `240` | `420` | `24` | `56` | `140` | `36` |
+| `easy` | `14` | `30` | `70` | `20` | `0.08` | `0.45` | `0.42` |
+| `medium` | `18` | `42` | `100` | `28` | `0.06` | `0.6` | `0.46` |
+| `hard` | `24` | `56` | `140` | `36` | `0.04` | `0.72` | `0.5` |
+
+| Difficulty | `stagnationRepetitionWeight` | `stagnationSelfUndoWeight` | `stagnationDisplacementWeight` | `stagnationMobilityWeight` | `stagnationProgressWeight` |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `easy` | `20` | `24` | `16` | `14` | `26` |
+| `medium` | `20` | `20` | `15` | `14` | `24` |
+| `hard` | `18` | `18` | `14` | `14` | `22` |
 
 These are exact runtime values from [`presets.ts`](./presets.ts).
 
-## 9. What This File Does Not Describe
+## 10. What This File Does Not Describe
 
 This reference is intentionally limited to heuristic scoring. For adjacent concerns:
 

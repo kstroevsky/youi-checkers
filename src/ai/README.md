@@ -24,8 +24,10 @@ flowchart TD
   Store["Store notices computer turn"] --> Worker["worker/ai.worker.ts"]
   Worker --> Guidance["model/guidance.ts"]
   Worker --> Root["search/rootSearch.ts"]
+  Root --> Behavior["behavior.ts"]
   Root --> Order["moveOrdering.ts"]
   Root --> Negamax["search/negamax.ts"]
+  Root --> Risk["risk.ts"]
   Negamax --> Quiescence["search/quiescence.ts"]
   Order --> Eval["evaluation.ts"]
   Eval --> Strategy["strategy.ts"]
@@ -61,6 +63,8 @@ The current runtime AI is not:
 | [`index.ts`](./index.ts) | stable barrel used by store, worker, tests, and scripts |
 | [`search.ts`](./search.ts) | Public search re-export |
 | [`search/rootSearch.ts`](./search/rootSearch.ts) | `chooseComputerAction()` orchestration |
+| [`behavior.ts`](./behavior.ts) | hidden persona generation and persona-specific style bias |
+| [`risk.ts`](./risk.ts) | stagnation detection, dynamic draw utility, and risk-mode state bonuses |
 | [`worker/ai.worker.ts`](./worker/ai.worker.ts) | Worker boundary for browser integration |
 | [`types.ts`](./types.ts) | Search request/result contracts |
 | [`presets.ts`](./presets.ts) | Product difficulty policy encoded as data |
@@ -75,11 +79,12 @@ sequenceDiagram
   participant Search as chooseComputerAction()
   participant Domain
 
-  Store->>Worker: chooseMove(requestId, state, ruleConfig, matchSettings)
+  Store->>Worker: chooseMove(requestId, state, ruleConfig, matchSettings, behaviorProfile)
   Worker->>Guidance: getModelGuidance(state, ruleConfig)
   Guidance-->>Worker: action priors or null
   Worker->>Search: chooseComputerAction(difficulty, state, ruleConfig, modelGuidance)
   Search->>Domain: getLegalActions()
+  Search->>Search: getRiskProfile()
   Search->>Search: buildParticipationState()
   Search->>Search: iterative deepening root search
   Search->>Domain: advanceEngineState() on candidate lines
@@ -97,13 +102,14 @@ The worker exists for responsiveness, not to supply rule truth. Correctness stil
 
 - reads the difficulty preset;
 - gathers legal root actions from the domain engine;
-- derives strategic intent from heuristics unless a model-supplied intent exists;
+- recomputes the current `riskMode` from recent history, repetition pressure, and `moveNumber`;
+- derives strategic intent from heuristics unless a model-supplied intent exists, and deliberately prefers heuristic intent once risk escalation is active;
 - reconstructs participation context from recent history;
 - precomputes expensive root ordering features;
 - searches depths `1..maxDepth` under a fixed deadline;
 - uses aspiration windows around the last completed score;
 - degrades gracefully on timeout with ordered or previous-depth fallbacks;
-- returns the chosen action, principal variation, root candidates, and diagnostics.
+- returns the chosen action, principal variation, root candidates, diagnostics, the active `riskMode`, and the persona id that shaped the search.
 
 Fallback labels are explicit:
 
@@ -262,16 +268,88 @@ The presets also supply the heuristic coefficients for:
 
 Because those values encode product behavior, tests and report generators import them directly rather than copying them.
 
+The newer preset fields are equally important to behavior identity:
+
+- draw-aversion coefficients for terminal draws;
+- stagnation-index weights and activation threshold;
+- risk-mode widening, loop penalties, and progress/tactical bonuses;
+- policy-prior attenuation under escalation.
+
+Difficulty is therefore not just "more depth." It is a bundle of search budget, safety rails, draw contempt, and variety pressure.
+
+## Behavior Profiles And Risk Modes
+
+The current computer opponent deliberately separates long-lived style from short-lived urgency.
+
+### Hidden per-match personas
+
+[`behavior.ts`](./behavior.ts) defines three hidden personas:
+
+- `expander`: prefers decompression, lane opening, and broader board geometry;
+- `hunter`: prefers freeze pressure, capture control, and tactical obstruction;
+- `builder`: prefers front-row scaffolding, stack construction, and forward mass shaping.
+
+The store generates one persona per computer match by hashing a fresh session id and persists it in `aiBehaviorProfile`. That keeps resumed saves behaviorally stable without introducing a new player-facing mode switch.
+
+The persona influences three layers:
+
+- move ordering through tag-based action bonuses;
+- opening roots through source-geometry bonuses derived from the persisted persona seed, so equal-score starts can split across different checker families instead of replaying one opener forever;
+- quiet leaf evaluation through state-shape bonuses that bias equal lines toward different strategic textures.
+
+During the first six plies the root search also attenuates policy-prior weight when a persona is active. That does not disable neural guidance globally; it only stops the opening from snapping back to one model-favored move when several near-equal persona-consistent moves exist.
+
+### Dynamic draw aversion
+
+[`risk.ts`](./risk.ts) replaces the old "every draw is `0`" convention with state-dependent draw utility:
+
+- terminal wins and losses remain `±1_000_000`;
+- equal or structurally favorable draws are scored negatively;
+- clearly losing draws can be neutral or slightly positive;
+- `stagnation` and `late` modes increase draw aversion further.
+
+This is the implementation of the product rule "avoid a draw like a defeat" without breaking zero-sum search correctness. The engine does not globally pretend that a draw is always a loss; it only changes how attractive a draw is relative to the current board.
+
+### Risk escalation
+
+Search distinguishes three urgency modes:
+
+| `riskMode` | Trigger | Intended effect |
+| --- | --- | --- |
+| `normal` | default | standard bounded search |
+| `stagnation` | recent plies are repetitive, low-displacement, and low-progress | prefer decompression and decisive continuations |
+| `late` | unresolved game with `moveNumber >= 70` | widen the near-best band and push hardest against sterile draws |
+
+`stagnation` is computed from a weighted index over:
+
+- repetition pressure;
+- quiet self-undo motifs;
+- low board displacement;
+- flat mobility change;
+- flat home-field and six-stack progress.
+
+`late` is a hard fallback trigger, not a new rules-level draw condition.
+
+Once a non-`normal` mode activates, non-forced tactical lines are no longer exempt from the anti-loop logic. Jump-heavy lines can still win on tactical truth, but they now pay repetition and self-undo costs unless they are genuinely forced.
+
 ## Result Shaping
 
 [`search/result.ts`](./search/result.ts) turns internal ranking into the public result object:
 
 - sorts root actions stably;
 - reconstructs the principal variation from the transposition table;
-- selects among near-equal quiet root candidates with preset-controlled temperature;
+- widens the root candidate band in two specific low-confidence cases: the first few opening plies and timeout/fallback risk roots;
+- compresses raw score gaps inside that widened band and then chooses the best adjusted candidate deterministically, so hidden personas and risk bonuses actually surface in browser play instead of being washed out by noisy shallow scores;
+- applies extra risk reranking inside the near-best band when `riskMode` is `stagnation` or `late`, including non-forced tactical candidates instead of only quiet ones;
 - limits the exposed candidate set while preserving family diversity.
 
 This is why the runtime returns more than a move. `AiSearchResult` is also a diagnostic envelope.
+
+The key safety rule is that risk never overrides tactical truth:
+
+- immediate wins still dominate;
+- only-move defenses still dominate;
+- only genuinely forced lines bypass the "be more interesting" preference.
 
 ## Search Context And Supporting Heuristics
 
@@ -280,7 +358,9 @@ This is why the runtime returns more than a move. `AiSearchResult` is also a dia
 - deadline and timer function;
 - transposition table;
 - killer/history/continuation tables;
+- hidden `behaviorProfile`;
 - participation state;
+- live `riskMode`;
 - previous same-side action and strategic tags at the root;
 - diagnostic counters.
 
@@ -472,6 +552,7 @@ The generator intentionally fixes several policy choices so the dataset is repro
 - `drawRule: 'threefold'`
 - `scoringMode: 'off'`
 - deterministic seeded randomness through `createSeededRandom(gameIndex + 1)`
+- deterministic hidden personas for both sides derived from the game index
 - horizontal mirroring of every recorded position/action set
 
 Each example stores the sparse root-candidate policy target, the terminal value from the acting side's perspective, and the heuristic strategic-intent label chosen at search time.
@@ -481,6 +562,22 @@ Each example stores the sparse root-candidate policy target, the terminal value 
 [`training/train_policy_value.py`](../../training/train_policy_value.py) trains and exports the small residual policy/value model that the browser can consume through ONNX.
 
 The deeper operational details live in [`../../training/README.md`](../../training/README.md).
+
+## Algorithmic Lineage And References
+
+The repository code does not embed a formal bibliography, so the list below should be read as the closest academic lineage for the techniques that are visibly implemented here, not as a claim that the project is a direct reproduction of any single paper.
+
+| Technique visible in this repo | Closest reference |
+| --- | --- |
+| Alpha-beta search / negamax-style zero-sum pruning | Donald E. Knuth and Ronald W. Moore, "An Analysis of Alpha-Beta Pruning," *Artificial Intelligence* 6(4), 1975. DOI: `10.1016/0004-3702(75)90019-3`. |
+| Iterative deepening under bounded search budgets | Richard E. Korf, "Depth-first Iterative-Deepening: An Optimal Admissible Tree Search," *Artificial Intelligence* 27(1), 1985. DOI: `10.1016/0004-3702(85)90084-0`. |
+| Null-window / principal-variation-style search refinement | Murray Campbell and Tony Marsland, "A Comparison of Minimax Tree Search Algorithms," *Artificial Intelligence* 20(4), 1983. DOI: `10.1016/0004-3702(83)90037-5`. |
+| Quiescence search to stabilize tactical leaves | Larry Harris, "The Heuristic Search and the Game of Chess: A Study of Quiescence, Sacrifices, and Plan Oriented Play," *IJCAI 1975*. |
+| History heuristic family of move-ordering improvements | Jonathan Schaeffer, "The History Heuristic and Alpha-Beta Search Enhancements in Practice," *IEEE Transactions on Pattern Analysis and Machine Intelligence* 11(11), 1989. DOI: `10.1109/34.42847`. |
+| Policy/value self-play guidance as conceptual lineage for the offline model path | David Silver et al., "Mastering the game of Go without human knowledge," *Nature* 550, 2017. DOI: `10.1038/nature24270`. |
+| Residual network architecture used in the training script | Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun, "Deep Residual Learning for Image Recognition," *CVPR 2016*. |
+
+The key takeaway is that this AI is intentionally hybrid: classical tree search does the hard tactical work, while domain-specific heuristics and optional neural priors improve ordering and style without replacing the deterministic rule engine underneath.
 
 ## Reporting And Quality Gates
 
@@ -505,6 +602,7 @@ These tests and tools validate:
 Generated reports live under `output/` and are produced by:
 
 - [`scripts/ai-variety.report.ts`](../../scripts/ai-variety.report.ts)
+- [`scripts/ai-stage-variety.report.ts`](../../scripts/ai-stage-variety.report.ts)
 - [`scripts/perf-report.mjs`](../../scripts/perf-report.mjs)
 
 ### Search and behavior tests
@@ -515,10 +613,15 @@ The search tests validate timeout handling, candidate shaping, and bounded-searc
 
 The variety tooling checks that the engine remains strategically broad enough and does not collapse into a single deterministic style.
 
+The trace layer also records `behaviorProfileId` and `riskMode` per ply, so later diagnostics can distinguish "the engine found a risky line" from "the engine happened to play differently for unrelated reasons."
+
+That distinction matters even more away from the literal opening. The stage report replays the same fixed `opening`, `turn50`, `turn100`, and `turn200` benchmark states used by the perf harness, then measures the same diversity metrics plus `riskMode` activation shares. Because the shipped threefold rule would otherwise make those imported late positions terminal, the harness rebuilds them into playable continuation states by keeping only the recent history window and reconstructing repetition counts from that window. In practice, that report answers a different question than the aggregate suite: not just "is self-play varied in general?" but "when the engine enters a known flat or late position, does the risk system actually engage, and does that engagement reduce repetition or increase decisiveness?"
+
 The metric vocabulary in [`test/metrics.ts`](./test/metrics.ts) is intentionally broader than win rate alone:
 
 | Metric | Meaning |
 | --- | --- |
+| `decisiveResultShare` | share of games that end in a non-draw terminal result |
 | `openingEntropy` | entropy of the first-move distribution across self-play traces |
 | `uniqueOpeningLineShare` | share of distinct first-ten-ply openings across traces |
 | `sourceFamilyOpeningHhi` | concentration of opening moves into the same checker family; lower means broader material usage |
@@ -546,10 +649,12 @@ The report pipeline measures two complementary surfaces:
 
 | File | Role |
 | --- | --- |
+| [`behavior.ts`](./behavior.ts) | hidden persona generation and persona-specific action/state bias |
 | [`evaluation.ts`](./evaluation.ts) | quiet leaf scoring |
 | [`moveOrdering.ts`](./moveOrdering.ts) | static and dynamic move ranking |
 | [`strategy.ts`](./strategy.ts) | structural interpretation and semantic tagging |
 | [`participation.ts`](./participation.ts) | anti-oscillation and material-breadth scoring |
+| [`risk.ts`](./risk.ts) | stagnation detection, draw utility, and live risk-mode shaping |
 | [`search/rootSearch.ts`](./search/rootSearch.ts) | top-level orchestration and fallbacks |
 | [`search/negamax.ts`](./search/negamax.ts) | recursive alpha-beta core |
 | [`search/quiescence.ts`](./search/quiescence.ts) | forcing-leaf stabilization |

@@ -59,7 +59,7 @@ The main slices are:
 
 | Slice | Representative fields | Why it exists |
 | --- | --- | --- |
-| Session truth | `ruleConfig`, `preferences`, `matchSettings`, `gameState`, `turnLog`, `past`, `future` | Persistent, replayable match state |
+| Session truth | `ruleConfig`, `preferences`, `matchSettings`, `aiBehaviorProfile`, `gameState`, `turnLog`, `past`, `future` | Persistent, replayable match state, including hidden computer-opponent style |
 | Session cursor | `historyCursor`, `historyHydrationStatus` | Tracks how much of the historical archive is live |
 | Draft setup | `setupMatchSettings` | Editable new-match configuration kept separate from the committed live match settings |
 | Interaction state | `selectedCell`, `selectedActionType`, `selectedTargetMap`, `availableActionKinds`, `draftJumpPath`, `legalTargets`, `interaction` | Encodes input flow without putting rule logic in the UI |
@@ -69,6 +69,7 @@ The main slices are:
 Two implementation details are easy to miss:
 
 - `setupMatchSettings` is intentionally distinct from `matchSettings`. The former is draft UI configuration for the next game; the latter is the committed configuration of the current persisted match.
+- `aiBehaviorProfile` is intentionally committed session truth rather than ephemeral worker state. A resumed computer game should feel like the same opponent, so the hidden persona persists until a brand-new computer match is started.
 - `turnLog` plus `past` and `future` looks redundant until you inspect the data model. `turnLog` stores the shared chronology once; `past` and `future` store cheap `UndoFrame` cursors into that chronology rather than duplicating whole histories.
 
 Important modules:
@@ -181,7 +182,7 @@ sequenceDiagram
   participant Worker
   participant Search
 
-  Store->>Worker: chooseMove(requestId, state, ruleConfig, matchSettings)
+  Store->>Worker: chooseMove(requestId, state, ruleConfig, matchSettings, behaviorProfile)
   Worker->>Search: chooseComputerAction(...)
   Search-->>Worker: AiSearchResult
   Worker-->>Store: result(requestId, action)
@@ -210,6 +211,22 @@ That means stale replies are dropped for correctness and responsiveness. The poi
 
 Behavioral coverage for these cases lives primarily in [`src/app/store/createGameStore.ai.test.ts`](../src/app/store/createGameStore.ai.test.ts).
 
+### Persona and risk ownership
+
+The worker does not invent opponent identity on its own. The store chooses one hidden persona per computer match and persists it with the session:
+
+- `startNewGame()` hashes a fresh session id into one of `expander`, `hunter`, or `builder`;
+- hot-seat games explicitly keep `aiBehaviorProfile = null`;
+- restore, import, compact storage, and archive hydration all preserve the same persona if the match already had one.
+
+Risk mode is deliberately not persisted. Search recomputes it from the live board and recent history on every turn:
+
+- `normal`: default search behavior;
+- `stagnation`: repetition, low displacement, low mobility change, and flat progress suggest the game is stalling;
+- `late`: unresolved position with `moveNumber >= 70`.
+
+That separation is intentional. Persona is match identity; risk mode is live board interpretation.
+
 ## Persistence And Hydration
 
 Persistence is intentionally layered.
@@ -225,7 +242,7 @@ The versions involved are intentionally distinct:
 
 - browser storage key: `youi/session/v4`
 - app-level persisted envelope version: `1`
-- embedded serializable session version: `3`
+- embedded serializable session version: `4`
 
 Those numbers describe different layers and therefore are not expected to match.
 
@@ -248,6 +265,12 @@ This is implemented through [`sessionPersistence.ts`](../src/app/store/sessionPe
 - `createCompactSession()` builds the fast-boot recent-history window;
 - `persistSessionSnapshot()` writes the compact envelope to `localStorage`;
 - `queueArchiveWrite()` serializes full-history archive writes so IndexedDB persistence stays ordered.
+
+Session `v4` is the first canonical payload that persists hidden computer-opponent identity explicitly:
+
+- `matchSettings` stores the committed mode, side ownership, and exposed difficulty;
+- `aiBehaviorProfile` stores the hidden per-match persona;
+- `riskMode` is recomputed during search and is therefore never stored.
 
 ### Hydration states
 
@@ -272,6 +295,17 @@ flowchart TD
 That public status is separate from the internal `startupHydrationMode` boot policy in `persistenceRuntime.ts`. The internal mode tracks whether the store started from compact or default data and whether archive hydration is still allowed to overwrite the provisional state. Once the user mutates the store, the startup mode is consumed and stale archive results are no longer allowed to replace the live session.
 
 The persistence behavior is covered in [`src/app/store/createGameStore.persistence.test.ts`](../src/app/store/createGameStore.persistence.test.ts).
+
+### Session migration policy
+
+The domain deserializer now normalizes every imported payload into `SerializableSessionV4`:
+
+- `v1`: nested `present` / `past` / `future` game states;
+- `v2`: shared `turnLog` plus `UndoFrame` cursors;
+- `v3`: `v2` plus `matchSettings`;
+- `v4`: `v3` plus `aiBehaviorProfile`.
+
+Legacy sessions migrate with `aiBehaviorProfile: null`. That is deliberate: older payloads never encoded opponent-style identity, so the canonical restore path preserves correctness first instead of inventing a persona retroactively.
 
 ![Two-tier persistence and hydration trust boundary](./img/persistence-hydration-layers.jpeg)
 *The app boots from a compact synchronous snapshot first, hydrates the full archive later, and refuses to let a stale archive overwrite a session the user has already changed.*

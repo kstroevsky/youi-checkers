@@ -16,7 +16,8 @@ Current runtime behavior is intentionally narrow:
 
 - policy logits are masked down to currently legal actions and used as move-ordering priors;
 - `valueEstimate` is surfaced in `AiModelGuidance` for diagnostics and tests;
-- the search does **not** inject the value head into [`evaluateState()`](../src/ai/evaluation.ts).
+- the search does **not** inject the value head into [`evaluateState()`](../src/ai/evaluation.ts);
+- when runtime `riskMode` escalates, policy-prior weight is attenuated and heuristic intent takes precedence over model-supplied intent.
 
 That separation keeps tactical correctness in the classical search while letting offline learning improve the quality of the order in which the tree is explored.
 
@@ -36,6 +37,7 @@ The generator's default rules are intentionally fixed:
 - `drawRule: 'threefold'`
 - `scoringMode: 'off'`
 - deterministic seeded randomness per game index through `createSeededRandom(gameIndex + 1)`
+- deterministic hidden personas for both sides derived from the game index
 
 ```mermaid
 flowchart LR
@@ -89,7 +91,9 @@ python3 training/train_policy_value.py \
 ## Constraints And Trade-Offs
 
 - The dataset is self-play data from the current search engine, so the model learns the engine's current policy biases as well as its strengths.
+- That now includes hidden persona pressure from runtime self-play, so the policy prior learns from a mixture of style biases rather than one single deterministic house style.
 - The exported artifact is optimized for local browser inference through `onnxruntime-web`, not for maximum research throughput.
 - Because the runtime currently consumes only policy priors, a stronger value head improves diagnostics first and move choice only indirectly.
+- The runtime's decisive-play logic is partly heuristic by design: draw aversion, stagnation detection, and root reranking remain classical search behavior even when a model file exists.
 
 For the runtime loading path and fallback behavior, see [`public/models/README.md`](../public/models/README.md) and [`src/ai/README.md`](../src/ai/README.md).

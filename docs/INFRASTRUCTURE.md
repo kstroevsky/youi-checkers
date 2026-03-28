@@ -110,6 +110,8 @@ Outputs:
 
 - [`output/ai/ai-variety-report.json`](../output/ai/ai-variety-report.json): structured report;
 - [`output/ai/ai-variety-report.md`](../output/ai/ai-variety-report.md): generated summary.
+- [`output/ai/ai-stage-variety-report.json`](../output/ai/ai-stage-variety-report.json): structured opening-versus-late-stage continuation report;
+- [`output/ai/ai-stage-variety-report.md`](../output/ai/ai-stage-variety-report.md): generated stage-by-stage summary.
 
 The generator compares current results against two checked-in fixtures:
 
@@ -118,6 +120,24 @@ The generator compares current results against two checked-in fixtures:
 
 That distinction matters. A metric can be inside its acceptable target band yet still regress against the previous known-good baseline, or vice versa.
 
+The current harness intentionally exercises the same product behavior that ships in browser play:
+
+- each side receives a hidden behavior profile (`expander`, `hunter`, or `builder`) derived from the mirrored seed pair;
+- each search trace records the returned `behaviorProfileId` and `riskMode`;
+- late or stagnating games therefore show up in the report as deliberate style/risk changes rather than as unexplained variance.
+
+The Markdown summary is intentionally opinionated rather than exhaustive. It now foregrounds decisive-play health through `decisiveResultShare` alongside repetition, stagnation, decompression, mobility release, tension, and composite interestingness.
+
+The complementary stage report exists because the aggregate suite can hide where a behavioral change really helps or hurts. `npm run ai:stage-variety` reruns the same mirrored self-play metrics from four fixed starting positions: the normal opening plus the deterministic `turn50`, `turn100`, and `turn200` imported states used by the performance harness. Those late fixtures are replayed with draws disabled and then normalized into playable continuation states by keeping only the recent history window and rebuilding repetition counts for that window; otherwise the shipped threefold rule would make those imported positions terminal before the AI can be evaluated. The report also summarizes `riskMode` activation shares, so a late-game latency increase can be interpreted alongside the amount of actual stagnation/late-risk behavior being exercised. Because the normalization intentionally discards long-range repetition memory, early `stagnation` activation can look weaker there than on the raw full-history perf fixtures; the stage report and perf fixtures should therefore be read together.
+
+When the intended shipped AI behavior changes materially, the workflow is:
+
+1. run `npm run ai:variety`;
+2. run `npm run ai:stage-variety` when a change is specifically meant to affect flat midgame or late-game behavior;
+3. inspect the generated JSON and Markdown;
+4. update `src/ai/test/fixtures/ai-variety-baselines.json` only if the new aggregate behavior is the new accepted baseline;
+5. keep `src/ai/test/fixtures/ai-variety-target-bands.json` as the longer-lived product target file rather than rewriting it for every iteration.
+
 ## Operational Commands
 
 The repository exposes the infrastructure/report commands through `package.json`:
@@ -125,6 +145,7 @@ The repository exposes the infrastructure/report commands through `package.json`
 - `npm run build`
 - `npm run perf:report`
 - `npm run perf:compare`
+- `npm run ai:stage-variety`
 - `npm run ai:variety`
 - `npm run docs:check-links`
 
