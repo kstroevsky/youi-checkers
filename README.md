@@ -178,11 +178,28 @@ Files under `output/` are generated artifacts, not canonical prose documentation
 Key commands:
 
 - `npm run ai:selfplay`: generate training/self-play JSONL
+- `npm run ai:crossplay`: generate difficulty-vs-difficulty and persona-vs-persona cross-play matrices
+- `npm run ai:loop-benchmark`: measure recurrence, trapping, and loop-escape behavior on late benchmark states
+- `npm run ai:position-buckets`: aggregate interestingness metrics over structural position buckets
 - `npm run ai:stage-variety`: generate opening-versus-late-stage AI variety reports
+- `npm run ai:threat`: measure pressure creation, frontier compression, and certified risk progress
 - `npm run ai:variety`: generate AI variety reports
 - `npm run perf:report`: generate browser and domain performance reports
 - `npm run perf:compare`: compare historical and current performance JSON snapshots
+- `npm run ai:crossplay:compare`: compare two cross-play report snapshots by git ref or `working`
+- `npm run ai:loop-benchmark:compare`: compare two loop-benchmark snapshots by git ref or `working`
+- `npm run ai:position-buckets:compare`: compare two position-bucket snapshots by git ref or `working`
+- `npm run ai:stage-variety:compare`: compare two stage-variety snapshots by git ref or `working`
+- `npm run ai:threat:compare`: compare two threat snapshots by git ref or `working`
+- `npm run ai:variety:compare`: compare two aggregate variety snapshots by git ref or `working`
+- `npm run perf:compare:git`: compare two performance runs by git ref or `working`
 - `npm run docs:check-links`: validate relative Markdown links
+
+All `*:compare` wrappers accept `--before=<ref|working>` and `--after=<ref|working>`, plus any pipeline-specific flags such as `--pairs=` or `--max-turns=`. That makes the report tooling usable for three common cases without manual snapshot juggling:
+
+- last committed tree versus unstaged changes;
+- one branch or tag versus another branch or tag;
+- a fixed baseline ref versus the current working tree.
 
 ## Design Principles
 

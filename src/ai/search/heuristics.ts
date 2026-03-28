@@ -82,16 +82,22 @@ export function rememberCutoffMove(
 export function toRootCandidate(entry: RootRankedAction): AiRootCandidate {
   return {
     action: entry.action,
+    emptyCellsDelta: entry.emptyCellsDelta,
     forced: entry.isForced,
+    freezeSwingBonus: entry.freezeSwingBonus,
+    homeFieldDelta: entry.homeFieldDelta,
     intentDelta: entry.intentDelta,
     isForced: entry.isForced,
     isRepetition: entry.isRepetition,
     isSelfUndo: entry.isSelfUndo,
     isTactical: entry.isTactical,
+    mobilityDelta: entry.mobilityDelta,
     movedMass: entry.movedMass,
     participationDelta: entry.participationDelta,
     policyPrior: entry.policyPrior,
+    repeatedPositionCount: entry.repeatedPositionCount,
     score: entry.score,
+    sixStackDelta: entry.sixStackDelta,
     sourceFamily: entry.sourceFamily,
     tags: entry.tags,
   };

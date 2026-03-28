@@ -1,0 +1,1768 @@
+{
+  "generatedAt": "2026-03-28T17:13:21.909Z",
+  "rows": [
+    {
+      "advanced": {
+        "frontierCompressionRate": 0.196373,
+        "loopEscapeRate16": 0.25,
+        "loopEscapeRate24": 0.375,
+        "loopEscapeRate8": 0.25,
+        "meanLoopEscapePly": 7.333333,
+        "pressureEventRate": 0.834375,
+        "positionLempelZiv": 27.640764,
+        "recurrenceDeterminism": 0.341667,
+        "recurrenceLaminarity": 0,
+        "recurrenceRate": 0.002885,
+        "riskProgressShare": 0.916667,
+        "scorePermutationEntropy": 0.734986,
+        "scoreSampleEntropy": 0.522539,
+        "trappingTime": 0
+      },
+      "bucket": "opening",
+      "difficulty": "easy",
+      "scenarios": [
+        "opening"
+      ],
+      "summary": {
+        "gameCount": 8,
+        "games": {
+          "averagePlies": 40,
+          "terminalCounts": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        },
+        "metadata": {
+          "difficulty": "easy",
+          "gameCount": 8,
+          "maxTurns": 40,
+          "mirrorPairCount": 4,
+          "stableCalls": 8
+        },
+        "metrics": {
+          "behaviorSpaceCoverage": 0.002976,
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "decompressionSlope": 0,
+          "drama": 1.358974,
+          "firstFourActionKindEntropy": 0.811278,
+          "firstFourTagEntropy": 1.721928,
+          "frozenCountChurn": 0.018577,
+          "gameRefinement": 0,
+          "homeProgressAuc": 0.154514,
+          "intentSwitchRate": 0.49359,
+          "lateSuspense": 0,
+          "leadChangeRate": 0.679487,
+          "maxRepeatedStateRun": 4,
+          "meanBoardDisplacement": 0.072743,
+          "mobilityReleaseSlope": 0.023214,
+          "normalizedLempelZiv": 4.240912,
+          "noveltyScore": 0.321936,
+          "openingEntropy": 1.5,
+          "openingJsDivergence": 0,
+          "openingSimpsonDiversity": 0.625,
+          "repetitionPlyShare": 0.046875,
+          "sameFamilyQuietRepeatRate": 0,
+          "sixStackProgressAuc": 0,
+          "stackProfileChurn": 0.007465,
+          "stagnationWindowRate": 0.321429,
+          "stalemateDrawShare": 0,
+          "sourceFamilyOpeningHhi": 0.283203,
+          "tension": 0,
+          "threefoldDrawShare": 0,
+          "twoPlyUndoRate": 0.0875,
+          "uniqueOpeningLineShare": 0.625
+        },
+        "samples": {
+          "firstMoveDistribution": {
+            "climbOne:A3:A4": 4,
+            "climbOne:B3:B4": 2,
+            "climbOne:C3:B4": 2
+          },
+          "firstMoveSourceFamilyDistribution": {
+            "white-13": 4,
+            "white-14": 2,
+            "white-15": 2
+          },
+          "firstFourActionKindDistribution": {
+            "climbOne": 8,
+            "jumpSequence": 24
+          },
+          "firstFourTagDistribution": {
+            "advanceMass": 32,
+            "captureControl": 8,
+            "openLane": 32,
+            "freezeBlock": 8
+          },
+          "firstTenLineDistribution": {
+            "climbOne:A3:A4 | jumpSequence:C5:A3 | jumpSequence:E3:C5 | jumpSequence:E5:E3 | jumpSequence:C3:E5 | jumpSequence:A5:C3 | jumpSequence:C5:A5 | climbOne:E4:D3 | jumpSequence:E2:E4 | manualUnfreeze:E3": 4,
+            "climbOne:B3:B4 | jumpSequence:D5:B3 | jumpSequence:F3:D5 | jumpSequence:F5:F3 | jumpSequence:D3:F5 | jumpSequence:B5:D3 | jumpSequence:D5:B5 | manualUnfreeze:C5 | jumpSequence:F5:D5 | climbOne:C4:C3": 1,
+            "climbOne:B3:B4 | jumpSequence:D5:B3 | jumpSequence:F3:D5 | jumpSequence:F5:F3 | jumpSequence:D3:F5 | jumpSequence:B5:D3 | jumpSequence:D5:B5 | climbOne:F4:E3 | jumpSequence:F2:F4 | manualUnfreeze:F3": 1,
+            "climbOne:C3:B4 | jumpSequence:E5:C3 | jumpSequence:E3:E5 | jumpSequence:C5:E3 | jumpSequence:E5:C5 | jumpSequence:E3:E5 | jumpSequence:C1:E3 | jumpSequence:C3:C1 | climbOne:C5:B6 | jumpSequence:E5:C3": 1,
+            "climbOne:C3:B4 | jumpSequence:E5:C3 | jumpSequence:E3:E5 | jumpSequence:C5:E3 | jumpSequence:E5:C5 | jumpSequence:E3:E5 | jumpSequence:C1:E3 | jumpSequence:C3:C1 | climbOne:C5:D6 | jumpSequence:E5:C3": 1
+          },
+          "strategicIntentDistribution": {
+            "home": 121,
+            "hybrid": 129,
+            "sixStack": 70
+          },
+          "terminalDistribution": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        }
+      }
+    },
+    {
+      "advanced": {
+        "frontierCompressionRate": 0.18823,
+        "loopEscapeRate16": 0.625,
+        "loopEscapeRate24": 0.625,
+        "loopEscapeRate8": 0.625,
+        "meanLoopEscapePly": 2,
+        "pressureEventRate": 0.840625,
+        "positionLempelZiv": 26.193865,
+        "recurrenceDeterminism": 0.3625,
+        "recurrenceLaminarity": 0,
+        "recurrenceRate": 0.004327,
+        "riskProgressShare": 0.95,
+        "scorePermutationEntropy": 0.731886,
+        "scoreSampleEntropy": 0.474031,
+        "trappingTime": 0
+      },
+      "bucket": "opening",
+      "difficulty": "medium",
+      "scenarios": [
+        "opening"
+      ],
+      "summary": {
+        "gameCount": 8,
+        "games": {
+          "averagePlies": 40,
+          "terminalCounts": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        },
+        "metadata": {
+          "difficulty": "medium",
+          "gameCount": 8,
+          "maxTurns": 40,
+          "mirrorPairCount": 4,
+          "stableCalls": 10
+        },
+        "metrics": {
+          "behaviorSpaceCoverage": 0.002976,
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "decompressionSlope": 0,
+          "drama": 1.474359,
+          "firstFourActionKindEntropy": 0.811278,
+          "firstFourTagEntropy": 1.721928,
+          "frozenCountChurn": 0.019445,
+          "gameRefinement": 0,
+          "homeProgressAuc": 0.16441,
+          "intentSwitchRate": 0.551282,
+          "lateSuspense": 0,
+          "leadChangeRate": 0.737179,
+          "maxRepeatedStateRun": 5,
+          "meanBoardDisplacement": 0.072917,
+          "mobilityReleaseSlope": 0.023214,
+          "normalizedLempelZiv": 4.257542,
+          "noveltyScore": 0.370846,
+          "openingEntropy": 1.5,
+          "openingJsDivergence": 0,
+          "openingSimpsonDiversity": 0.625,
+          "repetitionPlyShare": 0.06875,
+          "sameFamilyQuietRepeatRate": 0,
+          "sixStackProgressAuc": 0.001563,
+          "stackProfileChurn": 0.007118,
+          "stagnationWindowRate": 0.35,
+          "stalemateDrawShare": 0,
+          "sourceFamilyOpeningHhi": 0.294922,
+          "tension": 0,
+          "threefoldDrawShare": 0,
+          "twoPlyUndoRate": 0.121875,
+          "uniqueOpeningLineShare": 0.5
+        },
+        "samples": {
+          "firstMoveDistribution": {
+            "climbOne:A3:A4": 4,
+            "climbOne:B3:B4": 2,
+            "climbOne:C3:B4": 2
+          },
+          "firstMoveSourceFamilyDistribution": {
+            "white-13": 4,
+            "white-14": 2,
+            "white-15": 2
+          },
+          "firstFourActionKindDistribution": {
+            "climbOne": 8,
+            "jumpSequence": 24
+          },
+          "firstFourTagDistribution": {
+            "advanceMass": 32,
+            "captureControl": 8,
+            "openLane": 32,
+            "freezeBlock": 8
+          },
+          "firstTenLineDistribution": {
+            "climbOne:A3:A4 | jumpSequence:C5:A3 | jumpSequence:E3:C5 | jumpSequence:E5:E3 | jumpSequence:C3:E5 | jumpSequence:A5:C3 | jumpSequence:C5:A5 | climbOne:E4:D3 | jumpSequence:E2:E4 | manualUnfreeze:E3": 4,
+            "climbOne:B3:B4 | jumpSequence:D5:B3 | jumpSequence:F3:D5 | jumpSequence:F5:F3 | jumpSequence:D3:F5 | jumpSequence:B5:D3 | jumpSequence:D5:B5 | manualUnfreeze:C5 | jumpSequence:F5:D5 | climbOne:C4:C3": 1,
+            "climbOne:B3:B4 | jumpSequence:D5:B3 | jumpSequence:F3:D5 | jumpSequence:F5:F3 | jumpSequence:D3:F5 | jumpSequence:B5:D3 | jumpSequence:D5:B5 | climbOne:F4:E3 | jumpSequence:F2:F4 | manualUnfreeze:F3": 1,
+            "climbOne:C3:B4 | jumpSequence:E5:C3 | jumpSequence:E3:E5 | jumpSequence:C5:E3 | jumpSequence:E5:C5 | jumpSequence:E3:E5 | jumpSequence:C1:E3 | jumpSequence:C3:C1 | climbOne:C5:C6 | jumpSequence:E5:C3": 2
+          },
+          "strategicIntentDistribution": {
+            "home": 128,
+            "hybrid": 130,
+            "sixStack": 62
+          },
+          "terminalDistribution": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        }
+      }
+    },
+    {
+      "advanced": {
+        "frontierCompressionRate": 0.164257,
+        "loopEscapeRate16": 0.625,
+        "loopEscapeRate24": 0.625,
+        "loopEscapeRate8": 0.5,
+        "meanLoopEscapePly": 4.4,
+        "pressureEventRate": 0.8125,
+        "positionLempelZiv": 24.81349,
+        "recurrenceDeterminism": 0.494048,
+        "recurrenceLaminarity": 0,
+        "recurrenceRate": 0.008974,
+        "riskProgressShare": 0.88,
+        "scorePermutationEntropy": 0.682828,
+        "scoreSampleEntropy": 0.37576,
+        "trappingTime": 0
+      },
+      "bucket": "opening",
+      "difficulty": "hard",
+      "scenarios": [
+        "opening"
+      ],
+      "summary": {
+        "gameCount": 8,
+        "games": {
+          "averagePlies": 40,
+          "terminalCounts": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        },
+        "metadata": {
+          "difficulty": "hard",
+          "gameCount": 8,
+          "maxTurns": 40,
+          "mirrorPairCount": 4,
+          "stableCalls": 12
+        },
+        "metrics": {
+          "behaviorSpaceCoverage": 0.005952,
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "decompressionSlope": 0.000496,
+          "drama": 1.596154,
+          "firstFourActionKindEntropy": 0.811278,
+          "firstFourTagEntropy": 1.721928,
+          "frozenCountChurn": 0.019792,
+          "gameRefinement": 0,
+          "homeProgressAuc": 0.175,
+          "intentSwitchRate": 0.554487,
+          "lateSuspense": 0,
+          "leadChangeRate": 0.798077,
+          "maxRepeatedStateRun": 10,
+          "meanBoardDisplacement": 0.072917,
+          "mobilityReleaseSlope": 0.01875,
+          "normalizedLempelZiv": 4.37396,
+          "noveltyScore": 0.448905,
+          "openingEntropy": 1.5,
+          "openingJsDivergence": 0,
+          "openingSimpsonDiversity": 0.625,
+          "repetitionPlyShare": 0.11875,
+          "sameFamilyQuietRepeatRate": 0,
+          "sixStackProgressAuc": 0,
+          "stackProfileChurn": 0.006424,
+          "stagnationWindowRate": 0.392857,
+          "stalemateDrawShare": 0,
+          "sourceFamilyOpeningHhi": 0.291016,
+          "tension": 0,
+          "threefoldDrawShare": 0,
+          "twoPlyUndoRate": 0.1625,
+          "uniqueOpeningLineShare": 0.625
+        },
+        "samples": {
+          "firstMoveDistribution": {
+            "climbOne:A3:A4": 4,
+            "climbOne:B3:B4": 2,
+            "climbOne:C3:B4": 2
+          },
+          "firstMoveSourceFamilyDistribution": {
+            "white-13": 4,
+            "white-14": 2,
+            "white-15": 2
+          },
+          "firstFourActionKindDistribution": {
+            "climbOne": 8,
+            "jumpSequence": 24
+          },
+          "firstFourTagDistribution": {
+            "advanceMass": 32,
+            "captureControl": 8,
+            "openLane": 32,
+            "freezeBlock": 8
+          },
+          "firstTenLineDistribution": {
+            "climbOne:A3:A4 | jumpSequence:C5:A3 | jumpSequence:E3:C5 | jumpSequence:E5:E3 | jumpSequence:C3:E5 | jumpSequence:A5:C3 | jumpSequence:C5:A5 | climbOne:E4:D3 | jumpSequence:E2:E4 | manualUnfreeze:E3": 4,
+            "climbOne:B3:B4 | jumpSequence:D5:B3 | jumpSequence:F3:D5 | jumpSequence:F5:F3 | jumpSequence:D3:F5 | jumpSequence:B5:D3 | jumpSequence:D5:B5 | manualUnfreeze:C5 | jumpSequence:F5:D5 | climbOne:C4:C3": 1,
+            "climbOne:B3:B4 | jumpSequence:D5:B3 | jumpSequence:F3:D5 | jumpSequence:F5:F3 | jumpSequence:D3:F5 | jumpSequence:B5:D3 | jumpSequence:D5:B5 | climbOne:F4:E3 | jumpSequence:F2:F4 | manualUnfreeze:F3": 1,
+            "climbOne:C3:B4 | jumpSequence:E5:C3 | jumpSequence:E3:E5 | jumpSequence:C5:E3 | jumpSequence:E5:C5 | jumpSequence:E3:E5 | jumpSequence:C1:E3 | jumpSequence:C3:C1 | climbOne:C5:C6 | jumpSequence:E5:C3": 1,
+            "climbOne:C3:B4 | jumpSequence:E5:C3 | jumpSequence:E3:E5 | jumpSequence:C5:E3 | jumpSequence:E5:C5 | climbOne:A4:A3 | jumpSequence:C2:A4 | jumpSequence:C4:C2 | jumpSequence:E2:C4 | jumpSequence:C2:E2": 1
+          },
+          "strategicIntentDistribution": {
+            "home": 140,
+            "hybrid": 125,
+            "sixStack": 55
+          },
+          "terminalDistribution": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        }
+      }
+    },
+    {
+      "advanced": {
+        "frontierCompressionRate": 0.277447,
+        "loopEscapeRate16": 1,
+        "loopEscapeRate24": 1,
+        "loopEscapeRate8": 1,
+        "meanLoopEscapePly": 5,
+        "pressureEventRate": 0.803125,
+        "positionLempelZiv": 31.898306,
+        "recurrenceDeterminism": 0,
+        "recurrenceLaminarity": 0,
+        "recurrenceRate": 0.001282,
+        "riskProgressShare": 1,
+        "scorePermutationEntropy": 0.737372,
+        "scoreSampleEntropy": 0.702865,
+        "trappingTime": 0
+      },
+      "bucket": "congested",
+      "difficulty": "easy",
+      "scenarios": [
+        "turn25"
+      ],
+      "summary": {
+        "gameCount": 8,
+        "games": {
+          "averagePlies": 40,
+          "terminalCounts": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        },
+        "metadata": {
+          "difficulty": "easy",
+          "gameCount": 8,
+          "maxTurns": 40,
+          "mirrorPairCount": 4,
+          "stableCalls": 8
+        },
+        "metrics": {
+          "behaviorSpaceCoverage": 0.002976,
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "decompressionSlope": 0.003968,
+          "drama": 0.99359,
+          "firstFourActionKindEntropy": 0,
+          "firstFourTagEntropy": 2.19716,
+          "frozenCountChurn": 0.021875,
+          "gameRefinement": 0,
+          "homeProgressAuc": 0.131944,
+          "intentSwitchRate": 0.503205,
+          "lateSuspense": 0,
+          "leadChangeRate": 0.496795,
+          "maxRepeatedStateRun": 1,
+          "meanBoardDisplacement": 0.07743,
+          "mobilityReleaseSlope": -0.30119,
+          "normalizedLempelZiv": 3.392729,
+          "noveltyScore": 0.092391,
+          "openingEntropy": 0,
+          "openingJsDivergence": 0,
+          "openingSimpsonDiversity": 0,
+          "repetitionPlyShare": 0.025,
+          "sameFamilyQuietRepeatRate": 0,
+          "sixStackProgressAuc": 0,
+          "stackProfileChurn": 0.002431,
+          "stagnationWindowRate": 0.567857,
+          "stalemateDrawShare": 0,
+          "sourceFamilyOpeningHhi": 0.462891,
+          "tension": 0,
+          "threefoldDrawShare": 0,
+          "twoPlyUndoRate": 0.075,
+          "uniqueOpeningLineShare": 0.125
+        },
+        "samples": {
+          "firstMoveDistribution": {
+            "jumpSequence:C3:C1": 8
+          },
+          "firstMoveSourceFamilyDistribution": {
+            "black-04": 8
+          },
+          "firstFourActionKindDistribution": {
+            "jumpSequence": 32
+          },
+          "firstFourTagDistribution": {
+            "decompress": 8,
+            "freezeBlock": 24,
+            "frontBuild": 8,
+            "advanceMass": 16,
+            "openLane": 16
+          },
+          "firstTenLineDistribution": {
+            "jumpSequence:C3:C1 | jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:E1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4 | jumpSequence:E1:E3 | jumpSequence:E3:C3": 8
+          },
+          "strategicIntentDistribution": {
+            "home": 171,
+            "hybrid": 12,
+            "sixStack": 137
+          },
+          "terminalDistribution": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        }
+      }
+    },
+    {
+      "advanced": {
+        "frontierCompressionRate": 0.268837,
+        "loopEscapeRate16": 1,
+        "loopEscapeRate24": 1,
+        "loopEscapeRate8": 1,
+        "meanLoopEscapePly": 6.5,
+        "pressureEventRate": 0.778125,
+        "positionLempelZiv": 30.81729,
+        "recurrenceDeterminism": 0.5,
+        "recurrenceLaminarity": 0,
+        "recurrenceRate": 0.001923,
+        "riskProgressShare": 0,
+        "scorePermutationEntropy": 0.735731,
+        "scoreSampleEntropy": 0.653933,
+        "trappingTime": 0
+      },
+      "bucket": "congested",
+      "difficulty": "medium",
+      "scenarios": [
+        "turn25"
+      ],
+      "summary": {
+        "gameCount": 8,
+        "games": {
+          "averagePlies": 40,
+          "terminalCounts": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        },
+        "metadata": {
+          "difficulty": "medium",
+          "gameCount": 8,
+          "maxTurns": 40,
+          "mirrorPairCount": 4,
+          "stableCalls": 10
+        },
+        "metrics": {
+          "behaviorSpaceCoverage": 0.002976,
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "decompressionSlope": 0.003968,
+          "drama": 1.012821,
+          "firstFourActionKindEntropy": 0,
+          "firstFourTagEntropy": 2.19716,
+          "frozenCountChurn": 0.023351,
+          "gameRefinement": 0,
+          "homeProgressAuc": 0.117708,
+          "intentSwitchRate": 0.528846,
+          "lateSuspense": 0,
+          "leadChangeRate": 0.50641,
+          "maxRepeatedStateRun": 2,
+          "meanBoardDisplacement": 0.078906,
+          "mobilityReleaseSlope": -0.30119,
+          "normalizedLempelZiv": 3.259681,
+          "noveltyScore": 0.136934,
+          "openingEntropy": 0,
+          "openingJsDivergence": 0,
+          "openingSimpsonDiversity": 0,
+          "repetitionPlyShare": 0.0375,
+          "sameFamilyQuietRepeatRate": 0,
+          "sixStackProgressAuc": 0,
+          "stackProfileChurn": 0.002257,
+          "stagnationWindowRate": 0.653571,
+          "stalemateDrawShare": 0,
+          "sourceFamilyOpeningHhi": 0.529297,
+          "tension": 0,
+          "threefoldDrawShare": 0,
+          "twoPlyUndoRate": 0.10625,
+          "uniqueOpeningLineShare": 0.125
+        },
+        "samples": {
+          "firstMoveDistribution": {
+            "jumpSequence:C3:C1": 8
+          },
+          "firstMoveSourceFamilyDistribution": {
+            "black-04": 8
+          },
+          "firstFourActionKindDistribution": {
+            "jumpSequence": 32
+          },
+          "firstFourTagDistribution": {
+            "decompress": 8,
+            "freezeBlock": 24,
+            "frontBuild": 8,
+            "advanceMass": 16,
+            "openLane": 16
+          },
+          "firstTenLineDistribution": {
+            "jumpSequence:C3:C1 | jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:E1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4 | jumpSequence:E1:E3 | jumpSequence:E3:C3": 8
+          },
+          "strategicIntentDistribution": {
+            "home": 160,
+            "hybrid": 40,
+            "sixStack": 120
+          },
+          "terminalDistribution": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        }
+      }
+    },
+    {
+      "advanced": {
+        "frontierCompressionRate": 0.277389,
+        "loopEscapeRate16": 1,
+        "loopEscapeRate24": 1,
+        "loopEscapeRate8": 1,
+        "meanLoopEscapePly": 5,
+        "pressureEventRate": 0.803125,
+        "positionLempelZiv": 31.964831,
+        "recurrenceDeterminism": 0,
+        "recurrenceLaminarity": 0,
+        "recurrenceRate": 0.001282,
+        "riskProgressShare": 0,
+        "scorePermutationEntropy": 0.732468,
+        "scoreSampleEntropy": 0.704613,
+        "trappingTime": 0
+      },
+      "bucket": "congested",
+      "difficulty": "hard",
+      "scenarios": [
+        "turn25"
+      ],
+      "summary": {
+        "gameCount": 8,
+        "games": {
+          "averagePlies": 40,
+          "terminalCounts": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        },
+        "metadata": {
+          "difficulty": "hard",
+          "gameCount": 8,
+          "maxTurns": 40,
+          "mirrorPairCount": 4,
+          "stableCalls": 12
+        },
+        "metrics": {
+          "behaviorSpaceCoverage": 0.002976,
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "decompressionSlope": 0.003968,
+          "drama": 0.980769,
+          "firstFourActionKindEntropy": 0,
+          "firstFourTagEntropy": 2.19716,
+          "frozenCountChurn": 0.022396,
+          "gameRefinement": 0,
+          "homeProgressAuc": 0.132292,
+          "intentSwitchRate": 0.496795,
+          "lateSuspense": 0,
+          "leadChangeRate": 0.490385,
+          "maxRepeatedStateRun": 1,
+          "meanBoardDisplacement": 0.077951,
+          "mobilityReleaseSlope": -0.30119,
+          "normalizedLempelZiv": 3.292943,
+          "noveltyScore": 0.057641,
+          "openingEntropy": 0,
+          "openingJsDivergence": 0,
+          "openingSimpsonDiversity": 0,
+          "repetitionPlyShare": 0.025,
+          "sameFamilyQuietRepeatRate": 0,
+          "sixStackProgressAuc": 0,
+          "stackProfileChurn": 0.002778,
+          "stagnationWindowRate": 0.582143,
+          "stalemateDrawShare": 0,
+          "sourceFamilyOpeningHhi": 0.46875,
+          "tension": 0,
+          "threefoldDrawShare": 0,
+          "twoPlyUndoRate": 0.078125,
+          "uniqueOpeningLineShare": 0.125
+        },
+        "samples": {
+          "firstMoveDistribution": {
+            "jumpSequence:C3:C1": 8
+          },
+          "firstMoveSourceFamilyDistribution": {
+            "black-04": 8
+          },
+          "firstFourActionKindDistribution": {
+            "jumpSequence": 32
+          },
+          "firstFourTagDistribution": {
+            "decompress": 8,
+            "freezeBlock": 24,
+            "frontBuild": 8,
+            "advanceMass": 16,
+            "openLane": 16
+          },
+          "firstTenLineDistribution": {
+            "jumpSequence:C3:C1 | jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:E1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4 | jumpSequence:E1:E3 | jumpSequence:E3:C3": 8
+          },
+          "strategicIntentDistribution": {
+            "home": 174,
+            "hybrid": 12,
+            "sixStack": 134
+          },
+          "terminalDistribution": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        }
+      }
+    },
+    {
+      "advanced": {
+        "frontierCompressionRate": 0.275542,
+        "loopEscapeRate16": 1,
+        "loopEscapeRate24": 1,
+        "loopEscapeRate8": 1,
+        "meanLoopEscapePly": 4,
+        "pressureEventRate": 0.78125,
+        "positionLempelZiv": 33.320259,
+        "recurrenceDeterminism": 0,
+        "recurrenceLaminarity": 0,
+        "recurrenceRate": 0.000641,
+        "riskProgressShare": 0.891129,
+        "scorePermutationEntropy": 0.759699,
+        "scoreSampleEntropy": 0.717118,
+        "trappingTime": 0
+      },
+      "bucket": "loopPressure",
+      "difficulty": "easy",
+      "scenarios": [
+        "turn50",
+        "turn75"
+      ],
+      "summary": {
+        "gameCount": 16,
+        "games": {
+          "averagePlies": 40,
+          "terminalCounts": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 16
+          }
+        },
+        "metadata": {
+          "difficulty": "easy",
+          "gameCount": 16,
+          "maxTurns": 40,
+          "mirrorPairCount": 8,
+          "stableCalls": 8
+        },
+        "metrics": {
+          "behaviorSpaceCoverage": 0.005952,
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "decompressionSlope": 0.003175,
+          "drama": 1.025641,
+          "firstFourActionKindEntropy": 0,
+          "firstFourTagEntropy": 2.183667,
+          "frozenCountChurn": 0.021745,
+          "gameRefinement": 0,
+          "homeProgressAuc": 0.107986,
+          "intentSwitchRate": 0.498397,
+          "lateSuspense": 0,
+          "leadChangeRate": 0.512821,
+          "maxRepeatedStateRun": 1,
+          "meanBoardDisplacement": 0.0773,
+          "mobilityReleaseSlope": -0.086905,
+          "normalizedLempelZiv": 3.4842,
+          "noveltyScore": 0.124685,
+          "openingEntropy": 1,
+          "openingJsDivergence": 0,
+          "openingSimpsonDiversity": 0.5,
+          "repetitionPlyShare": 0.0125,
+          "sameFamilyQuietRepeatRate": 0,
+          "sixStackProgressAuc": 0.040625,
+          "stackProfileChurn": 0.004514,
+          "stagnationWindowRate": 0.414286,
+          "stalemateDrawShare": 0,
+          "sourceFamilyOpeningHhi": 0.477539,
+          "tension": 0,
+          "threefoldDrawShare": 0,
+          "twoPlyUndoRate": 0.067187,
+          "uniqueOpeningLineShare": 0.125
+        },
+        "samples": {
+          "firstMoveDistribution": {
+            "jumpSequence:F2:D4": 8,
+            "jumpSequence:C3:E1": 8
+          },
+          "firstMoveSourceFamilyDistribution": {
+            "white-12": 8,
+            "white-04": 8
+          },
+          "firstFourActionKindDistribution": {
+            "jumpSequence": 64
+          },
+          "firstFourTagDistribution": {
+            "advanceMass": 32,
+            "openLane": 40,
+            "freezeBlock": 32,
+            "decompress": 24,
+            "frontBuild": 8
+          },
+          "firstTenLineDistribution": {
+            "jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:E1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4 | jumpSequence:E1:E3 | jumpSequence:E3:C3 | jumpSequence:C3:E1": 8,
+            "jumpSequence:C3:E1 | jumpSequence:C1:C3 | jumpSequence:C3:A1 | jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:C1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4": 8
+          },
+          "strategicIntentDistribution": {
+            "home": 232,
+            "hybrid": 72,
+            "sixStack": 336
+          },
+          "terminalDistribution": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 16
+          }
+        }
+      }
+    },
+    {
+      "advanced": {
+        "frontierCompressionRate": 0.294411,
+        "loopEscapeRate16": 1,
+        "loopEscapeRate24": 1,
+        "loopEscapeRate8": 1,
+        "meanLoopEscapePly": 4.75,
+        "pressureEventRate": 0.79375,
+        "positionLempelZiv": 32.754804,
+        "recurrenceDeterminism": 0.25,
+        "recurrenceLaminarity": 0,
+        "recurrenceRate": 0.000962,
+        "riskProgressShare": 0.887295,
+        "scorePermutationEntropy": 0.77538,
+        "scoreSampleEntropy": 0.698406,
+        "trappingTime": 0
+      },
+      "bucket": "loopPressure",
+      "difficulty": "medium",
+      "scenarios": [
+        "turn50",
+        "turn75"
+      ],
+      "summary": {
+        "gameCount": 16,
+        "games": {
+          "averagePlies": 40,
+          "terminalCounts": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 16
+          }
+        },
+        "metadata": {
+          "difficulty": "medium",
+          "gameCount": 16,
+          "maxTurns": 40,
+          "mirrorPairCount": 8,
+          "stableCalls": 10
+        },
+        "metrics": {
+          "behaviorSpaceCoverage": 0.005952,
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "decompressionSlope": 0.003175,
+          "drama": 1.070513,
+          "firstFourActionKindEntropy": 0,
+          "firstFourTagEntropy": 2.183667,
+          "frozenCountChurn": 0.021919,
+          "gameRefinement": 0,
+          "homeProgressAuc": 0.117274,
+          "intentSwitchRate": 0.549679,
+          "lateSuspense": 0,
+          "leadChangeRate": 0.535256,
+          "maxRepeatedStateRun": 2,
+          "meanBoardDisplacement": 0.077474,
+          "mobilityReleaseSlope": -0.086905,
+          "normalizedLempelZiv": 4.282489,
+          "noveltyScore": 0.129101,
+          "openingEntropy": 1,
+          "openingJsDivergence": 0,
+          "openingSimpsonDiversity": 0.5,
+          "repetitionPlyShare": 0.01875,
+          "sameFamilyQuietRepeatRate": 0.05,
+          "sixStackProgressAuc": 0.053646,
+          "stackProfileChurn": 0.005469,
+          "stagnationWindowRate": 0.380357,
+          "stalemateDrawShare": 0,
+          "sourceFamilyOpeningHhi": 0.526367,
+          "tension": 0,
+          "threefoldDrawShare": 0,
+          "twoPlyUndoRate": 0.090625,
+          "uniqueOpeningLineShare": 0.125
+        },
+        "samples": {
+          "firstMoveDistribution": {
+            "jumpSequence:F2:D4": 8,
+            "jumpSequence:C3:E1": 8
+          },
+          "firstMoveSourceFamilyDistribution": {
+            "white-12": 8,
+            "white-04": 8
+          },
+          "firstFourActionKindDistribution": {
+            "jumpSequence": 64
+          },
+          "firstFourTagDistribution": {
+            "advanceMass": 32,
+            "openLane": 40,
+            "freezeBlock": 32,
+            "decompress": 24,
+            "frontBuild": 8
+          },
+          "firstTenLineDistribution": {
+            "jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:E1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4 | jumpSequence:E1:E3 | jumpSequence:E3:C3 | jumpSequence:C3:E1": 8,
+            "jumpSequence:C3:E1 | jumpSequence:C1:C3 | jumpSequence:C3:A1 | jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:C1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4": 8
+          },
+          "strategicIntentDistribution": {
+            "home": 254,
+            "hybrid": 64,
+            "sixStack": 322
+          },
+          "terminalDistribution": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 16
+          }
+        }
+      }
+    },
+    {
+      "advanced": {
+        "frontierCompressionRate": 0.325752,
+        "loopEscapeRate16": 1,
+        "loopEscapeRate24": 1,
+        "loopEscapeRate8": 1,
+        "meanLoopEscapePly": 3,
+        "pressureEventRate": 0.7875,
+        "positionLempelZiv": 33.24542,
+        "recurrenceDeterminism": 0,
+        "recurrenceLaminarity": 0,
+        "recurrenceRate": 0.000641,
+        "riskProgressShare": 0.901639,
+        "scorePermutationEntropy": 0.748719,
+        "scoreSampleEntropy": 0.634695,
+        "trappingTime": 0
+      },
+      "bucket": "loopPressure",
+      "difficulty": "hard",
+      "scenarios": [
+        "turn50",
+        "turn75"
+      ],
+      "summary": {
+        "gameCount": 16,
+        "games": {
+          "averagePlies": 40,
+          "terminalCounts": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 16
+          }
+        },
+        "metadata": {
+          "difficulty": "hard",
+          "gameCount": 16,
+          "maxTurns": 40,
+          "mirrorPairCount": 8,
+          "stableCalls": 12
+        },
+        "metrics": {
+          "behaviorSpaceCoverage": 0.002976,
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "decompressionSlope": 0.005159,
+          "drama": 1.019231,
+          "firstFourActionKindEntropy": 0,
+          "firstFourTagEntropy": 1.825605,
+          "frozenCountChurn": 0.021007,
+          "gameRefinement": 0,
+          "homeProgressAuc": 0.071528,
+          "intentSwitchRate": 0.471154,
+          "lateSuspense": 0,
+          "leadChangeRate": 0.509615,
+          "maxRepeatedStateRun": 1,
+          "meanBoardDisplacement": 0.076562,
+          "mobilityReleaseSlope": -0.197619,
+          "normalizedLempelZiv": 4.407222,
+          "noveltyScore": 0.047448,
+          "openingEntropy": 1,
+          "openingJsDivergence": 0,
+          "openingSimpsonDiversity": 0.5,
+          "repetitionPlyShare": 0.0125,
+          "sameFamilyQuietRepeatRate": 0.2,
+          "sixStackProgressAuc": 0.072917,
+          "stackProfileChurn": 0.006076,
+          "stagnationWindowRate": 0.346429,
+          "stalemateDrawShare": 0,
+          "sourceFamilyOpeningHhi": 0.458984,
+          "tension": 0,
+          "threefoldDrawShare": 0,
+          "twoPlyUndoRate": 0.071875,
+          "uniqueOpeningLineShare": 0.125
+        },
+        "samples": {
+          "firstMoveDistribution": {
+            "jumpSequence:F2:D4": 8,
+            "jumpSequence:C3:E1": 8
+          },
+          "firstMoveSourceFamilyDistribution": {
+            "white-12": 8,
+            "white-04": 8
+          },
+          "firstFourActionKindDistribution": {
+            "jumpSequence": 64
+          },
+          "firstFourTagDistribution": {
+            "advanceMass": 40,
+            "openLane": 40,
+            "freezeBlock": 32,
+            "decompress": 8
+          },
+          "firstTenLineDistribution": {
+            "jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:E1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4 | jumpSequence:E1:E3 | jumpSequence:E3:C3 | jumpSequence:C3:E1": 8,
+            "jumpSequence:C3:E1 | jumpSequence:D6:B4 | jumpSequence:F2:D4 | jumpSequence:D4:D6 | jumpSequence:F4:F2 | climbOne:F2:E1 | climbOne:D6:C6 | jumpSequence:E6:C4 | climbOne:C4:D3 | jumpSequence:C6:C4": 8
+          },
+          "strategicIntentDistribution": {
+            "home": 186,
+            "hybrid": 78,
+            "sixStack": 376
+          },
+          "terminalDistribution": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 16
+          }
+        }
+      }
+    },
+    {
+      "advanced": {
+        "frontierCompressionRate": 0.28259,
+        "loopEscapeRate16": 1,
+        "loopEscapeRate24": 1,
+        "loopEscapeRate8": 1,
+        "meanLoopEscapePly": 1.5,
+        "pressureEventRate": 0.814063,
+        "positionLempelZiv": 34.043709,
+        "recurrenceDeterminism": 0,
+        "recurrenceLaminarity": 0,
+        "recurrenceRate": 0.00008,
+        "riskProgressShare": 0.929688,
+        "scorePermutationEntropy": 0.750158,
+        "scoreSampleEntropy": 0.72574,
+        "trappingTime": 0
+      },
+      "bucket": "conversionRace",
+      "difficulty": "easy",
+      "scenarios": [
+        "turn100",
+        "turn150"
+      ],
+      "summary": {
+        "gameCount": 16,
+        "games": {
+          "averagePlies": 40,
+          "terminalCounts": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 16
+          }
+        },
+        "metadata": {
+          "difficulty": "easy",
+          "gameCount": 16,
+          "maxTurns": 40,
+          "mirrorPairCount": 8,
+          "stableCalls": 8
+        },
+        "metrics": {
+          "behaviorSpaceCoverage": 0.005952,
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "decompressionSlope": 0.003175,
+          "drama": 0.996795,
+          "firstFourActionKindEntropy": 0,
+          "firstFourTagEntropy": 2.104293,
+          "frozenCountChurn": 0.021788,
+          "gameRefinement": 0,
+          "homeProgressAuc": 0.090365,
+          "intentSwitchRate": 0.461538,
+          "lateSuspense": 0,
+          "leadChangeRate": 0.498397,
+          "maxRepeatedStateRun": 1,
+          "meanBoardDisplacement": 0.077344,
+          "mobilityReleaseSlope": -0.095238,
+          "normalizedLempelZiv": 3.783558,
+          "noveltyScore": 0.14236,
+          "openingEntropy": 1,
+          "openingJsDivergence": 0,
+          "openingSimpsonDiversity": 0.5,
+          "repetitionPlyShare": 0.001563,
+          "sameFamilyQuietRepeatRate": 0,
+          "sixStackProgressAuc": 0.0875,
+          "stackProfileChurn": 0.005642,
+          "stagnationWindowRate": 0.3625,
+          "stalemateDrawShare": 0,
+          "sourceFamilyOpeningHhi": 0.4375,
+          "tension": 0,
+          "threefoldDrawShare": 0,
+          "twoPlyUndoRate": 0.053125,
+          "uniqueOpeningLineShare": 0.25
+        },
+        "samples": {
+          "firstMoveDistribution": {
+            "jumpSequence:C1:C3": 8,
+            "jumpSequence:F2:D4": 8
+          },
+          "firstMoveSourceFamilyDistribution": {
+            "black-04": 8,
+            "white-12": 8
+          },
+          "firstFourActionKindDistribution": {
+            "jumpSequence": 64
+          },
+          "firstFourTagDistribution": {
+            "decompress": 16,
+            "openLane": 48,
+            "freezeBlock": 40,
+            "frontBuild": 8,
+            "advanceMass": 40
+          },
+          "firstTenLineDistribution": {
+            "jumpSequence:C1:C3 | jumpSequence:C3:A1 | jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:C1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4 | jumpSequence:C1:E3": 6,
+            "jumpSequence:C1:C3 | jumpSequence:C3:A1 | jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:C1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4 | jumpSequence:C6:C4": 2,
+            "jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:C1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4 | jumpSequence:C1:E3 | jumpSequence:E3:C3 | jumpSequence:C3:C1": 6,
+            "jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:C1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4 | jumpSequence:C6:C4 | jumpSequence:B4:D6 | jumpSequence:C1:E3": 2
+          },
+          "strategicIntentDistribution": {
+            "home": 144,
+            "hybrid": 94,
+            "sixStack": 402
+          },
+          "terminalDistribution": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 16
+          }
+        }
+      }
+    },
+    {
+      "advanced": {
+        "frontierCompressionRate": 0.303716,
+        "loopEscapeRate16": 1,
+        "loopEscapeRate24": 1,
+        "loopEscapeRate8": 1,
+        "meanLoopEscapePly": 1.5,
+        "pressureEventRate": 0.803125,
+        "positionLempelZiv": 34.160126,
+        "recurrenceDeterminism": 0,
+        "recurrenceLaminarity": 0,
+        "recurrenceRate": 0,
+        "riskProgressShare": 0.915625,
+        "scorePermutationEntropy": 0.731999,
+        "scoreSampleEntropy": 0.727487,
+        "trappingTime": 0
+      },
+      "bucket": "conversionRace",
+      "difficulty": "medium",
+      "scenarios": [
+        "turn100",
+        "turn150"
+      ],
+      "summary": {
+        "gameCount": 16,
+        "games": {
+          "averagePlies": 40,
+          "terminalCounts": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 16
+          }
+        },
+        "metadata": {
+          "difficulty": "medium",
+          "gameCount": 16,
+          "maxTurns": 40,
+          "mirrorPairCount": 8,
+          "stableCalls": 10
+        },
+        "metrics": {
+          "behaviorSpaceCoverage": 0.005952,
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "decompressionSlope": 0.003175,
+          "drama": 0.945513,
+          "firstFourActionKindEntropy": 0,
+          "firstFourTagEntropy": 2.104293,
+          "frozenCountChurn": 0.021441,
+          "gameRefinement": 0,
+          "homeProgressAuc": 0.117882,
+          "intentSwitchRate": 0.479167,
+          "lateSuspense": 0,
+          "leadChangeRate": 0.472756,
+          "maxRepeatedStateRun": 0,
+          "meanBoardDisplacement": 0.076996,
+          "mobilityReleaseSlope": -0.095238,
+          "normalizedLempelZiv": 4.615109,
+          "noveltyScore": 0.157517,
+          "openingEntropy": 1,
+          "openingJsDivergence": 0,
+          "openingSimpsonDiversity": 0.5,
+          "repetitionPlyShare": 0,
+          "sameFamilyQuietRepeatRate": 0,
+          "sixStackProgressAuc": 0.103906,
+          "stackProfileChurn": 0.006163,
+          "stagnationWindowRate": 0.335714,
+          "stalemateDrawShare": 0,
+          "sourceFamilyOpeningHhi": 0.433594,
+          "tension": 0,
+          "threefoldDrawShare": 0,
+          "twoPlyUndoRate": 0.082812,
+          "uniqueOpeningLineShare": 0.125
+        },
+        "samples": {
+          "firstMoveDistribution": {
+            "jumpSequence:C1:C3": 8,
+            "jumpSequence:F2:D4": 8
+          },
+          "firstMoveSourceFamilyDistribution": {
+            "black-04": 8,
+            "white-12": 8
+          },
+          "firstFourActionKindDistribution": {
+            "jumpSequence": 64
+          },
+          "firstFourTagDistribution": {
+            "decompress": 16,
+            "openLane": 48,
+            "freezeBlock": 40,
+            "frontBuild": 8,
+            "advanceMass": 40
+          },
+          "firstTenLineDistribution": {
+            "jumpSequence:C1:C3 | jumpSequence:C3:A1 | jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:C1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4 | jumpSequence:C1:E3": 8,
+            "jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:C1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4 | jumpSequence:C1:E3 | jumpSequence:E3:C3 | jumpSequence:C3:C1": 8
+          },
+          "strategicIntentDistribution": {
+            "home": 168,
+            "hybrid": 95,
+            "sixStack": 377
+          },
+          "terminalDistribution": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 16
+          }
+        }
+      }
+    },
+    {
+      "advanced": {
+        "frontierCompressionRate": 0.265486,
+        "loopEscapeRate16": 1,
+        "loopEscapeRate24": 1,
+        "loopEscapeRate8": 1,
+        "meanLoopEscapePly": 1.5,
+        "pressureEventRate": 0.690625,
+        "positionLempelZiv": 31.399376,
+        "recurrenceDeterminism": 0.5,
+        "recurrenceLaminarity": 0,
+        "recurrenceRate": 0.001282,
+        "riskProgressShare": 0.88125,
+        "scorePermutationEntropy": 0.812786,
+        "scoreSampleEntropy": 0.635215,
+        "trappingTime": 0
+      },
+      "bucket": "conversionRace",
+      "difficulty": "hard",
+      "scenarios": [
+        "turn100",
+        "turn150"
+      ],
+      "summary": {
+        "gameCount": 16,
+        "games": {
+          "averagePlies": 40,
+          "terminalCounts": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 16
+          }
+        },
+        "metadata": {
+          "difficulty": "hard",
+          "gameCount": 16,
+          "maxTurns": 40,
+          "mirrorPairCount": 8,
+          "stableCalls": 12
+        },
+        "metrics": {
+          "behaviorSpaceCoverage": 0.005952,
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "decompressionSlope": 0.003175,
+          "drama": 1.282051,
+          "firstFourActionKindEntropy": 0,
+          "firstFourTagEntropy": 2.104293,
+          "frozenCountChurn": 0.017622,
+          "gameRefinement": 0,
+          "homeProgressAuc": 0.161806,
+          "intentSwitchRate": 0.663462,
+          "lateSuspense": 0,
+          "leadChangeRate": 0.641026,
+          "maxRepeatedStateRun": 2,
+          "meanBoardDisplacement": 0.073177,
+          "mobilityReleaseSlope": -0.095238,
+          "normalizedLempelZiv": 5.405083,
+          "noveltyScore": 0.148025,
+          "openingEntropy": 1,
+          "openingJsDivergence": 0,
+          "openingSimpsonDiversity": 0.5,
+          "repetitionPlyShare": 0.025,
+          "sameFamilyQuietRepeatRate": 0.142857,
+          "sixStackProgressAuc": 0.04375,
+          "stackProfileChurn": 0.004514,
+          "stagnationWindowRate": 0.378571,
+          "stalemateDrawShare": 0,
+          "sourceFamilyOpeningHhi": 0.46875,
+          "tension": 0,
+          "threefoldDrawShare": 0,
+          "twoPlyUndoRate": 0.18125,
+          "uniqueOpeningLineShare": 0.125
+        },
+        "samples": {
+          "firstMoveDistribution": {
+            "jumpSequence:C1:C3": 8,
+            "jumpSequence:F2:D4": 8
+          },
+          "firstMoveSourceFamilyDistribution": {
+            "black-04": 8,
+            "white-12": 8
+          },
+          "firstFourActionKindDistribution": {
+            "jumpSequence": 64
+          },
+          "firstFourTagDistribution": {
+            "decompress": 16,
+            "openLane": 48,
+            "freezeBlock": 40,
+            "frontBuild": 8,
+            "advanceMass": 40
+          },
+          "firstTenLineDistribution": {
+            "jumpSequence:C1:C3 | jumpSequence:C3:A1 | jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:C1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4 | jumpSequence:C1:E3": 8,
+            "jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:C1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4 | jumpSequence:C1:E3 | jumpSequence:E3:C3 | jumpSequence:C3:C1": 8
+          },
+          "strategicIntentDistribution": {
+            "home": 256,
+            "hybrid": 36,
+            "sixStack": 348
+          },
+          "terminalDistribution": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 16
+          }
+        }
+      }
+    },
+    {
+      "advanced": {
+        "frontierCompressionRate": 0.294791,
+        "loopEscapeRate16": 1,
+        "loopEscapeRate24": 1,
+        "loopEscapeRate8": 1,
+        "meanLoopEscapePly": 2,
+        "pressureEventRate": 0.9125,
+        "positionLempelZiv": 34.841998,
+        "recurrenceDeterminism": 0,
+        "recurrenceLaminarity": 0,
+        "recurrenceRate": 0,
+        "riskProgressShare": 0.8875,
+        "scorePermutationEntropy": 0.804127,
+        "scoreSampleEntropy": 0.696369,
+        "trappingTime": 0
+      },
+      "bucket": "lateSparse",
+      "difficulty": "easy",
+      "scenarios": [
+        "turn200"
+      ],
+      "summary": {
+        "gameCount": 8,
+        "games": {
+          "averagePlies": 40,
+          "terminalCounts": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        },
+        "metadata": {
+          "difficulty": "easy",
+          "gameCount": 8,
+          "maxTurns": 40,
+          "mirrorPairCount": 4,
+          "stableCalls": 8
+        },
+        "metrics": {
+          "behaviorSpaceCoverage": 0.002976,
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "decompressionSlope": 0,
+          "drama": 1.121795,
+          "firstFourActionKindEntropy": 0,
+          "firstFourTagEntropy": 2.246439,
+          "frozenCountChurn": 0.019879,
+          "gameRefinement": 0,
+          "homeProgressAuc": 0.12309,
+          "intentSwitchRate": 0.516026,
+          "lateSuspense": 0,
+          "leadChangeRate": 0.560897,
+          "maxRepeatedStateRun": 0,
+          "meanBoardDisplacement": 0.075434,
+          "mobilityReleaseSlope": -0.214286,
+          "normalizedLempelZiv": 4.723211,
+          "noveltyScore": 0.068108,
+          "openingEntropy": 0,
+          "openingJsDivergence": 0,
+          "openingSimpsonDiversity": 0,
+          "repetitionPlyShare": 0,
+          "sameFamilyQuietRepeatRate": 0.2,
+          "sixStackProgressAuc": 0.058854,
+          "stackProfileChurn": 0.009375,
+          "stagnationWindowRate": 0.092857,
+          "stalemateDrawShare": 0,
+          "sourceFamilyOpeningHhi": 0.341797,
+          "tension": 0,
+          "threefoldDrawShare": 0,
+          "twoPlyUndoRate": 0.028125,
+          "uniqueOpeningLineShare": 0.25
+        },
+        "samples": {
+          "firstMoveDistribution": {
+            "jumpSequence:A1:C3": 8
+          },
+          "firstMoveSourceFamilyDistribution": {
+            "black-04": 8
+          },
+          "firstFourActionKindDistribution": {
+            "jumpSequence": 32
+          },
+          "firstFourTagDistribution": {
+            "decompress": 16,
+            "openLane": 24,
+            "freezeBlock": 16,
+            "frontBuild": 8,
+            "advanceMass": 16
+          },
+          "firstTenLineDistribution": {
+            "jumpSequence:A1:C3 | jumpSequence:C3:E1 | jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:A1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:E2:C4 | jumpSequence:C5:C3": 7,
+            "jumpSequence:A1:C3 | jumpSequence:C3:E1 | jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:A1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:D6:B4 | jumpSequence:E1:E3": 1
+          },
+          "strategicIntentDistribution": {
+            "home": 97,
+            "hybrid": 39,
+            "sixStack": 184
+          },
+          "terminalDistribution": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        }
+      }
+    },
+    {
+      "advanced": {
+        "frontierCompressionRate": 0.303236,
+        "loopEscapeRate16": 1,
+        "loopEscapeRate24": 1,
+        "loopEscapeRate8": 1,
+        "meanLoopEscapePly": 2,
+        "pressureEventRate": 0.896875,
+        "positionLempelZiv": 34.925153,
+        "recurrenceDeterminism": 0,
+        "recurrenceLaminarity": 0,
+        "recurrenceRate": 0,
+        "riskProgressShare": 0.8625,
+        "scorePermutationEntropy": 0.79362,
+        "scoreSampleEntropy": 0.642718,
+        "trappingTime": 0
+      },
+      "bucket": "lateSparse",
+      "difficulty": "medium",
+      "scenarios": [
+        "turn200"
+      ],
+      "summary": {
+        "gameCount": 8,
+        "games": {
+          "averagePlies": 40,
+          "terminalCounts": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        },
+        "metadata": {
+          "difficulty": "medium",
+          "gameCount": 8,
+          "maxTurns": 40,
+          "mirrorPairCount": 4,
+          "stableCalls": 10
+        },
+        "metrics": {
+          "behaviorSpaceCoverage": 0.002976,
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "decompressionSlope": 0,
+          "drama": 1.102564,
+          "firstFourActionKindEntropy": 0,
+          "firstFourTagEntropy": 2.246439,
+          "frozenCountChurn": 0.02066,
+          "gameRefinement": 0,
+          "homeProgressAuc": 0.129514,
+          "intentSwitchRate": 0.580128,
+          "lateSuspense": 0,
+          "leadChangeRate": 0.551282,
+          "maxRepeatedStateRun": 0,
+          "meanBoardDisplacement": 0.076215,
+          "mobilityReleaseSlope": -0.214286,
+          "normalizedLempelZiv": 5.072462,
+          "noveltyScore": 0.088412,
+          "openingEntropy": 0,
+          "openingJsDivergence": 0,
+          "openingSimpsonDiversity": 0,
+          "repetitionPlyShare": 0,
+          "sameFamilyQuietRepeatRate": 0,
+          "sixStackProgressAuc": 0.056771,
+          "stackProfileChurn": 0.007465,
+          "stagnationWindowRate": 0.142857,
+          "stalemateDrawShare": 0,
+          "sourceFamilyOpeningHhi": 0.310547,
+          "tension": 0,
+          "threefoldDrawShare": 0,
+          "twoPlyUndoRate": 0.05,
+          "uniqueOpeningLineShare": 0.125
+        },
+        "samples": {
+          "firstMoveDistribution": {
+            "jumpSequence:A1:C3": 8
+          },
+          "firstMoveSourceFamilyDistribution": {
+            "black-04": 8
+          },
+          "firstFourActionKindDistribution": {
+            "jumpSequence": 32
+          },
+          "firstFourTagDistribution": {
+            "decompress": 16,
+            "openLane": 24,
+            "freezeBlock": 16,
+            "frontBuild": 8,
+            "advanceMass": 16
+          },
+          "firstTenLineDistribution": {
+            "jumpSequence:A1:C3 | jumpSequence:C3:E1 | jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:A1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:E2:C4 | jumpSequence:C5:C3": 8
+          },
+          "strategicIntentDistribution": {
+            "home": 111,
+            "hybrid": 50,
+            "sixStack": 159
+          },
+          "terminalDistribution": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        }
+      }
+    },
+    {
+      "advanced": {
+        "frontierCompressionRate": 0.309151,
+        "loopEscapeRate16": 1,
+        "loopEscapeRate24": 1,
+        "loopEscapeRate8": 1,
+        "meanLoopEscapePly": 2,
+        "pressureEventRate": 0.871875,
+        "positionLempelZiv": 34.326436,
+        "recurrenceDeterminism": 0,
+        "recurrenceLaminarity": 0,
+        "recurrenceRate": 0.00032,
+        "riskProgressShare": 0.853125,
+        "scorePermutationEntropy": 0.768042,
+        "scoreSampleEntropy": 0.639759,
+        "trappingTime": 0
+      },
+      "bucket": "lateSparse",
+      "difficulty": "hard",
+      "scenarios": [
+        "turn200"
+      ],
+      "summary": {
+        "gameCount": 8,
+        "games": {
+          "averagePlies": 40,
+          "terminalCounts": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        },
+        "metadata": {
+          "difficulty": "hard",
+          "gameCount": 8,
+          "maxTurns": 40,
+          "mirrorPairCount": 4,
+          "stableCalls": 12
+        },
+        "metrics": {
+          "behaviorSpaceCoverage": 0.002976,
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "decompressionSlope": 0,
+          "drama": 1.051282,
+          "firstFourActionKindEntropy": 0,
+          "firstFourTagEntropy": 2.246439,
+          "frozenCountChurn": 0.020573,
+          "gameRefinement": 0,
+          "homeProgressAuc": 0.131771,
+          "intentSwitchRate": 0.589744,
+          "lateSuspense": 0,
+          "leadChangeRate": 0.525641,
+          "maxRepeatedStateRun": 1,
+          "meanBoardDisplacement": 0.076128,
+          "mobilityReleaseSlope": -0.214286,
+          "normalizedLempelZiv": 3.974815,
+          "noveltyScore": 0.105744,
+          "openingEntropy": 0,
+          "openingJsDivergence": 0,
+          "openingSimpsonDiversity": 0,
+          "repetitionPlyShare": 0.00625,
+          "sameFamilyQuietRepeatRate": 0,
+          "sixStackProgressAuc": 0.028125,
+          "stackProfileChurn": 0.005382,
+          "stagnationWindowRate": 0.235714,
+          "stalemateDrawShare": 0,
+          "sourceFamilyOpeningHhi": 0.296875,
+          "tension": 0,
+          "threefoldDrawShare": 0,
+          "twoPlyUndoRate": 0.059375,
+          "uniqueOpeningLineShare": 0.125
+        },
+        "samples": {
+          "firstMoveDistribution": {
+            "jumpSequence:A1:C3": 8
+          },
+          "firstMoveSourceFamilyDistribution": {
+            "black-04": 8
+          },
+          "firstFourActionKindDistribution": {
+            "jumpSequence": 32
+          },
+          "firstFourTagDistribution": {
+            "decompress": 16,
+            "openLane": 24,
+            "freezeBlock": 16,
+            "frontBuild": 8,
+            "advanceMass": 16
+          },
+          "firstTenLineDistribution": {
+            "jumpSequence:A1:C3 | jumpSequence:C3:E1 | jumpSequence:F2:D4 | jumpSequence:E5:C3 | jumpSequence:C3:A1 | jumpSequence:E3:E5 | climbOne:E5:D6 | jumpSequence:F4:F2 | jumpSequence:E2:C4 | jumpSequence:C5:C3": 8
+          },
+          "strategicIntentDistribution": {
+            "home": 111,
+            "hybrid": 66,
+            "sixStack": 143
+          },
+          "terminalDistribution": {
+            "homeField": 0,
+            "sixStacks": 0,
+            "threefoldTiebreakWin": 0,
+            "stalemateTiebreakWin": 0,
+            "threefoldDraw": 0,
+            "stalemateDraw": 0,
+            "unfinished": 8
+          }
+        }
+      }
+    }
+  ],
+  "settings": {
+    "maxTurns": 40,
+    "pairCount": 4
+  }
+}

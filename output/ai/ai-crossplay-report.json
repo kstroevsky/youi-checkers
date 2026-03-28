@@ -1,0 +1,199 @@
+{
+  "difficultyMatrix": {
+    "cells": {
+      "easy": {
+        "easy": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 0.666667,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.81875,
+          "recurrenceLaminarity": 0
+        },
+        "medium": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 0.666667,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.810417,
+          "recurrenceLaminarity": 0
+        },
+        "hard": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 0.666667,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.8125,
+          "recurrenceLaminarity": 0
+        }
+      },
+      "medium": {
+        "easy": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0.166667,
+          "drawShare": 0.833333,
+          "loopEscapeRate8": 0.666667,
+          "pointShare": 0.416667,
+          "pressureEventRate": 0.813021,
+          "recurrenceLaminarity": 0
+        },
+        "medium": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0.166667,
+          "drawShare": 0.833333,
+          "loopEscapeRate8": 0.666667,
+          "pointShare": 0.416667,
+          "pressureEventRate": 0.833854,
+          "recurrenceLaminarity": 0
+        },
+        "hard": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 0.666667,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.825,
+          "recurrenceLaminarity": 0
+        }
+      },
+      "hard": {
+        "easy": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 0.5,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.810784,
+          "recurrenceLaminarity": 0
+        },
+        "medium": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 0.5,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.814951,
+          "recurrenceLaminarity": 0
+        },
+        "hard": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 0.5,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.814951,
+          "recurrenceLaminarity": 0
+        }
+      }
+    },
+    "labels": [
+      "easy",
+      "medium",
+      "hard"
+    ]
+  },
+  "generatedAt": "2026-03-28T17:23:24.770Z",
+  "personaMatrix": {
+    "cells": {
+      "expander": {
+        "expander": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 1,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.789474,
+          "recurrenceLaminarity": 0
+        },
+        "hunter": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 0.5,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.806618,
+          "recurrenceLaminarity": 0
+        },
+        "builder": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 0.833333,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.820833,
+          "recurrenceLaminarity": 0
+        }
+      },
+      "hunter": {
+        "expander": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 0.5,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.810784,
+          "recurrenceLaminarity": 0
+        },
+        "hunter": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 0.333333,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.820833,
+          "recurrenceLaminarity": 0
+        },
+        "builder": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 0.666667,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.808333,
+          "recurrenceLaminarity": 0
+        }
+      },
+      "builder": {
+        "expander": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 0.833333,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.822917,
+          "recurrenceLaminarity": 0
+        },
+        "hunter": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 0.666667,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.820833,
+          "recurrenceLaminarity": 0
+        },
+        "builder": {
+          "compositeInterestingness": 0,
+          "decisiveResultShare": 0,
+          "drawShare": 1,
+          "loopEscapeRate8": 1,
+          "pointShare": 0.5,
+          "pressureEventRate": 0.839583,
+          "recurrenceLaminarity": 0
+        }
+      }
+    },
+    "labels": [
+      "expander",
+      "hunter",
+      "builder"
+    ]
+  },
+  "settings": {
+    "maxTurns": 80,
+    "pairCount": 3
+  }
+}

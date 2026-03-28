@@ -371,14 +371,15 @@ export function precomputeOrderedActions(
   > = {},
 ): PrecomputedOrderedAction[] {
   const actor = state.currentPlayer;
+  const computeRiskSignals = riskMode !== 'normal';
   const baseStructureScore = evaluateStructureState(state, actor, ruleConfig, {
     behaviorProfile,
     preset,
     riskMode,
   });
-  const baseProgress = createProgressSnapshot(state);
-  const baseLegalMoveCount = getLegalActions(state, ruleConfig).length;
-  const baseEmptyCells = getEmptyCellCount(state);
+  const baseProgress = computeRiskSignals ? createProgressSnapshot(state) : null;
+  const baseLegalMoveCount = computeRiskSignals ? getLegalActions(state, ruleConfig).length : 0;
+  const baseEmptyCells = computeRiskSignals ? getEmptyCellCount(state) : 0;
   return (actions ?? getLegalActions(state, ruleConfig)).map<PrecomputedOrderedAction>((action) => {
     throwIfMoveOrderingTimedOut(deadline, now);
 
@@ -392,15 +393,18 @@ export function precomputeOrderedActions(
     const frontRowGrowth = growsFrontRowStack(state, action, nextState, actor);
     const homeProgress = improvesHomeField(action, actor);
     const freezeSwingBonus = getFreezeSwingBonus(state, action, actor);
-    const nextProgress = createProgressSnapshot(nextState);
-    const mobilityDelta =
-      (nextState.status === 'gameOver' ? 0 : getLegalActions(nextState, ruleConfig).length) -
-      baseLegalMoveCount;
-    const emptyCellsDelta = getEmptyCellCount(nextState) - baseEmptyCells;
-    const homeFieldDelta =
-      nextProgress.homeFieldProgress[actor] - baseProgress.homeFieldProgress[actor];
-    const sixStackDelta =
-      nextProgress.sixStackProgress[actor] - baseProgress.sixStackProgress[actor];
+    const nextProgress = computeRiskSignals ? createProgressSnapshot(nextState) : null;
+    const mobilityDelta = computeRiskSignals
+      ? (nextState.status === 'gameOver' ? 0 : getLegalActions(nextState, ruleConfig).length) -
+        baseLegalMoveCount
+      : 0;
+    const emptyCellsDelta = computeRiskSignals ? getEmptyCellCount(nextState) - baseEmptyCells : 0;
+    const homeFieldDelta = computeRiskSignals
+      ? nextProgress.homeFieldProgress[actor] - baseProgress.homeFieldProgress[actor]
+      : 0;
+    const sixStackDelta = computeRiskSignals
+      ? nextProgress.sixStackProgress[actor] - baseProgress.sixStackProgress[actor]
+      : 0;
     const strategicProfile = getActionStrategicProfile(
       state,
       action,

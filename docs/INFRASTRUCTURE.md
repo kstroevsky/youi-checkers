@@ -112,6 +112,14 @@ Outputs:
 - [`output/ai/ai-variety-report.md`](../output/ai/ai-variety-report.md): generated summary.
 - [`output/ai/ai-stage-variety-report.json`](../output/ai/ai-stage-variety-report.json): structured opening-versus-late-stage continuation report;
 - [`output/ai/ai-stage-variety-report.md`](../output/ai/ai-stage-variety-report.md): generated stage-by-stage summary.
+- [`output/ai/ai-crossplay-report.json`](../output/ai/ai-crossplay-report.json): difficulty-vs-difficulty and persona-vs-persona matrix data;
+- [`output/ai/ai-crossplay-report.md`](../output/ai/ai-crossplay-report.md): human-readable cross-play matrix summary;
+- [`output/ai/ai-loop-benchmark-report.json`](../output/ai/ai-loop-benchmark-report.json): late-stage loop/escape benchmark data;
+- [`output/ai/ai-loop-benchmark-report.md`](../output/ai/ai-loop-benchmark-report.md): generated loop benchmark summary;
+- [`output/ai/ai-position-buckets-report.json`](../output/ai/ai-position-buckets-report.json): structural-bucket AI behavior report;
+- [`output/ai/ai-position-buckets-report.md`](../output/ai/ai-position-buckets-report.md): generated bucket summary;
+- [`output/ai/ai-threat-report.json`](../output/ai/ai-threat-report.json): pressure/threat-oriented trace diagnostics;
+- [`output/ai/ai-threat-report.md`](../output/ai/ai-threat-report.md): generated pressure report.
 
 The generator compares current results against two checked-in fixtures:
 
@@ -130,23 +138,73 @@ The Markdown summary is intentionally opinionated rather than exhaustive. It now
 
 The complementary stage report exists because the aggregate suite can hide where a behavioral change really helps or hurts. `npm run ai:stage-variety` reruns the same mirrored self-play metrics from four fixed starting positions: the normal opening plus the deterministic `turn50`, `turn100`, and `turn200` imported states used by the performance harness. Those late fixtures are replayed with draws disabled and then normalized into playable continuation states by keeping only the recent history window and rebuilding repetition counts for that window; otherwise the shipped threefold rule would make those imported positions terminal before the AI can be evaluated. The report also summarizes `riskMode` activation shares, so a late-game latency increase can be interpreted alongside the amount of actual stagnation/late-risk behavior being exercised. Because the normalization intentionally discards long-range repetition memory, early `stagnation` activation can look weaker there than on the raw full-history perf fixtures; the stage report and perf fixtures should therefore be read together.
 
+The wider report family exists because "interestingness" is not one scalar:
+
+- `npm run ai:crossplay` asks whether the behavior remains distinct and competitive across difficulty tiers and forced personas.
+- `npm run ai:loop-benchmark` isolates the cyclic late-stage fixtures and measures recurrence, laminarity, trapping time, loop-escape rates, and symbolic complexity.
+- `npm run ai:position-buckets` aggregates scenarios into structural buckets (`opening`, `congested`, `loopPressure`, `conversionRace`, `lateSparse`) so one pathological fixture does not overrule the whole judgment.
+- `npm run ai:threat` measures pressure creation directly from chosen moves: freeze swings, frontier compression, and certified risk progress.
+
+These newer reports combine the core variety metrics from [`src/ai/test/metrics.ts`](../src/ai/test/metrics.ts) with nonlinear trace analytics from [`src/ai/test/advancedMetrics.ts`](../src/ai/test/advancedMetrics.ts). The current advanced metric family includes:
+
+- recurrence quantification analysis over visited-state sequences (`recurrenceRate`, `determinism`, `laminarity`, `trappingTime`);
+- sample entropy and permutation entropy over evaluation-score traces;
+- normalized symbolic Lempel-Ziv complexity over visited-position sequences;
+- explicit loop-escape latency metrics once risk activation or loop pressure appears.
+
 When the intended shipped AI behavior changes materially, the workflow is:
 
 1. run `npm run ai:variety`;
 2. run `npm run ai:stage-variety` when a change is specifically meant to affect flat midgame or late-game behavior;
-3. inspect the generated JSON and Markdown;
-4. update `src/ai/test/fixtures/ai-variety-baselines.json` only if the new aggregate behavior is the new accepted baseline;
-5. keep `src/ai/test/fixtures/ai-variety-target-bands.json` as the longer-lived product target file rather than rewriting it for every iteration.
+3. run one or more focused pipelines (`ai:loop-benchmark`, `ai:threat`, `ai:position-buckets`, `ai:crossplay`) when the change claims to improve loops, pressure, or style diversity rather than only aggregate variety;
+4. inspect the generated JSON and Markdown;
+5. update `src/ai/test/fixtures/ai-variety-baselines.json` only if the new aggregate behavior is the new accepted baseline;
+6. keep `src/ai/test/fixtures/ai-variety-target-bands.json` as the longer-lived product target file rather than rewriting it for every iteration.
+
+## Git-Aware Report Comparison
+
+[`scripts/run-git-report-compare.mjs`](../scripts/run-git-report-compare.mjs) is the shared compare wrapper for report pipelines. It accepts a pipeline name plus `--before=<ref|working>` and `--after=<ref|working>`, materializes the requested snapshots, reruns the pipeline, flattens the numeric leaves from both JSON outputs, and writes a Markdown diff report.
+
+Current compare wrappers:
+
+- `npm run ai:variety:compare`
+- `npm run ai:stage-variety:compare`
+- `npm run ai:crossplay:compare`
+- `npm run ai:loop-benchmark:compare`
+- `npm run ai:position-buckets:compare`
+- `npm run ai:threat:compare`
+- `npm run perf:compare:git`
+
+The compare layer supports three common workflows directly:
+
+- compare `HEAD` or `HEAD~N` against the current unstaged tree by passing `--after=working`;
+- compare one branch, tag, or commit against another branch, tag, or commit;
+- rerun the same working tree twice with different pipeline flags, for example a short smoke run versus a full default run.
+
+The comparison script intentionally tolerates a non-zero exit code when the expected JSON report still exists. This matters for behavior gates such as `ai:variety`, which can exit non-zero purely because the report detected a regression.
+
+One limitation remains structural rather than tooling-related: a comparison only works when the target ref still exposes the data and exports required by that pipeline. For example, a brand-new nonlinear trace report cannot be meaningfully run against a historical ref from before the corresponding telemetry existed in the AI trace layer.
 
 ## Operational Commands
 
 The repository exposes the infrastructure/report commands through `package.json`:
 
 - `npm run build`
+- `npm run ai:crossplay`
+- `npm run ai:loop-benchmark`
+- `npm run ai:position-buckets`
 - `npm run perf:report`
 - `npm run perf:compare`
+- `npm run perf:compare:git`
 - `npm run ai:stage-variety`
+- `npm run ai:threat`
 - `npm run ai:variety`
+- `npm run ai:crossplay:compare`
+- `npm run ai:loop-benchmark:compare`
+- `npm run ai:position-buckets:compare`
+- `npm run ai:stage-variety:compare`
+- `npm run ai:threat:compare`
+- `npm run ai:variety:compare`
 - `npm run docs:check-links`
 
 The last command is intentionally part of the documentation toolchain. Broken relative links are a documentation defect, and the repository now treats them as checkable.

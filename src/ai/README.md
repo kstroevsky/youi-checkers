@@ -603,7 +603,12 @@ Generated reports live under `output/` and are produced by:
 
 - [`scripts/ai-variety.report.ts`](../../scripts/ai-variety.report.ts)
 - [`scripts/ai-stage-variety.report.ts`](../../scripts/ai-stage-variety.report.ts)
+- [`scripts/ai-crossplay.report.ts`](../../scripts/ai-crossplay.report.ts)
+- [`scripts/ai-loop-benchmark.report.ts`](../../scripts/ai-loop-benchmark.report.ts)
+- [`scripts/ai-position-buckets.report.ts`](../../scripts/ai-position-buckets.report.ts)
+- [`scripts/ai-threat.report.ts`](../../scripts/ai-threat.report.ts)
 - [`scripts/perf-report.mjs`](../../scripts/perf-report.mjs)
+- [`scripts/run-git-report-compare.mjs`](../../scripts/run-git-report-compare.mjs)
 
 ### Search and behavior tests
 
@@ -623,11 +628,14 @@ The metric vocabulary in [`test/metrics.ts`](./test/metrics.ts) is intentionally
 | --- | --- |
 | `decisiveResultShare` | share of games that end in a non-draw terminal result |
 | `openingEntropy` | entropy of the first-move distribution across self-play traces |
+| `openingSimpsonDiversity` | complementary diversity score for the opening distribution; higher means openings are less concentrated |
+| `openingJsDivergence` | Jensen-Shannon divergence against the checked-in baseline opening distribution |
 | `uniqueOpeningLineShare` | share of distinct first-ten-ply openings across traces |
 | `sourceFamilyOpeningHhi` | concentration of opening moves into the same checker family; lower means broader material usage |
 | `twoPlyUndoRate` | rate of quiet self-undo behavior across plies |
 | `repetitionPlyShare` | share of plies that revisit an already seen full position |
 | `stagnationWindowRate` | share of sliding windows whose displacement, mobility, and progress stay too flat |
+| `normalizedLempelZiv` | normalized Lempel-Ziv complexity of move-kind sequences; higher means the trace keeps producing new symbolic motifs |
 | `decompressionSlope` | average slope of empty-cell growth over the opening window |
 | `mobilityReleaseSlope` | average slope of legal-move count growth over the same window |
 | `meanBoardDisplacement` | average number of changed cells per ply |
@@ -635,6 +643,35 @@ The metric vocabulary in [`test/metrics.ts`](./test/metrics.ts) is intentionally
 | `tension` | average closeness of normalized scores to zero |
 | `compositeInterestingness` | target-band composite built from opening diversity, repetition pressure, decompression, drama, and decisive-result share |
 | `behaviorSpaceCoverage` | fraction of coarse behavior bins actually occupied by the trace set |
+
+The newer nonlinear metrics in [`test/advancedMetrics.ts`](./test/advancedMetrics.ts) answer a different question: not "did the engine vary?" but "what kind of dynamical system did the trace behave like?" Those metrics are used by the loop, threat, cross-play, and position-bucket reports:
+
+| Advanced metric | Meaning |
+| --- | --- |
+| `recurrenceRate` | fraction of non-trivial revisit pairs in the visited-state sequence |
+| `recurrenceDeterminism` | share of recurrence points that lie on diagonal replay lines rather than isolated revisits |
+| `recurrenceLaminarity` | share of recurrence points that lie on vertical dwell lines, which is a strong loop/stall signal |
+| `trappingTime` | average vertical dwell length inside recurrence plots |
+| `scoreSampleEntropy` | irregularity of the evaluation-score time series under tolerance-based matching |
+| `scorePermutationEntropy` | ordinal complexity of local score windows, insensitive to absolute scale |
+| `positionLempelZiv` | symbolic complexity of the visited-position sequence |
+| `loopEscapeRate8/16/24` | share of traces that break repetition/undo pressure within the next 8, 16, or 24 plies |
+| `meanLoopEscapePly` | average number of plies needed to escape once loop pressure becomes active |
+| `pressureEventRate` | share of plies that create freeze pressure, frontier compression, or direct conversion pressure |
+| `frontierCompressionRate` | how often the chosen move shrinks the opponent reply frontier |
+| `riskProgressShare` | share of risk-mode plies that satisfy the engine's certified progress test |
+
+### Report comparison wrappers
+
+[`scripts/run-git-report-compare.mjs`](../../scripts/run-git-report-compare.mjs) is the generic compare entry point behind the `*:compare` npm scripts. It materializes the `before` and `after` snapshots, reruns the requested pipeline for each snapshot, flattens the numeric leaves of both JSON reports, and emits a Markdown diff under `output/`.
+
+The wrappers accept `--before=<ref|working>` and `--after=<ref|working>`. In practice that supports:
+
+- a committed baseline versus unstaged edits (`HEAD` vs `working`);
+- one branch, tag, or commit versus another;
+- repeated reruns of the same working tree with different flags.
+
+The comparison layer is intentionally generic. It compares whatever numeric leaves the pipeline emits, so new report metrics start showing up in compare output automatically without requiring a second per-pipeline diff implementation.
 
 ### Performance reports
 
@@ -688,6 +725,10 @@ The repository is not a direct reproduction of any single paper. The table below
 | History heuristic family | [`search/heuristics.ts`](./search/heuristics.ts) | Jonathan Schaeffer, "The History Heuristic and Alpha-Beta Search Enhancements in Practice," *IEEE TPAMI* 11(11), 1989. DOI: `10.1109/34.42847` |
 | Residual network trunk for policy/value guidance | [`training/train_policy_value.py`](../../training/train_policy_value.py) | Kaiming He et al., "Deep Residual Learning for Image Recognition," *CVPR 2016* |
 | Self-play policy/value conceptual lineage | [`scripts/ai-selfplay-dataset.ts`](../../scripts/ai-selfplay-dataset.ts), [`model/guidance.ts`](./model/guidance.ts) | David Silver et al., "Mastering the game of Go without human knowledge," *Nature* 550, 2017. DOI: `10.1038/nature24270` |
+| Recurrence plots and recurrence quantification for loop/stall analysis | [`test/advancedMetrics.ts`](./test/advancedMetrics.ts), [`scripts/ai-loop-benchmark.report.ts`](../../scripts/ai-loop-benchmark.report.ts) | J.-P. Eckmann, S. O. Kamphorst, and D. Ruelle, "Recurrence Plots of Dynamical Systems," *Europhysics Letters* 4(9), 1987. DOI: `10.1209/0295-5075/4/9/004`; Charles L. Webber Jr. and Joseph P. Zbilut, "Dynamical assessment of physiological systems and states using recurrence plot strategies," *J. Appl. Physiology* 76(2), 1994 |
+| Sample entropy for score-series irregularity | [`test/advancedMetrics.ts`](./test/advancedMetrics.ts) | Joshua S. Richman and J. Randall Moorman, "Physiological time-series analysis using approximate entropy and sample entropy," *AJP Heart and Circulatory Physiology* 278(6), 2000. DOI: `10.1152/ajpheart.2000.278.6.H2039` |
+| Permutation entropy for ordinal score complexity | [`test/advancedMetrics.ts`](./test/advancedMetrics.ts) | Christoph Bandt and Bernd Pompe, "Permutation entropy: a natural complexity measure for time series," *Physical Review Letters* 88(17), 2002. DOI: `10.1103/PhysRevLett.88.174102` |
+| Procedural personas / diverse competitive play-styles as the design basis for hidden personas and cross-play | [`behavior.ts`](./behavior.ts), [`scripts/ai-crossplay.report.ts`](../../scripts/ai-crossplay.report.ts) | Antonios Liapis, Julian Togelius, and Georgios N. Yannakakis, "Procedural Personas as Critics for Dungeon Generation," *EvoApplications 2015*; Diego Perez-Liebana et al., "Generating Diverse and Competitive Play-Styles for Strategy Games," 2021 |
 
 ## References
 
@@ -698,6 +739,12 @@ The repository is not a direct reproduction of any single paper. The table below
 - [Schaeffer 1989](https://doi.org/10.1109/34.42847)
 - [Silver et al. 2017](https://www.nature.com/articles/nature24270)
 - [He et al. 2016](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html)
+- [Eckmann et al. 1987](https://doi.org/10.1209/0295-5075/4/9/004)
+- [Webber and Zbilut 1994](https://journals.physiology.org/doi/abs/10.1152/jappl.1994.76.2.965)
+- [Richman and Moorman 2000](https://pubmed.ncbi.nlm.nih.gov/10843903/)
+- [Bandt and Pompe 2002](https://doi.org/10.1103/PhysRevLett.88.174102)
+- [Liapis et al. 2015](https://antoniosliapis.com/research/pubs/liapis_evoapps15.pdf)
+- [Perez-Liebana et al. 2021](https://arxiv.org/abs/2104.08641)
 
 ## Boundary Of This Document
 

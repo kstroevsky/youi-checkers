@@ -73,16 +73,22 @@ export type AiModelGuidance = {
 
 export type AiRootCandidate = {
   action: TurnAction;
+  emptyCellsDelta: number;
   forced: boolean;
+  freezeSwingBonus: number;
+  homeFieldDelta: number;
   intentDelta: number;
   isForced: boolean;
   isRepetition: boolean;
   isSelfUndo: boolean;
   isTactical: boolean;
+  mobilityDelta: number;
   movedMass: number;
   participationDelta: number;
   policyPrior: number;
+  repeatedPositionCount: number;
   score: number;
+  sixStackDelta: number;
   sourceFamily: string;
   tags: AiStrategicTag[];
 };

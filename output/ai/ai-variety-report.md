@@ -1,6 +1,6 @@
 # AI Variety Report
 
-Generated at: 2026-03-28T16:13:26.861Z
+Generated at: 2026-03-28T17:20:27.423Z
 
 This file is a generated report artifact from `npm run ai:variety`.
 
@@ -23,8 +23,13 @@ Games: 64, average plies: 58.34375, terminals: {"homeField":0,"sixStacks":0,"thr
 | threefoldDrawShare | 0.328125 | <= 0.3 (warn 0.55) | warn |
 | stagnationWindowRate | 0.456356 | <= 0.15 (warn 0.3) | bad |
 | openingEntropy | 1.584612 | >= 1 (warn 0.5) | good |
+| openingSimpsonDiversity | 0.666504 | n/a | n/a |
+| openingJsDivergence | 0 | n/a | n/a |
 | sourceFamilyOpeningHhi | 0.297607 | <= 0.32 (warn 0.45) | good |
 | uniqueOpeningLineShare | 0.1875 | >= 0.35 (warn 0.2) | bad |
+| normalizedLempelZiv | 4.434306 | n/a | n/a |
+| noveltyScore | 0.137378 | n/a | n/a |
+| behaviorSpaceCoverage | 0.014881 | n/a | n/a |
 | decompressionSlope | 0.000124 | >= 0.04 (warn 0.02) | bad |
 | mobilityReleaseSlope | 0.015309 | >= 0.05 (warn 0) | warn |
 | meanBoardDisplacement | 0.073833 | >= 0.08 (warn 0.06) | warn |
@@ -45,8 +50,13 @@ Games: 64, average plies: 58.890625, terminals: {"homeField":0,"sixStacks":0,"th
 | threefoldDrawShare | 0.359375 | <= 0.3 (warn 0.55) | warn |
 | stagnationWindowRate | 0.489127 | <= 0.15 (warn 0.3) | bad |
 | openingEntropy | 1.584612 | >= 1 (warn 0.5) | good |
+| openingSimpsonDiversity | 0.666504 | n/a | n/a |
+| openingJsDivergence | 0 | n/a | n/a |
 | sourceFamilyOpeningHhi | 0.30542 | <= 0.32 (warn 0.45) | good |
 | uniqueOpeningLineShare | 0.109375 | >= 0.35 (warn 0.2) | bad |
+| normalizedLempelZiv | 3.956064 | n/a | n/a |
+| noveltyScore | 0.075623 | n/a | n/a |
+| behaviorSpaceCoverage | 0.011905 | n/a | n/a |
 | decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
 | mobilityReleaseSlope | 0.018657 | >= 0.05 (warn 0) | warn |
 | meanBoardDisplacement | 0.0746 | >= 0.08 (warn 0.06) | warn |
@@ -67,8 +77,13 @@ Games: 64, average plies: 57.546875, terminals: {"homeField":0,"sixStacks":0,"th
 | threefoldDrawShare | 0.390625 | <= 0.3 (warn 0.55) | warn |
 | stagnationWindowRate | 0.470711 | <= 0.15 (warn 0.3) | bad |
 | openingEntropy | 1.584612 | >= 1 (warn 0.5) | good |
+| openingSimpsonDiversity | 0.666504 | n/a | n/a |
+| openingJsDivergence | 0 | n/a | n/a |
 | sourceFamilyOpeningHhi | 0.304688 | <= 0.32 (warn 0.45) | good |
 | uniqueOpeningLineShare | 0.125 | >= 0.35 (warn 0.2) | bad |
+| normalizedLempelZiv | 4.058621 | n/a | n/a |
+| noveltyScore | 0.019591 | n/a | n/a |
+| behaviorSpaceCoverage | 0.011905 | n/a | n/a |
 | decompressionSlope | 0.000434 | >= 0.04 (warn 0.02) | bad |
 | mobilityReleaseSlope | 0.014751 | >= 0.05 (warn 0) | warn |
 | meanBoardDisplacement | 0.07432 | >= 0.08 (warn 0.06) | warn |

@@ -1,11 +1,12 @@
 import { chooseComputerAction, type AiRiskMode, type AiStrategicIntent, type AiStrategicTag } from '@/ai';
 import { createAiBehaviorProfile } from '@/ai/behavior';
+import { hasCertifiedRiskProgress } from '@/ai/risk';
 import { analyzePosition } from '@/ai/strategy';
 import { getLegalActions, getScoreSummary, applyAction, createInitialState, hashPosition } from '@/domain';
 import type { ActionKind, GameState, Player, RuleConfig, TurnAction, Victory } from '@/domain/model/types';
-import { getCellHeight } from '@/domain/model/board';
-import { allCoords } from '@/domain/model/coordinates';
-import type { AiBehaviorProfileId, AiDifficulty } from '@/shared/types/session';
+import { getCellHeight, getTopChecker } from '@/domain/model/board';
+import { allCoords, getAdjacentCoord, getJumpDirection } from '@/domain/model/coordinates';
+import type { AiBehaviorProfile, AiBehaviorProfileId, AiDifficulty } from '@/shared/types/session';
 
 export type AiTracePly = {
   action: TurnAction;
@@ -13,19 +14,25 @@ export type AiTracePly = {
   actionKind: ActionKind;
   actor: Player;
   afterLegalMoveCount: number;
+  afterPositionKey: string;
   behaviorProfileId: AiBehaviorProfileId | null;
   beforeLegalMoveCount: number;
   boardDisplacement: number;
   completedDepth: number;
   emptyCellCount: number;
+  emptyCellsDelta: number;
   fallbackKind: ReturnType<typeof chooseComputerAction>['fallbackKind'];
+  freezeSwingBonus: number;
   frozenCountChurn: number;
   frozenSingles: Record<Player, number>;
+  homeFieldDelta: number;
   homeFieldProgress: Record<Player, number>;
   isRepetition: boolean;
+  isRiskProgressCertified: boolean;
   isSelfUndo: boolean;
   isTactical: boolean;
   legalRootCandidateCount: number;
+  mobilityDelta: number;
   movedMass: number;
   normalizedWhiteScore: number;
   participationDelta: number;
@@ -33,6 +40,7 @@ export type AiTracePly = {
   repeatedPositionCount: number;
   riskMode: AiRiskMode;
   score: number;
+  sixStackDelta: number;
   sixStackProgress: Record<Player, number>;
   sourceFamily: string;
   stackHeightHistogram: [number, number, number, number];
@@ -52,6 +60,8 @@ export type AiGameTrace = {
   mirrorIndex: 0 | 1;
   pairIndex: number;
   plies: AiTracePly[];
+  sideDifficulties: Record<Player, AiDifficulty>;
+  sideProfiles: Record<Player, AiBehaviorProfileId>;
   seedPair: {
     black: number;
     white: number;
@@ -348,6 +358,61 @@ function countChangedCells(before: GameState, after: GameState): number {
   }
 
   return changed;
+}
+
+function getDerivedFreezeSwingBonus(
+  state: GameState,
+  action: TurnAction,
+  player: Player,
+): number {
+  if (action.type !== 'jumpSequence') {
+    return 0;
+  }
+
+  const landing = action.path[0];
+  const direction = landing ? getJumpDirection(action.source, landing) : null;
+  const jumpedCoord = direction ? getAdjacentCoord(action.source, direction) : null;
+
+  if (!jumpedCoord) {
+    return 0;
+  }
+
+  const jumpedChecker = getTopChecker(state.board, jumpedCoord);
+
+  if (!jumpedChecker) {
+    return 0;
+  }
+
+  if (jumpedChecker.owner === player) {
+    return jumpedChecker.frozen ? 1 : 0;
+  }
+
+  return jumpedChecker.frozen ? 0 : 1;
+}
+
+function deriveCandidateSignals(
+  state: GameState,
+  nextState: GameState,
+  action: TurnAction,
+  actor: Player,
+  beforeLegalMoveCount: number,
+  afterLegalMoveCount: number,
+  beforeProgress: ReturnType<typeof createScoreProgress>,
+  afterProgress: ReturnType<typeof createScoreProgress>,
+): {
+  emptyCellsDelta: number;
+  freezeSwingBonus: number;
+  homeFieldDelta: number;
+  mobilityDelta: number;
+  sixStackDelta: number;
+} {
+  return {
+    emptyCellsDelta: analyzePosition(nextState).emptyCells - analyzePosition(state).emptyCells,
+    freezeSwingBonus: getDerivedFreezeSwingBonus(state, action, actor),
+    homeFieldDelta: afterProgress.homeFieldProgress[actor] - beforeProgress.homeFieldProgress[actor],
+    mobilityDelta: afterLegalMoveCount - beforeLegalMoveCount,
+    sixStackDelta: afterProgress.sixStackProgress[actor] - beforeProgress.sixStackProgress[actor],
+  };
 }
 
 function computeDistributionEntropy(distribution: Record<string, number>): number {
@@ -873,6 +938,9 @@ export function getStableCallsForDifficulty(difficulty: AiDifficulty): number {
 
 export function runAiGameTrace({
   blackSeed,
+  blackBehaviorProfile,
+  blackDifficulty,
+  blackStableCalls,
   difficulty,
   gameIndex,
   initialState,
@@ -881,9 +949,15 @@ export function runAiGameTrace({
   pairIndex,
   ruleConfig,
   stableCalls = getStableCallsForDifficulty(difficulty),
+  whiteBehaviorProfile,
+  whiteDifficulty,
+  whiteStableCalls,
   whiteSeed,
 }: {
   blackSeed: number;
+  blackBehaviorProfile?: AiBehaviorProfile | null;
+  blackDifficulty?: AiDifficulty;
+  blackStableCalls?: number;
   difficulty: AiDifficulty;
   gameIndex: number;
   initialState?: GameState;
@@ -892,10 +966,19 @@ export function runAiGameTrace({
   pairIndex: number;
   ruleConfig: RuleConfig;
   stableCalls?: number;
+  whiteBehaviorProfile?: AiBehaviorProfile | null;
+  whiteDifficulty?: AiDifficulty;
+  whiteStableCalls?: number;
   whiteSeed: number;
 }): AiGameTrace {
   const whiteRandom = createSeededRandom(whiteSeed);
   const blackRandom = createSeededRandom(blackSeed);
+  const effectiveWhiteDifficulty = whiteDifficulty ?? difficulty;
+  const effectiveBlackDifficulty = blackDifficulty ?? difficulty;
+  const effectiveWhiteStableCalls =
+    whiteStableCalls ?? (whiteDifficulty ? getStableCallsForDifficulty(whiteDifficulty) : stableCalls);
+  const effectiveBlackStableCalls =
+    blackStableCalls ?? (blackDifficulty ? getStableCallsForDifficulty(blackDifficulty) : stableCalls);
   let state = initialState
     ? {
         ...initialState,
@@ -907,8 +990,10 @@ export function runAiGameTrace({
       }
     : createInitialState(ruleConfig);
   const plies: AiTracePly[] = [];
-  const whiteBehaviorProfile = createAiBehaviorProfile(`white-${whiteSeed}`);
-  const blackBehaviorProfile = createAiBehaviorProfile(`black-${blackSeed}`);
+  const effectiveWhiteBehaviorProfile =
+    whiteBehaviorProfile ?? createAiBehaviorProfile(`white-${whiteSeed}`);
+  const effectiveBlackBehaviorProfile =
+    blackBehaviorProfile ?? createAiBehaviorProfile(`black-${blackSeed}`);
   const seenPositionCounts: Record<string, number> = {
     [hashPosition(state)]: 1,
   };
@@ -917,10 +1002,16 @@ export function runAiGameTrace({
     const beforeLegalMoveCount = getLegalActions(state, ruleConfig).length;
     const beforeProgress = createScoreProgress(state);
     const beforeHistogram = createStackHeightHistogram(state);
+    const activeBehaviorProfile =
+      state.currentPlayer === 'white' ? effectiveWhiteBehaviorProfile : effectiveBlackBehaviorProfile;
+    const activeDifficulty =
+      state.currentPlayer === 'white' ? effectiveWhiteDifficulty : effectiveBlackDifficulty;
+    const activeStableCalls =
+      state.currentPlayer === 'white' ? effectiveWhiteStableCalls : effectiveBlackStableCalls;
     const result = chooseComputerAction({
-      behaviorProfile: state.currentPlayer === 'white' ? whiteBehaviorProfile : blackBehaviorProfile,
-      difficulty,
-      now: createTimeoutClock(stableCalls, 100_000),
+      behaviorProfile: activeBehaviorProfile,
+      difficulty: activeDifficulty,
+      now: createTimeoutClock(activeStableCalls, 100_000),
       random: state.currentPlayer === 'white' ? whiteRandom : blackRandom,
       ruleConfig,
       state,
@@ -944,6 +1035,31 @@ export function runAiGameTrace({
     const repeatedPositionCount = (seenPositionCounts[nextPositionKey] ?? 0) + 1;
     const whitePerspectiveScore =
       state.currentPlayer === 'white' ? result.score : -result.score;
+    const derivedSignals = deriveCandidateSignals(
+      state,
+      nextState,
+      chosenAction,
+      state.currentPlayer,
+      beforeLegalMoveCount,
+      afterLegalMoveCount,
+      beforeProgress,
+      afterProgress,
+    );
+    const riskProgressCertified = selectedCandidate
+      ? hasCertifiedRiskProgress({
+          emptyCellsDelta: derivedSignals.emptyCellsDelta,
+          freezeSwingBonus: derivedSignals.freezeSwingBonus,
+          homeFieldDelta: derivedSignals.homeFieldDelta,
+          isForced: selectedCandidate.isForced,
+          isRepetition: selectedCandidate.isRepetition,
+          isSelfUndo: selectedCandidate.isSelfUndo,
+          isTactical: selectedCandidate.isTactical,
+          mobilityDelta: derivedSignals.mobilityDelta,
+          repeatedPositionCount: selectedCandidate.repeatedPositionCount,
+          sixStackDelta: derivedSignals.sixStackDelta,
+          tags: selectedCandidate.tags,
+        })
+      : false;
 
     seenPositionCounts[nextPositionKey] = repeatedPositionCount;
 
@@ -953,12 +1069,15 @@ export function runAiGameTrace({
       actionKind: chosenAction.type,
       actor: state.currentPlayer,
       afterLegalMoveCount,
+      afterPositionKey: nextPositionKey,
       behaviorProfileId: result.behaviorProfileId,
       beforeLegalMoveCount,
       boardDisplacement: roundMetric(countChangedCells(state, nextState) / 36),
       completedDepth: result.completedDepth,
       emptyCellCount: analyzePosition(nextState).emptyCells,
+      emptyCellsDelta: derivedSignals.emptyCellsDelta,
       fallbackKind: result.fallbackKind,
+      freezeSwingBonus: derivedSignals.freezeSwingBonus,
       frozenCountChurn: roundMetric(
         Math.abs(
           afterProgress.frozenSingles.white +
@@ -968,11 +1087,14 @@ export function runAiGameTrace({
         ) / 36,
       ),
       frozenSingles: afterProgress.frozenSingles,
+      homeFieldDelta: derivedSignals.homeFieldDelta,
       homeFieldProgress: afterProgress.homeFieldProgress,
       isRepetition: Boolean(selectedCandidate?.isRepetition) || repeatedPositionCount > 1,
+      isRiskProgressCertified: riskProgressCertified,
       isSelfUndo: selectedCandidate?.isSelfUndo ?? false,
       isTactical: selectedCandidate?.isTactical ?? false,
       legalRootCandidateCount: result.rootCandidates.length,
+      mobilityDelta: derivedSignals.mobilityDelta,
       movedMass: selectedCandidate?.movedMass ?? 0,
       normalizedWhiteScore: roundMetric(
         clamp(whitePerspectiveScore / MAX_SCORE_FOR_TENSION, -1, 1),
@@ -982,6 +1104,7 @@ export function runAiGameTrace({
       repeatedPositionCount,
       riskMode: result.riskMode,
       score: result.score,
+      sixStackDelta: derivedSignals.sixStackDelta,
       sixStackProgress: afterProgress.sixStackProgress,
       sourceFamily: selectedCandidate?.sourceFamily ?? actionKey(chosenAction),
       stackHeightHistogram: afterHistogram,
@@ -1009,6 +1132,14 @@ export function runAiGameTrace({
     mirrorIndex,
     pairIndex,
     plies,
+    sideDifficulties: {
+      black: effectiveBlackDifficulty,
+      white: effectiveWhiteDifficulty,
+    },
+    sideProfiles: {
+      black: effectiveBlackBehaviorProfile.id,
+      white: effectiveWhiteBehaviorProfile.id,
+    },
     seedPair: {
       black: blackSeed,
       white: whiteSeed,
