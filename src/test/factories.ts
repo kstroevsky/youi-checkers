@@ -81,10 +81,11 @@ export function createSession(
     };
 
   return {
-    version: 3,
+    version: 4,
     ruleConfig,
     preferences,
     matchSettings: overrides.matchSettings ?? DEFAULT_MATCH_SETTINGS,
+    aiBehaviorProfile: overrides.aiBehaviorProfile ?? null,
     turnLog: overrides.turnLog ?? present.history,
     present: overrides.present ?? createUndoFrame(present),
     past: overrides.past ?? [],

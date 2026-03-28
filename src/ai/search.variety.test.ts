@@ -294,7 +294,9 @@ describe('AI variety guardrails', () => {
     const hard = getSummary('hard');
     const medium = getSummary('medium');
 
-    expect(hard.metrics.repetitionPlyShare).toBeLessThanOrEqual(0.03);
+    // Hard now allows a slightly wider near-best band in risk mode, so keep the
+    // guardrail strict but not brittle around tiny stochastic shifts.
+    expect(hard.metrics.repetitionPlyShare).toBeLessThanOrEqual(0.04);
     expect(hard.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(
       medium.metrics.sourceFamilyOpeningHhi * 1.05 + 1e-6,
     );

@@ -250,7 +250,8 @@ describe('game engine victory and serialization', () => {
 
     expect(serialized).not.toContain('\n');
     expect(prettySerialized).toContain('\n');
-    expect(restored.version).toBe(3);
+    expect(restored.version).toBe(4);
+    expect(restored.aiBehaviorProfile).toBeNull();
     expect(restoredGameState.currentPlayer).toBe('white');
     expect(() => deserializeSession('{"version":1,"present":{}}')).toThrow();
   });
@@ -320,6 +321,67 @@ describe('game engine victory and serialization', () => {
     expect(restored.present.positionCounts).toEqual({
       [currentHash]: 1,
     });
+  });
+
+  it('normalizes v1, v2, and v3 session payloads into canonical v4 sessions', () => {
+    const config = withConfig();
+    const state = createInitialState(config);
+    const v1 = JSON.stringify({
+      version: 1,
+      ruleConfig: config,
+      preferences: {
+        passDeviceOverlayEnabled: true,
+        language: 'russian',
+      },
+      present: state,
+      past: [],
+      future: [],
+    });
+    const v2 = JSON.stringify({
+      version: 2,
+      ruleConfig: config,
+      preferences: {
+        passDeviceOverlayEnabled: true,
+        language: 'russian',
+      },
+      turnLog: state.history,
+      present: undoFrame(state),
+      past: [],
+      future: [],
+    });
+    const v3 = JSON.stringify({
+      version: 3,
+      ruleConfig: config,
+      preferences: {
+        passDeviceOverlayEnabled: true,
+        language: 'russian',
+      },
+      matchSettings: {
+        opponentMode: 'computer',
+        humanPlayer: 'black',
+        aiDifficulty: 'hard',
+      },
+      turnLog: state.history,
+      present: undoFrame(state),
+      past: [],
+      future: [],
+    });
+
+    const restoredV1 = deserializeSession(v1);
+    const restoredV2 = deserializeSession(v2);
+    const restoredV3 = deserializeSession(v3);
+
+    expect(restoredV1.version).toBe(4);
+    expect(restoredV1.aiBehaviorProfile).toBeNull();
+    expect(restoredV2.version).toBe(4);
+    expect(restoredV2.aiBehaviorProfile).toBeNull();
+    expect(restoredV3.version).toBe(4);
+    expect(restoredV3.matchSettings).toEqual({
+      opponentMode: 'computer',
+      humanPlayer: 'black',
+      aiDifficulty: 'hard',
+    });
+    expect(restoredV3.aiBehaviorProfile).toBeNull();
   });
 
   it('restores shared-turn-log sessions with history cursor and position counts intact', () => {

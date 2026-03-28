@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
+import { createAiBehaviorProfile } from '../src/ai/behavior';
 import { chooseComputerAction } from '../src/ai/search/rootSearch';
 import { encodeActionIndex } from '../src/ai/model/actionSpace';
 import { encodeStateForModel } from '../src/ai/model/encoding';
@@ -175,10 +176,14 @@ async function main() {
   for (let gameIndex = 0; gameIndex < games; gameIndex += 1) {
     let state = createInitialState(ruleConfig);
     const random = createSeededRandom(gameIndex + 1);
+    const whiteBehaviorProfile = createAiBehaviorProfile(`selfplay-white-${gameIndex + 1}`);
+    const blackBehaviorProfile = createAiBehaviorProfile(`selfplay-black-${gameIndex + 1}`);
     const pending: PendingSample[] = [];
 
     for (let turn = 0; turn < maxTurns && state.status !== 'gameOver'; turn += 1) {
       const result = chooseComputerAction({
+        behaviorProfile:
+          state.currentPlayer === 'white' ? whiteBehaviorProfile : blackBehaviorProfile,
         difficulty,
         random,
         ruleConfig,

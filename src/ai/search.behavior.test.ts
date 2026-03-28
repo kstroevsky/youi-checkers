@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { AI_DIFFICULTY_PRESETS, chooseComputerAction, orderMoves } from '@/ai';
+import { createAiBehaviorProfile, getBehaviorGeometryBias } from '@/ai/behavior';
 import { selectCandidateAction } from '@/ai/search/result';
 import type { RootRankedAction } from '@/ai/search/types';
 import { applyAction, createInitialState, getLegalActions, hashPosition } from '@/domain';
@@ -19,6 +20,8 @@ describe('computer opponent search', () => {
   it('exposes the shipped difficulty presets', () => {
     expect(AI_DIFFICULTY_PRESETS).toEqual({
       easy: {
+        drawAversionAhead: 220,
+        drawAversionBehindRelief: 70,
         familyVarietyWeight: 30,
         frontierWidthWeight: 20,
         timeBudgetMs: 120,
@@ -28,14 +31,27 @@ describe('computer opponent search', () => {
         policyPriorWeight: 80,
         quietMoveLimit: 8,
         repetitionPenalty: 120,
+        riskBandWidening: 0.08,
+        riskLoopPenalty: 260,
+        riskPolicyPriorScale: 0.45,
+        riskProgressBonus: 420,
+        riskTacticalBonus: 280,
         selfUndoPenalty: 220,
         rootCandidateLimit: 4,
         sourceReusePenalty: 70,
+        stagnationDisplacementWeight: 16,
+        stagnationMobilityWeight: 14,
+        stagnationProgressWeight: 26,
+        stagnationRepetitionWeight: 20,
+        stagnationSelfUndoWeight: 24,
+        stagnationThreshold: 0.42,
         varietyTemperature: 0.35,
         varietyThreshold: 0.08,
         varietyTopCount: 3,
       },
       medium: {
+        drawAversionAhead: 180,
+        drawAversionBehindRelief: 60,
         familyVarietyWeight: 42,
         frontierWidthWeight: 28,
         timeBudgetMs: 400,
@@ -45,14 +61,27 @@ describe('computer opponent search', () => {
         policyPriorWeight: 140,
         quietMoveLimit: 16,
         repetitionPenalty: 180,
+        riskBandWidening: 0.06,
+        riskLoopPenalty: 220,
+        riskPolicyPriorScale: 0.6,
+        riskProgressBonus: 360,
+        riskTacticalBonus: 240,
         selfUndoPenalty: 320,
         rootCandidateLimit: 5,
         sourceReusePenalty: 100,
+        stagnationDisplacementWeight: 15,
+        stagnationMobilityWeight: 14,
+        stagnationProgressWeight: 24,
+        stagnationRepetitionWeight: 20,
+        stagnationSelfUndoWeight: 20,
+        stagnationThreshold: 0.46,
         varietyTemperature: 0.22,
         varietyThreshold: 0.03,
         varietyTopCount: 2,
       },
       hard: {
+        drawAversionAhead: 140,
+        drawAversionBehindRelief: 50,
         familyVarietyWeight: 56,
         frontierWidthWeight: 36,
         timeBudgetMs: 1200,
@@ -61,15 +90,44 @@ describe('computer opponent search', () => {
         participationWindow: 3,
         policyPriorWeight: 220,
         quietMoveLimit: 28,
-        repetitionPenalty: 240,
-        selfUndoPenalty: 420,
+        repetitionPenalty: 300,
+        riskBandWidening: 0.04,
+        riskLoopPenalty: 240,
+        riskPolicyPriorScale: 0.72,
+        riskProgressBonus: 280,
+        riskTacticalBonus: 200,
+        selfUndoPenalty: 460,
         rootCandidateLimit: 6,
         sourceReusePenalty: 140,
+        stagnationDisplacementWeight: 14,
+        stagnationMobilityWeight: 14,
+        stagnationProgressWeight: 22,
+        stagnationRepetitionWeight: 18,
+        stagnationSelfUndoWeight: 18,
+        stagnationThreshold: 0.5,
         varietyTemperature: 0.15,
         varietyThreshold: 0.015,
         varietyTopCount: 3,
       },
     });
+  });
+
+  it('surfaces the hidden behavior profile and late risk mode in search results', () => {
+    const behaviorProfile = createAiBehaviorProfile('seed-a');
+    const result = chooseComputerAction({
+      behaviorProfile,
+      difficulty: 'easy',
+      now: createTickingClock(10),
+      random: () => 0,
+      ruleConfig: withConfig(),
+      state: {
+        ...createInitialState(),
+        moveNumber: 70,
+      },
+    });
+
+    expect(result.behaviorProfileId).toBe(behaviorProfile.id);
+    expect(result.riskMode).toBe('late');
   });
 
   it('always returns a legal move on sampled runtime states', () => {
@@ -398,46 +456,64 @@ describe('computer opponent search', () => {
       const ranked: RootRankedAction[] = [
         {
           action: { type: 'climbOne', source: 'A1', target: 'B2' } as const,
+          emptyCellsDelta: 1,
+          freezeSwingBonus: 0,
+          homeFieldDelta: 0.05,
           intent: 'home' as const,
           intentDelta: 80,
           isForced: false,
           isRepetition: false,
           isSelfUndo: false,
           isTactical: false,
+          mobilityDelta: 1,
           movedMass: 1,
           participationDelta: 40,
           policyPrior: 0.2,
+          repeatedPositionCount: 1,
           score: 500,
+          sixStackDelta: 0,
           sourceFamily: 'white-001',
           tags: ['advanceMass'],
         },
         {
           action: { type: 'climbOne', source: 'B1', target: 'C2' } as const,
+          emptyCellsDelta: 2,
+          freezeSwingBonus: 0,
+          homeFieldDelta: 0,
           intent: 'hybrid' as const,
           intentDelta: 65,
           isForced: false,
           isRepetition: false,
           isSelfUndo: false,
           isTactical: false,
+          mobilityDelta: 2,
           movedMass: 1,
           participationDelta: 80,
           policyPrior: 0.1,
+          repeatedPositionCount: 1,
           score: 495,
+          sixStackDelta: 0,
           sourceFamily: 'white-002',
           tags: ['openLane'],
         },
         {
           action: { type: 'climbOne', source: 'C1', target: 'D2' } as const,
+          emptyCellsDelta: 0,
+          freezeSwingBonus: 0,
+          homeFieldDelta: 0,
           intent: 'sixStack' as const,
           intentDelta: 60,
           isForced: false,
           isRepetition: false,
           isSelfUndo: false,
           isTactical: false,
+          mobilityDelta: 0,
           movedMass: 1,
           participationDelta: 60,
           policyPrior: 0.05,
+          repeatedPositionCount: 1,
           score: 492,
+          sixStackDelta: 0.08,
           sourceFamily: 'white-003',
           tags: ['frontBuild'],
         },
@@ -449,5 +525,247 @@ describe('computer opponent search', () => {
     } finally {
       Object.assign(AI_DIFFICULTY_PRESETS.hard, originalHardPreset);
     }
+  });
+
+  it('only reranks risk-mode candidates when they create certified progress', () => {
+    const ranked: RootRankedAction[] = [
+      {
+        action: { type: 'climbOne', source: 'A1', target: 'B2' } as const,
+        emptyCellsDelta: 0,
+        freezeSwingBonus: 0,
+        homeFieldDelta: 0,
+        intent: 'hybrid' as const,
+        intentDelta: 40,
+        isForced: false,
+        isRepetition: false,
+        isSelfUndo: false,
+        isTactical: false,
+        mobilityDelta: 0,
+        movedMass: 1,
+        participationDelta: 30,
+        policyPrior: 0.15,
+        repeatedPositionCount: 1,
+        score: 500,
+        sixStackDelta: 0,
+        sourceFamily: 'white-001',
+        tags: ['advanceMass'],
+      },
+      {
+        action: { type: 'climbOne', source: 'B1', target: 'C2' } as const,
+        emptyCellsDelta: 2,
+        freezeSwingBonus: 0,
+        homeFieldDelta: 0,
+        intent: 'hybrid' as const,
+        intentDelta: 35,
+        isForced: false,
+        isRepetition: false,
+        isSelfUndo: false,
+        isTactical: false,
+        mobilityDelta: 3,
+        movedMass: 1,
+        participationDelta: 25,
+        policyPrior: 0.05,
+        repeatedPositionCount: 1,
+        score: 496,
+        sixStackDelta: 0,
+        sourceFamily: 'white-002',
+        tags: ['decompress', 'openLane'],
+      },
+    ];
+
+    expect(
+      actionKey(
+        selectCandidateAction(ranked, AI_DIFFICULTY_PRESETS.hard, () => 0.6, {
+          riskMode: 'stagnation',
+        }).action,
+      ),
+    ).toBe(actionKey(ranked[1].action));
+  });
+
+  it('keeps the search best move when risk mode only sees stagnant near-equal options', () => {
+    const ranked: RootRankedAction[] = [
+      {
+        action: { type: 'climbOne', source: 'A1', target: 'B2' } as const,
+        emptyCellsDelta: 0,
+        freezeSwingBonus: 0,
+        homeFieldDelta: 0,
+        intent: 'hybrid' as const,
+        intentDelta: 40,
+        isForced: false,
+        isRepetition: false,
+        isSelfUndo: false,
+        isTactical: false,
+        mobilityDelta: 0,
+        movedMass: 1,
+        participationDelta: 30,
+        policyPrior: 0.15,
+        repeatedPositionCount: 1,
+        score: 500,
+        sixStackDelta: 0,
+        sourceFamily: 'white-001',
+        tags: ['advanceMass'],
+      },
+      {
+        action: { type: 'climbOne', source: 'B1', target: 'C2' } as const,
+        emptyCellsDelta: 0,
+        freezeSwingBonus: 0,
+        homeFieldDelta: 0,
+        intent: 'hybrid' as const,
+        intentDelta: 38,
+        isForced: false,
+        isRepetition: false,
+        isSelfUndo: false,
+        isTactical: false,
+        mobilityDelta: 1,
+        movedMass: 1,
+        participationDelta: 28,
+        policyPrior: 0.12,
+        repeatedPositionCount: 1,
+        score: 498,
+        sixStackDelta: 0,
+        sourceFamily: 'white-002',
+        tags: ['advanceMass'],
+      },
+    ];
+
+    expect(
+      actionKey(
+        selectCandidateAction(ranked, AI_DIFFICULTY_PRESETS.hard, () => 0.99, {
+          riskMode: 'stagnation',
+        }).action,
+      ),
+    ).toBe(actionKey(ranked[0].action));
+  });
+
+  it('lets hidden personas separate near-equal opening-style candidates', () => {
+    const ranked: RootRankedAction[] = [
+      {
+        action: { type: 'climbOne', source: 'A1', target: 'B2' } as const,
+        emptyCellsDelta: 2,
+        freezeSwingBonus: 0,
+        homeFieldDelta: 0,
+        intent: 'hybrid' as const,
+        intentDelta: 40,
+        isForced: false,
+        isRepetition: false,
+        isSelfUndo: false,
+        isTactical: false,
+        mobilityDelta: 3,
+        movedMass: 1,
+        participationDelta: 30,
+        policyPrior: 0.1,
+        repeatedPositionCount: 1,
+        score: 500,
+        sixStackDelta: 0,
+        sourceFamily: 'white-001',
+        tags: ['decompress', 'openLane'],
+      },
+      {
+        action: { type: 'climbOne', source: 'B1', target: 'C2' } as const,
+        emptyCellsDelta: 0,
+        freezeSwingBonus: 0,
+        homeFieldDelta: 0,
+        intent: 'sixStack' as const,
+        intentDelta: 40,
+        isForced: false,
+        isRepetition: false,
+        isSelfUndo: false,
+        isTactical: false,
+        mobilityDelta: 1,
+        movedMass: 1,
+        participationDelta: 30,
+        policyPrior: 0.1,
+        repeatedPositionCount: 1,
+        score: 500,
+        sixStackDelta: 0.07,
+        sourceFamily: 'white-002',
+        tags: ['frontBuild'],
+      },
+    ];
+
+    const expanderChoice = selectCandidateAction(ranked, AI_DIFFICULTY_PRESETS.hard, () => 0.5, {
+      behaviorProfileId: 'expander',
+      riskMode: 'normal',
+    });
+    const builderChoice = selectCandidateAction(ranked, AI_DIFFICULTY_PRESETS.hard, () => 0.5, {
+      behaviorProfileId: 'builder',
+      riskMode: 'normal',
+    });
+
+    expect(actionKey(expanderChoice.action)).not.toBe(actionKey(builderChoice.action));
+  });
+
+  it('reranks non-forced tactical candidates inside the low-confidence risk band', () => {
+    const ranked: RootRankedAction[] = [
+      {
+        action: { type: 'jumpSequence', source: 'C3', path: ['E5'] } as const,
+        emptyCellsDelta: 0,
+        freezeSwingBonus: 0,
+        homeFieldDelta: 0.02,
+        intent: 'hybrid' as const,
+        intentDelta: 30,
+        isForced: false,
+        isRepetition: false,
+        isSelfUndo: false,
+        isTactical: true,
+        mobilityDelta: 2,
+        movedMass: 1,
+        participationDelta: 30,
+        policyPrior: 0.1,
+        repeatedPositionCount: 1,
+        score: 1_000,
+        sixStackDelta: 0,
+        sourceFamily: 'white-001',
+        tags: ['advanceMass', 'openLane'],
+      },
+      {
+        action: { type: 'jumpSequence', source: 'B3', path: ['D1'] } as const,
+        emptyCellsDelta: 1,
+        freezeSwingBonus: 1,
+        homeFieldDelta: 0,
+        intent: 'hybrid' as const,
+        intentDelta: 25,
+        isForced: false,
+        isRepetition: false,
+        isSelfUndo: false,
+        isTactical: true,
+        mobilityDelta: 3,
+        movedMass: 1,
+        participationDelta: 24,
+        policyPrior: 0.05,
+        repeatedPositionCount: 1,
+        score: 700,
+        sixStackDelta: 0,
+        sourceFamily: 'white-002',
+        tags: ['decompress', 'rescue'],
+      },
+    ];
+
+    expect(
+      actionKey(
+        selectCandidateAction(ranked, AI_DIFFICULTY_PRESETS.hard, () => 0.5, {
+          bandBoost: 4_000,
+          riskMode: 'stagnation',
+        }).action,
+      ),
+    ).toBe(actionKey(ranked[1].action));
+  });
+
+  it('exposes a geometry bias so personas can split symmetric openings', () => {
+    expect(
+      getBehaviorGeometryBias('expander', { type: 'climbOne', source: 'C3', target: 'B4' }),
+    ).toBeGreaterThan(
+      getBehaviorGeometryBias('expander', { type: 'climbOne', source: 'A3', target: 'A4' }),
+    );
+    expect(
+      getBehaviorGeometryBias('hunter', { type: 'climbOne', source: 'B3', target: 'B4' }),
+    ).toBeGreaterThan(
+      getBehaviorGeometryBias('hunter', { type: 'climbOne', source: 'C3', target: 'B4' }),
+    );
+    expect(
+      getBehaviorGeometryBias('builder', { type: 'climbOne', source: 'A3', target: 'A4' }),
+    ).toBeGreaterThan(
+      getBehaviorGeometryBias('builder', { type: 'climbOne', source: 'C3', target: 'B4' }),
+    );
   });
 });

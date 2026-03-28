@@ -1,10 +1,11 @@
-import { chooseComputerAction, type AiStrategicIntent, type AiStrategicTag } from '@/ai';
+import { chooseComputerAction, type AiRiskMode, type AiStrategicIntent, type AiStrategicTag } from '@/ai';
+import { createAiBehaviorProfile } from '@/ai/behavior';
 import { analyzePosition } from '@/ai/strategy';
 import { getLegalActions, getScoreSummary, applyAction, createInitialState, hashPosition } from '@/domain';
 import type { ActionKind, GameState, Player, RuleConfig, TurnAction, Victory } from '@/domain/model/types';
 import { getCellHeight } from '@/domain/model/board';
 import { allCoords } from '@/domain/model/coordinates';
-import type { AiDifficulty } from '@/shared/types/session';
+import type { AiBehaviorProfileId, AiDifficulty } from '@/shared/types/session';
 
 export type AiTracePly = {
   action: TurnAction;
@@ -12,6 +13,7 @@ export type AiTracePly = {
   actionKind: ActionKind;
   actor: Player;
   afterLegalMoveCount: number;
+  behaviorProfileId: AiBehaviorProfileId | null;
   beforeLegalMoveCount: number;
   boardDisplacement: number;
   completedDepth: number;
@@ -29,6 +31,7 @@ export type AiTracePly = {
   participationDelta: number;
   ply: number;
   repeatedPositionCount: number;
+  riskMode: AiRiskMode;
   score: number;
   sixStackProgress: Record<Player, number>;
   sourceFamily: string;
@@ -904,6 +907,8 @@ export function runAiGameTrace({
       }
     : createInitialState(ruleConfig);
   const plies: AiTracePly[] = [];
+  const whiteBehaviorProfile = createAiBehaviorProfile(`white-${whiteSeed}`);
+  const blackBehaviorProfile = createAiBehaviorProfile(`black-${blackSeed}`);
   const seenPositionCounts: Record<string, number> = {
     [hashPosition(state)]: 1,
   };
@@ -913,6 +918,7 @@ export function runAiGameTrace({
     const beforeProgress = createScoreProgress(state);
     const beforeHistogram = createStackHeightHistogram(state);
     const result = chooseComputerAction({
+      behaviorProfile: state.currentPlayer === 'white' ? whiteBehaviorProfile : blackBehaviorProfile,
       difficulty,
       now: createTimeoutClock(stableCalls, 100_000),
       random: state.currentPlayer === 'white' ? whiteRandom : blackRandom,
@@ -947,6 +953,7 @@ export function runAiGameTrace({
       actionKind: chosenAction.type,
       actor: state.currentPlayer,
       afterLegalMoveCount,
+      behaviorProfileId: result.behaviorProfileId,
       beforeLegalMoveCount,
       boardDisplacement: roundMetric(countChangedCells(state, nextState) / 36),
       completedDepth: result.completedDepth,
@@ -973,6 +980,7 @@ export function runAiGameTrace({
       participationDelta: selectedCandidate?.participationDelta ?? 0,
       ply: plyIndex + 1,
       repeatedPositionCount,
+      riskMode: result.riskMode,
       score: result.score,
       sixStackProgress: afterProgress.sixStackProgress,
       sourceFamily: selectedCandidate?.sourceFamily ?? actionKey(chosenAction),

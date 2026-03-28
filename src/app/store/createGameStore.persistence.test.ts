@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { createGameStore } from '@/app/store/createGameStore';
+import { createAiBehaviorProfile } from '@/ai/behavior';
 import {
   createCompactSession,
   createPersistedSessionEnvelope,
@@ -122,7 +123,7 @@ describe('createGameStore persistence', () => {
     const initialExport = store.getState().exportBuffer;
 
     expect(initialExport).toContain('\n');
-    expect(initialExport).toContain('"version": 3');
+    expect(initialExport).toContain('"version": 4');
 
     store.getState().setImportBuffer('{"draft": true}');
     expect(store.getState().exportBuffer).toBe(initialExport);
@@ -133,6 +134,33 @@ describe('createGameStore persistence', () => {
     store.getState().refreshExportBuffer();
 
     expect(store.getState().exportBuffer).not.toBe(initialExport);
+  });
+
+  it('persists and restores the hidden AI behavior profile for computer matches', async () => {
+    const storage = createMemoryStorage();
+    const store = createGameStore({
+      createSessionId: () => 'seed-a',
+      storage,
+    });
+
+    store.getState().startNewGame({
+      opponentMode: 'computer',
+      humanPlayer: 'white',
+      aiDifficulty: 'medium',
+    });
+
+    const expectedProfile = createAiBehaviorProfile('seed-a');
+    const persisted = storage.getItem(SESSION_STORAGE_KEY);
+    const envelope = persisted ? deserializePersistedSessionEnvelope(persisted) : null;
+
+    expect(store.getState().aiBehaviorProfile).toEqual(expectedProfile);
+    expect(envelope?.session.aiBehaviorProfile).toEqual(expectedProfile);
+
+    const restoredStore = createGameStore({ storage });
+
+    await Promise.resolve();
+
+    expect(restoredStore.getState().aiBehaviorProfile).toEqual(expectedProfile);
   });
 
   it('hydrates full archived history over a compact local session', async () => {

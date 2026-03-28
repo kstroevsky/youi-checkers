@@ -12,11 +12,14 @@ import { withConfig } from '@/test/factories';
 
 function createSearchContext(): SearchContext {
   return {
+    behaviorProfile: null,
     continuationScores: new Map<string, number>(),
     deadline: 0,
     diagnostics: {
       aspirationResearches: 0,
       betaCutoffs: 0,
+      drawAversionApplications: 0,
+      lateRiskTriggers: 0,
       orderedFallbacks: 0,
       participationPenalties: 0,
       policyPriorHits: 0,
@@ -25,6 +28,7 @@ function createSearchContext(): SearchContext {
       repetitionPenalties: 0,
       selfUndoPenalties: 0,
       sourceFamilyCollisions: 0,
+      stagnationRiskTriggers: 0,
       transpositionHits: 0,
     },
     evaluatedNodes: 0,
@@ -34,6 +38,7 @@ function createSearchContext(): SearchContext {
     policyPriors: null,
     preset: AI_DIFFICULTY_PRESETS.hard,
     pvMoveByDepth: new Map<number, TurnAction>(),
+    riskMode: 'normal',
     rootParticipationState: {} as ParticipationState,
     rootPlayer: 'white',
     rootPreviousOwnAction: {
