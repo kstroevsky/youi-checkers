@@ -487,7 +487,11 @@ function addTag(tags: Set<AiStrategicTag>, condition: boolean, tag: AiStrategicT
 
 /** Returns the cached structural interpretation of a position, building it on demand. */
 export function analyzePosition(state: EngineState): PositionAnalysis {
-  const key = hashPosition(state);
+  return analyzePositionByKey(state, hashPosition(state));
+}
+
+/** Reuses a caller-supplied position key when structural analysis is already hash-addressed. */
+export function analyzePositionByKey(state: EngineState, key: string): PositionAnalysis {
   const cached = analysisCache.get(key);
 
   if (cached) {
@@ -497,12 +501,20 @@ export function analyzePosition(state: EngineState): PositionAnalysis {
   return rememberAnalysis(key, buildAnalysis(state));
 }
 
+/** Projects one cached structural analysis into a concrete strategic plan classification. */
+export function getStrategicIntentFromAnalysis(
+  analysis: PositionAnalysis,
+  player: Player,
+): IntentProfile {
+  return buildIntentProfile(analysis, player);
+}
+
 /** Classifies which win plan the player is currently best aligned with. */
 export function getStrategicIntent(
   state: EngineState,
   player: Player,
 ): IntentProfile {
-  return buildIntentProfile(analyzePosition(state), player);
+  return getStrategicIntentFromAnalysis(analyzePosition(state), player);
 }
 
 /**
@@ -512,10 +524,17 @@ export function getStrategicIntent(
  * handles short tactical forcing lines, while this layer explains long-horizon shape.
  */
 export function getStrategicScore(state: EngineState, player: Player): number {
+  return getStrategicScoreFromAnalysis(analyzePosition(state), player);
+}
+
+/** Computes the scalar strategic score directly from a caller-supplied analysis snapshot. */
+export function getStrategicScoreFromAnalysis(
+  analysis: PositionAnalysis,
+  player: Player,
+): number {
   const opponent = getOpponent(player);
-  const analysis = analyzePosition(state);
-  const ownProfile = buildIntentProfile(analysis, player);
-  const opponentProfile = buildIntentProfile(analysis, opponent);
+  const ownProfile = getStrategicIntentFromAnalysis(analysis, player);
+  const opponentProfile = getStrategicIntentFromAnalysis(analysis, opponent);
   const own = analysis.players[player];
   const other = analysis.players[opponent];
 
@@ -541,8 +560,25 @@ export function getActionStrategicProfile(
   nextState: EngineState,
   player: Player,
 ): ActionStrategicProfile {
-  const baseAnalysis = analyzePosition(state);
-  const nextAnalysis = analyzePosition(nextState);
+  return getActionStrategicProfileFromAnalysis(
+    state,
+    action,
+    nextState,
+    player,
+    analyzePosition(state),
+    analyzePosition(nextState),
+  );
+}
+
+/** Reuses already-materialized analyses when move ordering inspects many sibling actions. */
+export function getActionStrategicProfileFromAnalysis(
+  state: EngineState,
+  action: TurnAction,
+  nextState: EngineState,
+  player: Player,
+  baseAnalysis: PositionAnalysis,
+  nextAnalysis: PositionAnalysis,
+): ActionStrategicProfile {
   const baseIntent = buildIntentProfile(baseAnalysis, player);
   const nextIntent = buildIntentProfile(nextAnalysis, player);
   const target = targetCoord(action);

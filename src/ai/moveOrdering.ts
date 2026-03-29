@@ -1,6 +1,5 @@
 import {
   advanceEngineState,
-  getLegalActions,
   getScoreSummary,
   hashPosition,
   type EngineState,
@@ -11,18 +10,22 @@ import {
 import { getBehaviorActionBias, getBehaviorGeometryBias } from '@/ai/behavior';
 import { evaluateStructureState } from '@/ai/evaluation';
 import {
-  getActionParticipationProfile,
+  getCachedLegalActions,
+  getPerfAnalysis,
+  getPerfEmptyCellCount,
+  getPerfLegalActionCount,
+  getPerfProgressSnapshot,
+  getStatePerfBundle,
+  type SearchPerfCache,
+} from '@/ai/perf';
+import {
+  getActionParticipationProfileFromAnalysis,
   type ParticipationState,
   type SourceRegion,
 } from '@/ai/participation';
+import { getRiskCandidateAdjustment, getTiebreakPressureProfile } from '@/ai/risk';
 import {
-  createProgressSnapshot,
-  getEmptyCellCount,
-  getRiskCandidateAdjustment,
-  getTiebreakPressureProfile,
-} from '@/ai/risk';
-import {
-  getActionStrategicProfile,
+  getActionStrategicProfileFromAnalysis,
   getNoveltyPenalty,
 } from '@/ai/strategy';
 import { actionKey, throwIfTimedOut } from '@/ai/search/shared';
@@ -86,6 +89,7 @@ export type OrderMovesOptions = {
   killerMoves?: TurnAction[];
   now?: () => number;
   participationState?: ParticipationState | null;
+  perfCache?: SearchPerfCache | null;
   policyPriors?: Record<string, number> | null;
   previousStrategicTags?: AiStrategicTag[] | null;
   previousActionKey?: string | null;
@@ -124,6 +128,10 @@ function isSameAction(left: TurnAction | null | undefined, right: TurnAction): b
 /** Repetition pressure is evaluated on the post-move state so drawish lines sink in ordering. */
 function getRepeatedPositionCount(state: EngineState): number {
   return state.positionCounts[hashPosition(state)] ?? 0;
+}
+
+function getRepeatedPositionCountByKey(state: EngineState, positionKey: string): number {
+  return state.positionCounts[positionKey] ?? 0;
 }
 
 /**
@@ -353,6 +361,7 @@ export function precomputeOrderedActions(
     grandparentPositionKey = null,
     now,
     participationState = null,
+    perfCache = null,
     policyPriors = null,
     previousStrategicTags = null,
     policyPriorWeight = preset.policyPriorWeight,
@@ -369,6 +378,7 @@ export function precomputeOrderedActions(
     | 'grandparentPositionKey'
     | 'now'
     | 'participationState'
+    | 'perfCache'
     | 'policyPriors'
     | 'policyPriorWeight'
     | 'previousStrategicTags'
@@ -378,38 +388,44 @@ export function precomputeOrderedActions(
     | 'selfUndoPenalty'
   > = {},
 ): PrecomputedOrderedAction[] {
+  const basePerfBundle = getStatePerfBundle(state, ruleConfig, perfCache);
   const actor = state.currentPlayer;
-  const candidateActions = actions ?? getLegalActions(state, ruleConfig);
+  const candidateActions = actions ?? getCachedLegalActions(state, ruleConfig, basePerfBundle.positionKey);
   const computeRiskSignals =
     riskMode !== 'normal' || candidateActions.some((action) => action.type === 'manualUnfreeze');
   const baseStructureScore = evaluateStructureState(state, actor, ruleConfig, {
     behaviorProfile,
     diagnostics,
+    perfBundle: basePerfBundle,
     preset,
     riskMode,
   });
-  const baseProgress = computeRiskSignals ? createProgressSnapshot(state) : null;
-  const baseLegalMoveCount = computeRiskSignals ? getLegalActions(state, ruleConfig).length : 0;
-  const baseEmptyCells = computeRiskSignals ? getEmptyCellCount(state) : 0;
+  const baseProgress = computeRiskSignals ? getPerfProgressSnapshot(basePerfBundle, state) : null;
+  const baseLegalMoveCount = computeRiskSignals
+    ? getPerfLegalActionCount(basePerfBundle, state, ruleConfig)
+    : 0;
+  const baseEmptyCells = computeRiskSignals ? getPerfEmptyCellCount(basePerfBundle, state) : 0;
   return candidateActions.map<PrecomputedOrderedAction>((action) => {
     throwIfMoveOrderingTimedOut(deadline, now);
 
     const nextState = advanceEngineState(state, action, ruleConfig);
-    const nextPositionKey = hashPosition(nextState);
+    const nextPerfBundle = getStatePerfBundle(nextState, ruleConfig, perfCache);
+    const nextPositionKey = nextPerfBundle.positionKey;
     const winsImmediately =
       nextState.status === 'gameOver' &&
       'winner' in nextState.victory &&
       nextState.victory.winner === actor;
-    const repeatedPositionCount = getRepeatedPositionCount(nextState);
+    const repeatedPositionCount = getRepeatedPositionCountByKey(nextState, nextPositionKey);
     const frontRowGrowth = growsFrontRowStack(state, action, nextState, actor);
     const homeProgress = improvesHomeField(action, actor);
     const freezeSwingBonus = getFreezeSwingBonus(state, action, actor);
-    const nextProgress = computeRiskSignals ? createProgressSnapshot(nextState) : null;
+    const nextProgress = computeRiskSignals ? getPerfProgressSnapshot(nextPerfBundle, nextState) : null;
     const mobilityDelta = computeRiskSignals
-      ? (nextState.status === 'gameOver' ? 0 : getLegalActions(nextState, ruleConfig).length) -
-        baseLegalMoveCount
+      ? getPerfLegalActionCount(nextPerfBundle, nextState, ruleConfig) - baseLegalMoveCount
       : 0;
-    const emptyCellsDelta = computeRiskSignals ? getEmptyCellCount(nextState) - baseEmptyCells : 0;
+    const emptyCellsDelta = computeRiskSignals
+      ? getPerfEmptyCellCount(nextPerfBundle, nextState) - baseEmptyCells
+      : 0;
     const homeFieldDelta =
       computeRiskSignals && nextProgress && baseProgress
         ? nextProgress.homeFieldProgress[actor] - baseProgress.homeFieldProgress[actor]
@@ -418,16 +434,19 @@ export function precomputeOrderedActions(
       computeRiskSignals && nextProgress && baseProgress
         ? nextProgress.sixStackProgress[actor] - baseProgress.sixStackProgress[actor]
         : 0;
-    const strategicProfile = getActionStrategicProfile(
+    const strategicProfile = getActionStrategicProfileFromAnalysis(
       state,
       action,
       nextState,
       actor,
+      getPerfAnalysis(basePerfBundle, state),
+      getPerfAnalysis(nextPerfBundle, nextState),
     );
     const staticPromise =
       evaluateStructureState(nextState, actor, ruleConfig, {
         behaviorProfile,
         diagnostics,
+        perfBundle: nextPerfBundle,
         preset,
         riskMode,
       }) - baseStructureScore;
@@ -465,8 +484,8 @@ export function precomputeOrderedActions(
       repeatedPositionCount,
       sixStackDelta,
       tags: strategicProfile.tags,
-    });
-    const participationProfile = getActionParticipationProfile(
+    }, nextPerfBundle);
+    const participationProfile = getActionParticipationProfileFromAnalysis(
       state,
       action,
       nextState,
@@ -477,6 +496,8 @@ export function precomputeOrderedActions(
         isTactical,
         winsImmediately,
       },
+      getPerfAnalysis(basePerfBundle, state),
+      getPerfAnalysis(nextPerfBundle, nextState),
     );
     const noveltyPenalty = getNoveltyPenalty(strategicProfile.tags, previousStrategicTags);
     let staticScore = 0;

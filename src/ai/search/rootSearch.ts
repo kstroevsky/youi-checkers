@@ -5,12 +5,17 @@ import {
   type OrderedAction,
   type PrecomputedOrderedAction,
 } from '@/ai/moveOrdering';
+import {
+  createSearchPerfCache,
+  getCachedLegalActions,
+  getPerfStrategicIntent,
+  getStatePerfBundle,
+} from '@/ai/perf';
 import { buildParticipationState } from '@/ai/participation';
 import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
 import { getRiskProfile, hasCertifiedRiskProgress } from '@/ai/risk';
-import { getStrategicIntent } from '@/ai/strategy';
 import type { AiSearchResult, ChooseComputerActionRequest } from '@/ai/types';
-import { getLegalActions, type TurnAction } from '@/domain';
+import type { TurnAction } from '@/domain';
 
 import {
   getSelectiveExtension,
@@ -182,8 +187,10 @@ export function chooseComputerAction({
   const preset = AI_DIFFICULTY_PRESETS[difficulty];
   const startedAt = now();
   const deadline = startedAt + preset.timeBudgetMs;
-  const legalActions = getLegalActions(state, ruleConfig);
-  const inferredIntent = getStrategicIntent(state, state.currentPlayer).intent;
+  const perfCache = createSearchPerfCache();
+  const rootPerfBundle = getStatePerfBundle(state, ruleConfig, perfCache);
+  const legalActions = getCachedLegalActions(state, ruleConfig, rootPerfBundle.positionKey);
+  const inferredIntent = getPerfStrategicIntent(rootPerfBundle, state, state.currentPlayer).intent;
   const diagnostics = createSearchDiagnostics();
   const riskProfile = getRiskProfile(state, ruleConfig, preset, diagnostics);
   const policyPriors = modelGuidance?.actionPriors ?? null;
@@ -217,6 +224,7 @@ export function chooseComputerAction({
       grandparentPositionKey: rootSelfUndoPositionKey,
       now: useDeadline ? now : undefined,
       participationState: rootParticipationState,
+      perfCache,
       policyPriors,
       policyPriorWeight,
       previousStrategicTags: rootPreviousStrategicTags,
@@ -252,6 +260,7 @@ export function chooseComputerAction({
       {
         behaviorProfile,
         diagnostics,
+        perfCache,
         participationState: rootParticipationState,
         preset,
         riskMode: effectiveRiskMode,
@@ -279,6 +288,7 @@ export function chooseComputerAction({
     historyScores: new Map<string, number>(),
     killerMovesByDepth: new Map<number, TurnAction[]>(),
     now,
+    perfCache,
     policyPriors,
     preset,
     pvMoveByDepth: new Map<number, TurnAction>(),

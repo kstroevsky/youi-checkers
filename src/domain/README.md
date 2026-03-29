@@ -389,12 +389,16 @@ Tiebreak resolution compares:
 
 These values are useful for UI and analysis, but they do not decide terminal truth.
 
+The newer helper `getScoreSummaryByKey()` exists for the AI performance layer. It does not add a second scoring algorithm; it simply lets callers reuse an already-known canonical position hash when they need the same pure summary together with other keyed caches.
+
 ### The two-phase victory evaluation
 
 Terminal logic is effectively checked twice in the reducer pipeline:
 
 1. immediately after the action is applied, to catch direct `homeField` or `sixStacks` wins;
 2. after auto-pass and repetition updates, to catch stalemate and threefold outcomes that become visible only after the move has been fully integrated into match state.
+
+`getDrawTiebreakMetricsByKey()` plays the same role for tiebreak snapshots that `getScoreSummaryByKey()` plays for informational scoring: it lets the AI reuse a known position hash while still asking the domain layer for the canonical tiebreak computation.
 
 ## Invariants And Validation
 
@@ -501,6 +505,7 @@ The engine is written as a pure layer, but it is not naive about cost.
 
 - structural sharing in board application avoids cloning untouched cells on every move;
 - compact helpers for coordinates, hashing, and validation keep the AI search path usable in a browser worker.
+- keyed pure-summary helpers such as `getScoreSummaryByKey()` and `getDrawTiebreakMetricsByKey()` let higher layers reuse canonical hashes instead of recomputing identical read-only summaries through multiple call paths.
 
 Performance reports for these paths are generated separately and documented in [`../../docs/INFRASTRUCTURE.md`](../../docs/INFRASTRUCTURE.md).
 

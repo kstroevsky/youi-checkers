@@ -149,6 +149,16 @@ The store owns:
 
 The UI renders store-derived state and emits explicit actions. It does not infer legality or victory on its own.
 
+## Algorithmic Map
+
+The repository now has three algorithmically important layers, each documented in its own README because the techniques are different.
+
+- Domain algorithms in [`src/domain/README.md`](./src/domain/README.md): explicit action-union legality generation, identity-based jump continuation, two-phase terminal resolution, structural sharing for immutable board transitions, canonical hashing, and keyed pure-summary reuse for scoring and tiebreak metrics.
+- AI algorithms in [`src/ai/README.md`](./src/ai/README.md): iterative deepening negamax, alpha-beta pruning, principal-variation re-search, quiescence, structural and participation heuristics, hidden personas, tiebreak-aware draw-pressure shaping, and lazy per-search summary caching with keyed legal-action reuse.
+- Training and model algorithms in [`training/README.md`](./training/README.md) and [`public/models/README.md`](./public/models/README.md): offline residual policy/value training, fixed masked action-space encoding, and optional ONNX policy-prior guidance at runtime.
+
+That split is intentional. The project does not have one monolithic "algorithm" document because rule semantics, browser search, and offline model training solve different problems with different constraints.
+
 ## Persistence Snapshot
 
 The runtime persistence contract has two layers with different version numbers:
@@ -208,6 +218,7 @@ All `*:compare` wrappers accept `--before=<ref|working>` and `--after=<ref|worki
 3. Search remains the tactical authority. Heuristics and model guidance improve move ordering and style; they do not replace legality or tree search.
 4. Asynchronous work is isolated. Worker results and archive hydration are versioned so stale results can be ignored safely.
 5. Optional infrastructure degrades gracefully. The model file, IndexedDB archive, and some browser features may be absent without breaking the core game.
+6. Performance optimizations stay semantics-preserving. The current search uses keyed pure-summary caches and per-search lazy bundles to remove repeated work without changing heuristic formulas or move-selection policy.
 
 ## Where To Go Next
 

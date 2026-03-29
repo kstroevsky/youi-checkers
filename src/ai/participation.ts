@@ -1,4 +1,4 @@
-import { analyzePosition } from '@/ai/strategy';
+import { analyzePosition, type PositionAnalysis } from '@/ai/strategy';
 import type { AiDifficultyPreset } from '@/ai/types';
 import {
   getCell,
@@ -352,7 +352,11 @@ function getConcentration(counts: Record<string, number>): number {
 
 /** Variety matters more in early transport play than in late forced conversion races. */
 function getPhaseScale(state: EngineState): number {
-  switch (analyzePosition(state).phase) {
+  return getPhaseScaleFromAnalysis(analyzePosition(state));
+}
+
+function getPhaseScaleFromAnalysis(analysis: PositionAnalysis): number {
+  switch (analysis.phase) {
     case 'opening':
       return 1.25;
     case 'transport':
@@ -393,8 +397,8 @@ function getPlayerParticipationScore(
   player: Player,
   playerState: PlayerParticipationState,
   preset: AiDifficultyPreset,
+  phaseScale = getPhaseScale(state),
 ): number {
-  const phaseScale = getPhaseScale(state);
   const profile = getParticipationProfile(state, player, playerState);
 
   return (
@@ -476,6 +480,34 @@ export function getActionParticipationProfile(
     winsImmediately: boolean;
   },
 ): ActionParticipationProfile {
+  return getActionParticipationProfileFromAnalysis(
+    state,
+    action,
+    nextState,
+    actor,
+    participationState,
+    preset,
+    options,
+    analyzePosition(state),
+    analyzePosition(nextState),
+  );
+}
+
+/** Reuses caller-supplied analyses so participation scoring does not rescan sibling states. */
+export function getActionParticipationProfileFromAnalysis(
+  state: EngineState,
+  action: TurnAction,
+  nextState: EngineState,
+  actor: Player,
+  participationState: ParticipationState | null | undefined,
+  preset: AiDifficultyPreset,
+  options: {
+    isTactical: boolean;
+    winsImmediately: boolean;
+  },
+  baseAnalysis: PositionAnalysis,
+  nextAnalysis: PositionAnalysis,
+): ActionParticipationProfile {
   const currentParticipationState =
     participationState ?? createParticipationState(preset.participationWindow);
   const playerState = currentParticipationState.players[actor];
@@ -487,14 +519,21 @@ export function getActionParticipationProfile(
     actor,
     nextParticipationState.players[actor],
   );
-  const beforeScore = getPlayerParticipationScore(state, actor, playerState, preset);
+  const beforeScore = getPlayerParticipationScore(
+    state,
+    actor,
+    playerState,
+    preset,
+    getPhaseScaleFromAnalysis(baseAnalysis),
+  );
   const afterScore = getPlayerParticipationScore(
     nextState,
     actor,
     nextParticipationState.players[actor],
     preset,
+    getPhaseScaleFromAnalysis(nextAnalysis),
   );
-  const phaseScale = getPhaseScale(nextState);
+  const phaseScale = getPhaseScaleFromAnalysis(nextAnalysis);
   const activeBefore = new Set(playerState.activeCheckerIds);
   const freshCheckerCount = entry.movedCheckerIds.filter((checkerId) => !activeBefore.has(checkerId)).length;
   const reusedCheckerCount = entry.movedCheckerIds.length - freshCheckerCount;

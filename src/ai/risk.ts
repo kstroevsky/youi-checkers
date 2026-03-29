@@ -5,6 +5,15 @@ import type {
   AiStrategicTag,
   AiTiebreakEdgeKind,
 } from '@/ai/types';
+import {
+  getCachedLegalActions,
+  getPerfDrawTiebreakMetrics,
+  getPerfEmptyCellCount,
+  getPerfProgressSnapshot,
+  getPerfStrategicScore,
+  type CachedTiebreakPressureBase,
+  type StatePerfBundle,
+} from '@/ai/perf';
 import { getStrategicScore } from '@/ai/strategy';
 import { getDrawTiebreakMetrics } from '@/domain/rules/victory';
 import { getCellHeight } from '@/domain/model/board';
@@ -14,11 +23,12 @@ import type {
   GameState,
   Player,
   RuleConfig,
+  ScoreSummary,
   StateSnapshot,
   TurnAction,
   TurnRecord,
 } from '@/domain/model/types';
-import { getLegalActions, getScoreSummary, hashPosition } from '@/domain';
+import { getScoreSummary, hashPosition } from '@/domain';
 
 export type ProgressSnapshot = {
   frozenSingles: Record<Player, number>;
@@ -145,8 +155,9 @@ function toEngineState(
 
 export function createProgressSnapshot(
   state: Pick<GameState | EngineState | StateSnapshot, 'board'>,
+  scoreSummary: ScoreSummary | null = null,
 ): ProgressSnapshot {
-  const summary = getScoreSummary(state as GameState);
+  const summary = scoreSummary ?? getScoreSummary(state as GameState);
 
   return {
     frozenSingles: {
@@ -171,18 +182,37 @@ export function getEmptyCellCount(state: Pick<GameState | EngineState | StateSna
   );
 }
 
-export function getTiebreakPressureProfile(
+function getCachedStrategicScore(
+  state: EngineState,
+  player: Player,
+  perfBundle: StatePerfBundle | null = null,
+): number {
+  return perfBundle
+    ? getPerfStrategicScore(perfBundle, state, player)
+    : getStrategicScore(state, player);
+}
+
+function getBaseTiebreakPressureProfile(
   state: EngineState,
   perspectivePlayer: Player,
   riskMode: AiRiskMode,
-  candidate: Omit<RiskCandidateSignal, 'drawTrapRisk' | 'tiebreakEdgeKind'> | null = null,
-): TiebreakPressureProfile {
-  const metrics = getDrawTiebreakMetrics(state);
-  const opponent = getOpponent(perspectivePlayer);
+  perfBundle: StatePerfBundle | null = null,
+): CachedTiebreakPressureBase {
+  const cached = perfBundle?.tiebreakPressureBase[perspectivePlayer]?.[riskMode];
+
+  if (cached) {
+    return cached;
+  }
+
+  const metrics = perfBundle
+    ? getPerfDrawTiebreakMetrics(perfBundle, state)
+    : getDrawTiebreakMetrics(state);
+  const positionKey = perfBundle?.positionKey ?? hashPosition(state);
   const tiebreakCheckerEdge =
-    metrics.ownFieldCheckers[perspectivePlayer] - metrics.ownFieldCheckers[opponent];
+    metrics.ownFieldCheckers[perspectivePlayer] - metrics.ownFieldCheckers[getOpponent(perspectivePlayer)];
   const tiebreakStackEdge =
-    metrics.completedHomeStacks[perspectivePlayer] - metrics.completedHomeStacks[opponent];
+    metrics.completedHomeStacks[perspectivePlayer] -
+    metrics.completedHomeStacks[getOpponent(perspectivePlayer)];
   const tiebreakEdgeKind =
     tiebreakCheckerEdge > 0
       ? 'ahead'
@@ -193,23 +223,55 @@ export function getTiebreakPressureProfile(
           : tiebreakStackEdge < 0
             ? 'behind'
             : 'tied';
-  const repetitionPressure = clamp(((state.positionCounts[hashPosition(state)] ?? 1) - 1) / 2, 0, 1);
-  const structuralFlatness = clamp((420 - Math.abs(getStrategicScore(state, perspectivePlayer))) / 420, 0, 1);
-  const movePressure = clamp((state.moveNumber - 24) / 46, 0, 1);
-  const riskFloor = riskMode === 'late' ? 0.45 : riskMode === 'stagnation' ? 0.25 : 0;
-  const drawPressure = clamp(
-    Math.max(riskFloor, repetitionPressure * 0.5 + structuralFlatness * 0.3 + movePressure * 0.2),
+  const repetitionPressure = clamp(((state.positionCounts[positionKey] ?? 1) - 1) / 2, 0, 1);
+  const structuralFlatness = clamp(
+    (420 - Math.abs(getCachedStrategicScore(state, perspectivePlayer, perfBundle))) / 420,
     0,
     1,
   );
+  const movePressure = clamp((state.moveNumber - 24) / 46, 0, 1);
+  const riskFloor = riskMode === 'late' ? 0.45 : riskMode === 'stagnation' ? 0.25 : 0;
+  const baseProfile: CachedTiebreakPressureBase = {
+    drawPressure: clamp(
+      Math.max(riskFloor, repetitionPressure * 0.5 + structuralFlatness * 0.3 + movePressure * 0.2),
+      0,
+      1,
+    ),
+    tiebreakCheckerEdge,
+    tiebreakEdgeKind,
+    tiebreakStackEdge,
+  };
 
-  if (!candidate || tiebreakEdgeKind === 'ahead') {
+  if (perfBundle) {
+    const playerCache = perfBundle.tiebreakPressureBase[perspectivePlayer] ?? {};
+    playerCache[riskMode] = baseProfile;
+    perfBundle.tiebreakPressureBase[perspectivePlayer] = playerCache;
+  }
+
+  return baseProfile;
+}
+
+export function getTiebreakPressureProfile(
+  state: EngineState,
+  perspectivePlayer: Player,
+  riskMode: AiRiskMode,
+  candidate: Omit<RiskCandidateSignal, 'drawTrapRisk' | 'tiebreakEdgeKind'> | null = null,
+  perfBundle: StatePerfBundle | null = null,
+): TiebreakPressureProfile {
+  const baseProfile = getBaseTiebreakPressureProfile(
+    state,
+    perspectivePlayer,
+    riskMode,
+    perfBundle,
+  );
+
+  if (!candidate || baseProfile.tiebreakEdgeKind === 'ahead') {
     return {
-      drawPressure,
+      drawPressure: baseProfile.drawPressure,
       drawTrapRisk: 0,
-      tiebreakCheckerEdge,
-      tiebreakEdgeKind,
-      tiebreakStackEdge,
+      tiebreakCheckerEdge: baseProfile.tiebreakCheckerEdge,
+      tiebreakEdgeKind: baseProfile.tiebreakEdgeKind,
+      tiebreakStackEdge: baseProfile.tiebreakStackEdge,
     };
   }
 
@@ -222,23 +284,23 @@ export function getTiebreakPressureProfile(
       !candidate.tags.includes('decompress') &&
       !candidate.tags.includes('openLane'));
   const edgeSeverity =
-    tiebreakEdgeKind === 'behind'
-      ? tiebreakCheckerEdge < 0
+    baseProfile.tiebreakEdgeKind === 'behind'
+      ? baseProfile.tiebreakCheckerEdge < 0
         ? 1
         : 0.6
       : 0.45;
-  const fallbackScale = tiebreakEdgeKind === 'behind' ? 0.25 : 0.15;
+  const fallbackScale = baseProfile.tiebreakEdgeKind === 'behind' ? 0.25 : 0.15;
   const drawTrapRisk =
     flatOrLoopAdjacent && !progressCertified
-      ? clamp(drawPressure * edgeSeverity, 0, 1)
-      : clamp(drawPressure * edgeSeverity * fallbackScale, 0, 1);
+      ? clamp(baseProfile.drawPressure * edgeSeverity, 0, 1)
+      : clamp(baseProfile.drawPressure * edgeSeverity * fallbackScale, 0, 1);
 
   return {
-    drawPressure,
+    drawPressure: baseProfile.drawPressure,
     drawTrapRisk,
-    tiebreakCheckerEdge,
-    tiebreakEdgeKind,
-    tiebreakStackEdge,
+    tiebreakCheckerEdge: baseProfile.tiebreakCheckerEdge,
+    tiebreakEdgeKind: baseProfile.tiebreakEdgeKind,
+    tiebreakStackEdge: baseProfile.tiebreakStackEdge,
   };
 }
 
@@ -316,14 +378,10 @@ export function getRiskProfile(
   const displacementPressure = clamp((0.16 - averageDisplacement) / 0.16, 0, 1);
   const mobilityPressure =
     recent.reduce((sum, record) => {
-      const beforeMobility = getLegalActions(
-        toEngineState(record.beforeState, state.positionCounts),
-        ruleConfig,
-      ).length;
-      const afterMobility = getLegalActions(
-        toEngineState(record.afterState, state.positionCounts),
-        ruleConfig,
-      ).length;
+      const beforeState = toEngineState(record.beforeState, state.positionCounts);
+      const afterState = toEngineState(record.afterState, state.positionCounts);
+      const beforeMobility = getCachedLegalActions(beforeState, ruleConfig).length;
+      const afterMobility = getCachedLegalActions(afterState, ruleConfig).length;
 
       return sum + clamp((1.5 - Math.abs(afterMobility - beforeMobility)) / 1.5, 0, 1);
     }, 0) / recent.length;
@@ -388,6 +446,7 @@ export function getDynamicDrawScore(
   preset: AiDifficultyPreset | null,
   riskMode: AiRiskMode,
   diagnostics: AiSearchDiagnostics | null = null,
+  perfBundle: StatePerfBundle | null = null,
 ): number {
   const drawPreset = preset;
 
@@ -395,7 +454,7 @@ export function getDynamicDrawScore(
     return 0;
   }
 
-  const structuralScore = getStrategicScore(state, perspectivePlayer);
+  const structuralScore = getCachedStrategicScore(state, perspectivePlayer, perfBundle);
   const aheadness = clamp(structuralScore / 600, -1, 1);
   const aheadPenalty = drawPreset.drawAversionAhead * Math.max(0, aheadness + 0.15);
   const behindRelief = drawPreset.drawAversionBehindRelief * Math.max(0, -aheadness - 0.35);
@@ -415,12 +474,19 @@ export function getNonterminalDrawTrapBias(
   preset: AiDifficultyPreset | null,
   riskMode: AiRiskMode,
   diagnostics: AiSearchDiagnostics | null = null,
+  perfBundle: StatePerfBundle | null = null,
 ): number {
   if (!preset || state.status === 'gameOver') {
     return 0;
   }
 
-  const profile = getTiebreakPressureProfile(state, perspectivePlayer, riskMode);
+  const profile = getTiebreakPressureProfile(
+    state,
+    perspectivePlayer,
+    riskMode,
+    null,
+    perfBundle,
+  );
 
   if (profile.tiebreakEdgeKind === 'ahead') {
     return 0;
@@ -524,16 +590,21 @@ export function getRiskStateBias(
   state: EngineState,
   player: Player,
   riskMode: AiRiskMode,
+  perfBundle: StatePerfBundle | null = null,
 ): number {
   if (riskMode === 'normal') {
     return 0;
   }
 
-  const own = createProgressSnapshot(state);
+  const own =
+    perfBundle
+      ? getPerfProgressSnapshot(perfBundle, state)
+      : createProgressSnapshot(state);
   const opponent = getOpponent(player);
-  const emptyCells = getEmptyCellCount(state);
+  const emptyCells = perfBundle ? getPerfEmptyCellCount(perfBundle, state) : getEmptyCellCount(state);
   const strategicPressure =
-    getStrategicScore(state, player) - getStrategicScore(state, opponent);
+    getCachedStrategicScore(state, player, perfBundle) -
+    getCachedStrategicScore(state, opponent, perfBundle);
   const progressEdge =
     Math.max(own.homeFieldProgress[player], own.sixStackProgress[player]) -
     Math.max(own.homeFieldProgress[opponent], own.sixStackProgress[opponent]);

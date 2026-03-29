@@ -1,6 +1,7 @@
-import { getLegalActions, type EngineState, type TurnAction } from '@/domain';
+import type { EngineState, TurnAction } from '@/domain';
 import { evaluateState } from '@/ai/evaluation';
 import { orderMoves, type OrderedAction } from '@/ai/moveOrdering';
+import { getCachedLegalActions, getStatePerfBundle } from '@/ai/perf';
 import type { ParticipationState } from '@/ai/participation';
 import { FRONT_HOME_ROW, HOME_ROWS } from '@/domain/model/constants';
 import { parseCoord } from '@/domain/model/coordinates';
@@ -22,7 +23,8 @@ export function getQuiescenceMoves(
   participationState: ParticipationState,
   context: SearchContext,
 ): OrderedAction[] {
-  const legalActions = getLegalActions(state, context.ruleConfig);
+  const perfBundle = getStatePerfBundle(state, context.ruleConfig, context.perfCache);
+  const legalActions = getCachedLegalActions(state, context.ruleConfig, perfBundle.positionKey);
 
   if (!legalActions.length) {
     return [];
@@ -69,6 +71,7 @@ export function getQuiescenceMoves(
     now: context.now,
     diagnostics: context.diagnostics,
     participationState,
+    perfCache: context.perfCache,
     policyPriors: null,
     previousStrategicTags: null,
     previousActionKey,
@@ -121,6 +124,7 @@ export function quiescence(
       behaviorProfile: context.behaviorProfile,
       diagnostics: context.diagnostics,
       participationState,
+      perfCache: context.perfCache,
       preset: context.preset,
       riskMode: context.riskMode,
     },

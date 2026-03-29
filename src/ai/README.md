@@ -64,6 +64,7 @@ The current runtime AI is not:
 | [`search.ts`](./search.ts) | Public search re-export |
 | [`search/rootSearch.ts`](./search/rootSearch.ts) | `chooseComputerAction()` orchestration |
 | [`behavior.ts`](./behavior.ts) | hidden persona generation and persona-specific style bias |
+| [`perf.ts`](./perf.ts) | lazy per-search summary cache and keyed legal-action reuse |
 | [`risk.ts`](./risk.ts) | stagnation detection, dynamic draw utility, and risk-mode state bonuses |
 | [`worker/ai.worker.ts`](./worker/ai.worker.ts) | Worker boundary for browser integration |
 | [`types.ts`](./types.ts) | Search request/result contracts |
@@ -210,6 +211,7 @@ Move ordering is the bridge between shallow heuristics and deep search. The file
 - static action features computed from one-step simulation;
 - dynamic search-learned features such as TT, PV, history, continuation, and killer bonuses;
 - anti-repetition and anti-self-undo penalties;
+- tiebreak-aware draw-trap metadata for draw-prone, adverse-repeat lines;
 - strategic and participation deltas;
 - optional policy priors from the neural guidance path.
 
@@ -222,6 +224,8 @@ The ordered entries also carry metadata that later layers reuse instead of recom
 | `winsImmediately` | marks direct terminal wins before deeper search |
 | `isForced` | distinguishes terminal or forced lines during result shaping |
 | `isTactical` | protects tactical moves from quiet trimming |
+| `drawTrapRisk` | measures how dangerous a draw-prone continuation is when the actor is tiebreak-behind |
+| `tiebreakEdgeKind` | records whether a repeated or stagnant finish would currently favor, hurt, or tie the actor |
 | `sourceFamily` | tracks checker-family reuse across result shaping and variety metrics |
 | `sourceRegion` | tracks coarse board-region reuse through the participation layer |
 
@@ -310,6 +314,12 @@ During the first six plies the root search also attenuates policy-prior weight w
 
 This is the implementation of the product rule "avoid a draw like a defeat" without breaking zero-sum search correctness. The engine does not globally pretend that a draw is always a loss; it only changes how attractive a draw is relative to the current board.
 
+The newer tiebreak-aware layer goes one step further for nonterminal positions:
+
+- draw pressure is estimated from repetition pressure, structural flatness, and late-game escalation;
+- the engine computes whether the acting side is currently `ahead`, `tied`, or `behind` on the rules-level draw tiebreak;
+- repetition-adjacent or flat continuations get a `drawTrapRisk` penalty only when that projected finish is adverse or neutral, while tiebreak-favorable draw lines remain acceptable.
+
 ### Risk escalation
 
 Search distinguishes three urgency modes:
@@ -358,6 +368,7 @@ The key safety rule is that risk never overrides tactical truth:
 - deadline and timer function;
 - transposition table;
 - killer/history/continuation tables;
+- per-search lazy `perfCache` for pure position summaries;
 - hidden `behaviorProfile`;
 - participation state;
 - live `riskMode`;
@@ -386,6 +397,27 @@ It also codifies two hard resource boundaries:
 
 Those numbers are not mathematical truths. They are bounded browser-runtime policy.
 
+## Search-Time Summary Reuse
+
+[`perf.ts`](./perf.ts) is the AI's semantics-preserving optimization layer. It exists because the newer draw-pressure, tiebreak, participation, and persona features all depend on pure board summaries that would otherwise be recomputed many times per node.
+
+The design is intentionally conservative:
+
+- every cached value is a pure function of `EngineState` plus, for legal actions, `RuleConfig`;
+- the per-search `StatePerfBundle` is lazy, so evaluation does not pay for move-generation-only fields unless it actually asks for them;
+- board-wide summaries reuse the canonical position hash, so scoring, tiebreak metrics, structural analysis, and legal-action lookup do not each re-hash the same state independently;
+- cache reuse never changes formulas, thresholds, or candidate ranking policy.
+
+The main reused summaries are:
+
+- strategic analysis and strategic intent;
+- informational score summary;
+- draw-tiebreak metrics;
+- empty-cell count;
+- progress snapshot;
+- legal-action count and legal-action list;
+- base tiebreak-pressure profile per player and `riskMode`.
+
 ## Strategic Analysis Layer
 
 [`strategy.ts`](./strategy.ts) is the position interpreter. It turns raw board geometry into a higher-level structural reading of the position.
@@ -407,8 +439,12 @@ Those features are reused by evaluation, move ordering, and reporting.
 | Function | Role |
 | --- | --- |
 | `analyzePosition()` | cached structural summary of the current position |
+| `analyzePositionByKey()` | structural summary lookup when a caller already has the canonical position hash |
+| `getStrategicIntentFromAnalysis()` | plan classification from a precomputed structural analysis |
 | `getStrategicIntent()` | classifies the macro plan as `home`, `sixStack`, or `hybrid` |
+| `getStrategicScoreFromAnalysis()` | scalar strategic score from a precomputed structural analysis |
 | `getStrategicScore()` | plan-centric scalar position score |
+| `getActionStrategicProfileFromAnalysis()` | per-move tags and deltas without rescanning sibling states |
 | `getActionStrategicProfile()` | per-move strategic tags, intent delta, and policy bias |
 | `getNoveltyPenalty()` | semantic anti-repetition penalty across same-side turns |
 | `inferPreviousStrategicTags()` | history-based reconstruction of the previous same-side move story |
@@ -437,6 +473,7 @@ Classical local search can become tactically competent yet behaviorally narrow, 
 | --- | --- |
 | `buildParticipationState()` | reconstructs rolling recent-move context from history |
 | `getParticipationScore()` | board-level participation term for static evaluation |
+| `getActionParticipationProfileFromAnalysis()` | per-move participation delta while reusing precomputed structural analyses |
 | `getActionParticipationProfile()` | per-move participation delta and next rolling state |
 
 ## Static Evaluation

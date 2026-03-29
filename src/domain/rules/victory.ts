@@ -14,6 +14,14 @@ const FRONT_HOME_COORDS: Record<Player, Coord[]> = {
   white: BOARD_COLUMNS.map((column) => createCoord(column as Column, FRONT_HOME_ROW.white)),
   black: BOARD_COLUMNS.map((column) => createCoord(column as Column, FRONT_HOME_ROW.black)),
 };
+const DRAW_TIEBREAK_CACHE_LIMIT = 20_000;
+
+type DrawTiebreakMetrics = {
+  completedHomeStacks: Record<Player, number>;
+  ownFieldCheckers: Record<Player, number>;
+};
+
+const drawTiebreakMetricsCache = new Map<string, DrawTiebreakMetrics>();
 
 type DrawSource = 'threefold' | 'stalemate';
 
@@ -69,11 +77,35 @@ function countCompletedHomeStacks(state: EngineState, player: Player): number {
   }, 0);
 }
 
-export function getDrawTiebreakMetrics(state: EngineState): {
-  completedHomeStacks: Record<Player, number>;
-  ownFieldCheckers: Record<Player, number>;
-} {
-  return {
+function rememberDrawTiebreakMetrics(key: string, metrics: DrawTiebreakMetrics): DrawTiebreakMetrics {
+  if (drawTiebreakMetricsCache.size >= DRAW_TIEBREAK_CACHE_LIMIT) {
+    const oldestKey = drawTiebreakMetricsCache.keys().next().value;
+
+    if (oldestKey) {
+      drawTiebreakMetricsCache.delete(oldestKey);
+    }
+  }
+
+  drawTiebreakMetricsCache.set(key, metrics);
+  return metrics;
+}
+
+export function getDrawTiebreakMetrics(state: EngineState): DrawTiebreakMetrics {
+  return getDrawTiebreakMetricsByKey(state, hashPosition(state));
+}
+
+/** Reuses a known position key when victory and AI layers need the same tiebreak snapshot. */
+export function getDrawTiebreakMetricsByKey(
+  state: EngineState,
+  key: string,
+): DrawTiebreakMetrics {
+  const cached = drawTiebreakMetricsCache.get(key);
+
+  if (cached) {
+    return cached;
+  }
+
+  return rememberDrawTiebreakMetrics(key, {
     ownFieldCheckers: {
       white: countOwnFieldCheckers(state, 'white'),
       black: countOwnFieldCheckers(state, 'black'),
@@ -82,7 +114,7 @@ export function getDrawTiebreakMetrics(state: EngineState): {
       white: countCompletedHomeStacks(state, 'white'),
       black: countCompletedHomeStacks(state, 'black'),
     },
-  };
+  });
 }
 
 function createTiebreakWin(

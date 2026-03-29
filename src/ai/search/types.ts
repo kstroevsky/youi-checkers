@@ -1,4 +1,5 @@
 import type { OrderedAction } from '@/ai/moveOrdering';
+import type { SearchPerfCache } from '@/ai/perf';
 import type { ParticipationState } from '@/ai/participation';
 import type {
   AiDifficultyPreset,
@@ -60,6 +61,7 @@ export type SearchContext = {
   historyScores: Map<string, number>;
   killerMovesByDepth: Map<number, TurnAction[]>;
   now: () => number;
+  perfCache: SearchPerfCache;
   preset: AiDifficultyPreset;
   policyPriors: Record<string, number> | null;
   pvMoveByDepth: Map<number, TurnAction>;

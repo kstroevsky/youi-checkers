@@ -1,7 +1,11 @@
 import { getCellHeight, getController, getTopChecker, isSingleChecker, isStack } from '@/domain/model/board';
 import { FRONT_HOME_ROW, HOME_ROWS } from '@/domain/model/constants';
 import { allCoords, parseCoord } from '@/domain/model/coordinates';
+import { hashPosition } from '@/domain/model/hash';
 import type { EngineState, Player, ScoreSummary } from '@/domain/model/types';
+
+const SCORE_SUMMARY_CACHE_LIMIT = 20_000;
+const scoreSummaryCache = new Map<string, ScoreSummary>();
 
 /** Creates zeroed score counters for optional informational score mode. */
 function createScoreSeed(): ScoreSummary {
@@ -13,8 +17,32 @@ function createScoreSeed(): ScoreSummary {
   };
 }
 
+function rememberScoreSummary(key: string, summary: ScoreSummary): ScoreSummary {
+  if (scoreSummaryCache.size >= SCORE_SUMMARY_CACHE_LIMIT) {
+    const oldestKey = scoreSummaryCache.keys().next().value;
+
+    if (oldestKey) {
+      scoreSummaryCache.delete(oldestKey);
+    }
+  }
+
+  scoreSummaryCache.set(key, summary);
+  return summary;
+}
+
 /** Computes read-only score metrics without affecting legality or victory. */
 export function getScoreSummary(state: EngineState): ScoreSummary {
+  return getScoreSummaryByKey(state, hashPosition(state));
+}
+
+/** Reuses a known position key when multiple pure summaries are queried together. */
+export function getScoreSummaryByKey(state: EngineState, key: string): ScoreSummary {
+  const cached = scoreSummaryCache.get(key);
+
+  if (cached) {
+    return cached;
+  }
+
   const summary = createScoreSeed();
 
   for (const coord of allCoords()) {
@@ -48,5 +76,5 @@ export function getScoreSummary(state: EngineState): ScoreSummary {
     }
   }
 
-  return summary;
+  return rememberScoreSummary(key, summary);
 }
