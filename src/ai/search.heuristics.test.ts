@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
+import { createSearchPerfCache } from '@/ai/perf';
 import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
 import {
   getPreviousOwnActionFromLine,
@@ -36,6 +37,7 @@ function createSearchContext(): SearchContext {
     historyScores: new Map<string, number>(),
     killerMovesByDepth: new Map<number, TurnAction[]>(),
     now: () => 0,
+    perfCache: createSearchPerfCache(),
     policyPriors: null,
     preset: AI_DIFFICULTY_PRESETS.hard,
     pvMoveByDepth: new Map<number, TurnAction>(),
