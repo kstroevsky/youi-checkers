@@ -16,6 +16,7 @@ export const TRANSPOSITION_LIMIT = 50_000;
 /** Extra tactical depth searched after the normal iterative-deepening frontier. */
 export const MAX_QUIESCENCE_DEPTH = 6;
 
+
 /** Adds one ply only for narrow draw-trap cases near the root or frontier. */
 export function getSelectiveExtension(
   entry: Pick<OrderedAction, 'action' | 'drawTrapRisk' | 'isForced' | 'isTactical' | 'tags' | 'tiebreakEdgeKind'>,
@@ -91,9 +92,8 @@ export function rememberCutoffMove(
   }
 
   const bonus = Math.max(1, depth * depth);
-  const historyScore = context.historyScores.get(id) ?? 0;
 
-  context.historyScores.set(id, Math.min(32_000, historyScore + bonus * 24));
+  context.historyScores[id] = Math.min(32_000, context.historyScores[id] + bonus * 24);
 
   if (previousActionId !== null && previousActionId >= 0) {
     const continuationKey = previousActionId * AI_MODEL_ACTION_COUNT + id;

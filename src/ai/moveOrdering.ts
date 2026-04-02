@@ -88,7 +88,7 @@ export type OrderMovesOptions = {
   deadline?: number;
   diagnostics?: AiSearchDiagnostics | null;
   grandparentPositionKey?: string | null;
-  historyScores?: Map<number, number>;
+  historyScores?: Int32Array;
   includeAllQuietMoves?: boolean;
   /** Numeric action IDs of killer moves at this depth. */
   killerIds?: number[];
@@ -302,7 +302,7 @@ function getDynamicScore(
   >,
 ): number {
   const id = entry.actionId;
-  const historyScore = id >= 0 ? (historyScores?.get(id) ?? 0) : 0;
+  const historyScore = id >= 0 ? (historyScores?.[id] ?? 0) : 0;
   const continuationScore =
     previousActionId === null || id < 0
       ? 0

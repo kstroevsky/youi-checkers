@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { createSearchPerfCache } from '@/ai/perf';
 import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
+import { AI_MODEL_ACTION_COUNT } from '@/ai/model/actionSpace';
 import {
   getPreviousOwnActionFromLine,
   getPreviousOwnPositionKeyFromLine,
@@ -34,7 +35,7 @@ function createSearchContext(): SearchContext {
       transpositionHits: 0,
     },
     evaluatedNodes: 0,
-    historyScores: new Map<number, number>(),
+    historyScores: new Int32Array(AI_MODEL_ACTION_COUNT),
     killerMovesByDepth: new Map<number, number[]>(),
     now: () => 0,
     perfCache: createSearchPerfCache(),

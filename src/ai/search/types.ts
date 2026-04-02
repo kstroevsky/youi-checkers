@@ -59,7 +59,8 @@ export type SearchContext = {
   deadline: number;
   diagnostics: AiSearchDiagnostics;
   evaluatedNodes: number;
-  historyScores: Map<number, number>;
+  /** Fixed-size typed array; index is the numeric action ID (0..AI_MODEL_ACTION_COUNT-1). */
+  historyScores: Int32Array;
   killerMovesByDepth: Map<number, number[]>;
   now: () => number;
   perfCache: SearchPerfCache;

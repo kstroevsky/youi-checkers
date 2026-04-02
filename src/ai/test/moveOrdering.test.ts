@@ -44,9 +44,11 @@ describe('move ordering precomputation', () => {
           return arr;
         })()
       : null;
-    const historyScores = new Map<number, number>(
-      legalActions.slice(0, 3).map((action, index) => [actionId(action), (index + 1) * 400]),
-    );
+    const historyScores = new Int32Array(AI_MODEL_ACTION_COUNT);
+    legalActions.slice(0, 3).forEach((action, index) => {
+      const id = actionId(action);
+      if (id >= 0) historyScores[id] = (index + 1) * 400;
+    });
     const continuationScores =
       previousActionId !== null
         ? new Map<number, number>(

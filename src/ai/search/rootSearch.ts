@@ -1,4 +1,5 @@
 import { evaluateState } from '@/ai/evaluation';
+import { AI_MODEL_ACTION_COUNT } from '@/ai/model/actionSpace';
 import {
   orderPrecomputedMoves,
   precomputeOrderedActions,
@@ -285,7 +286,7 @@ export function chooseComputerAction({
     deadline,
     diagnostics,
     evaluatedNodes: 0,
-    historyScores: new Map<number, number>(),
+    historyScores: new Int32Array(AI_MODEL_ACTION_COUNT),
     killerMovesByDepth: new Map<number, number[]>(),
     now,
     perfCache,
