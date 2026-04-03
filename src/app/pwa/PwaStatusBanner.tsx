@@ -35,19 +35,20 @@ export function PwaStatusBanner({
       role={isUpdateBanner ? 'alert' : 'status'}
       aria-live={isUpdateBanner ? 'assertive' : 'polite'}
     >
-      {isUpdateBanner ? <p>{text(language, 'pwaUpdateReady')}</p> : null}
-
-      <div className={styles.actions}>
-        {isUpdateBanner ? (
-          <Button onClick={() => void applyUpdate()}>{text(language, 'pwaUpdateAction')}</Button>
-        ) : null}
-        <Button
-          variant="ghost"
-          onClick={isUpdateBanner ? onDismissNeedRefresh : onDismissOfflineReady}
-        >
-          {text(language, 'close')}
-        </Button>
-      </div>
+      {isUpdateBanner ? (
+        <>
+          <p>{text(language, 'pwaUpdateReady')}</p>
+          <div className={styles.actions}>
+            <Button onClick={() => void applyUpdate()}>{text(language, 'pwaUpdateAction')}</Button>
+            <Button
+              variant="ghost"
+              onClick={isUpdateBanner ? onDismissNeedRefresh : onDismissOfflineReady}
+            >
+              {text(language, 'close')}
+            </Button>
+        </div>
+        </>
+      ) : null}
     </section>
   );
 }

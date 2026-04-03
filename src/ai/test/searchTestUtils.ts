@@ -187,15 +187,29 @@ export function createOpponentThreatState(): GameState {
   return gameStateWithBoard(board);
 }
 
+export type SoakStats = {
+  /** Nodes evaluated per second averaged across all turns (wall-clock time). */
+  avgNodesPerSecond: number;
+  /** Minimum completedDepth observed across all turns. */
+  minCompletedDepth: number;
+  /** Number of turns actually completed (may be less than turnLimit on early exit). */
+  turnsCompleted: number;
+};
+
 /** Runs a deterministic AI-vs-AI playout and asserts state validity throughout. */
 export function runAiSoakPlayout(
   difficulty: keyof typeof AI_DIFFICULTY_PRESETS,
   turnLimit: number,
   stableCalls: number,
-): void {
+): SoakStats {
   const config = withConfig({ drawRule: 'none' });
   const random = createSeededRandom(turnLimit + stableCalls * 100);
   let state = createInitialState(config);
+
+  let totalNodes = 0;
+  let totalWallMs = 0;
+  let minDepth = Number.MAX_SAFE_INTEGER;
+  let turnsCompleted = 0;
 
   for (let turn = 0; turn < turnLimit; turn += 1) {
     const legalActions = getLegalActions(state, config);
@@ -219,6 +233,13 @@ export function runAiSoakPlayout(
     expect(result.action).not.toBeNull();
     expect(legalActions.map(actionKey)).toContain(actionKey(result.action));
 
+    totalNodes += result.evaluatedNodes;
+    totalWallMs += wallTimeMs;
+    if (result.completedDepth < minDepth) {
+      minDepth = result.completedDepth;
+    }
+    turnsCompleted += 1;
+
     state = applyAction(state, result.action as TurnAction, config);
 
     const validation = validateGameState(state);
@@ -230,4 +251,10 @@ export function runAiSoakPlayout(
       state = createInitialState(config);
     }
   }
+
+  return {
+    avgNodesPerSecond: totalWallMs > 0 ? Math.round(totalNodes / totalWallMs * 1000) : 0,
+    minCompletedDepth: minDepth === Number.MAX_SAFE_INTEGER ? 0 : minDepth,
+    turnsCompleted,
+  };
 }

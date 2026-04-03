@@ -52,6 +52,18 @@ function classifyLower(value, good, warn) {
   return 'bad';
 }
 
+function classifyHigher(value, good, warn) {
+  if (value >= good) {
+    return 'good';
+  }
+
+  if (value >= warn) {
+    return 'warn';
+  }
+
+  return 'bad';
+}
+
 function formatSpeedup(value) {
   return Number.isFinite(value) ? `${value}x` : 'n/a';
 }
@@ -669,6 +681,23 @@ function buildSummary(report) {
       status: classifyLower(report.domain.domain.hashPosition.avgMs, 0.02, 0.05),
       value: `${report.domain.domain.hashPosition.avgMs}ms`,
     },
+    // Search throughput guardrails — thresholds are conservative (catch ~10x regressions).
+    // Tighten once baseline values are established from a few report runs.
+    {
+      label: 'Hard AI avg nodes/sec',
+      status: classifyHigher(report.domain.ai?.hard?.avgNodesPerSecond ?? 0, 3000, 500),
+      value: `${report.domain.ai?.hard?.avgNodesPerSecond ?? 'n/a'} nps`,
+    },
+    {
+      label: 'Medium AI avg nodes/sec',
+      status: classifyHigher(report.domain.ai?.medium?.avgNodesPerSecond ?? 0, 1000, 200),
+      value: `${report.domain.ai?.medium?.avgNodesPerSecond ?? 'n/a'} nps`,
+    },
+    {
+      label: 'Hard AI depth efficiency',
+      status: classifyHigher(report.domain.ai?.hard?.avgDepthEfficiency ?? 0, 0.8, 0.5),
+      value: `${report.domain.ai?.hard?.avgDepthEfficiency ?? 'n/a'}`,
+    },
   ];
 
   const lines = [
@@ -726,6 +755,20 @@ function buildSummary(report) {
     `- hasLegalAction check avg: ${report.domain.domain.hasLegalActionCheck.avgMs}ms`,
     `- Cell-vs-full action speedup: ${formatSpeedup(report.domain.comparisons.cellActionVsFullActionSpeedup)}`,
     `- Hash-vs-full action speedup: ${formatSpeedup(report.domain.comparisons.hashVsFullActionSpeedup)}`,
+    '',
+    '## Search Efficiency',
+    '- Positions: initialState, midGame20 (seeded random play), midGame40 (seeded random play), threatState.',
+    '- midGame20/40 positions have all pieces active and a realistic branching factor (~15–30 legal moves).',
+    ...(report.domain.ai
+      ? ['easy', 'medium', 'hard'].map((difficulty) => {
+          const d = report.domain.ai[difficulty];
+          if (!d) return `- ${difficulty}: not available`;
+          const perPosition = (d.states ?? [])
+            .map((s) => `${s.label} d${s.completedDepth}/${s.legalActionCount}br ${s.nodesPerSecond}nps`)
+            .join(', ');
+          return `- ${difficulty}: avg ${d.avgNodesPerSecond} nps, depth efficiency ${d.avgDepthEfficiency} | ${perPosition}`;
+        })
+      : ['- Search efficiency data not available.']),
     '',
     '## Root Ordering Cache Benchmark',
     ...(rootCacheBenchmarks.length

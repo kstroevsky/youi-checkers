@@ -75,8 +75,12 @@ async function main(): Promise<void> {
   });
   const rows: LoopBenchmarkRow[] = [];
 
-  for (const scenario of POSITION_BUCKET_SCENARIOS.filter((entry) => entry.turnCount >= 50)) {
-    const initialState = buildScenarioState(scenario.turnCount, ruleConfig);
+  // Include loop-pressure positions (turnCount >= 50) AND realistic mid-game positions
+  // (randomPlay) so the loop metrics have a non-looping baseline to compare against.
+  for (const scenario of POSITION_BUCKET_SCENARIOS.filter(
+    (entry) => entry.turnCount >= 50 || entry.randomPlay,
+  )) {
+    const initialState = buildScenarioState(scenario, ruleConfig);
 
     for (const difficulty of ['easy', 'medium', 'hard'] as const) {
       const stableCalls = getStableCallsForDifficulty(difficulty);
@@ -109,7 +113,7 @@ async function main(): Promise<void> {
     settings: {
       maxTurns,
       pairCount,
-      scenarios: POSITION_BUCKET_SCENARIOS.filter((entry) => entry.turnCount >= 50),
+      scenarios: POSITION_BUCKET_SCENARIOS.filter((entry) => entry.turnCount >= 50 || entry.randomPlay),
     },
   };
 

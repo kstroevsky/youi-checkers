@@ -76,7 +76,7 @@ async function main(): Promise<void> {
   const rows: ThreatRow[] = [];
 
   for (const scenario of POSITION_BUCKET_SCENARIOS) {
-    const initialState = buildScenarioState(scenario.turnCount, ruleConfig);
+    const initialState = buildScenarioState(scenario, ruleConfig);
 
     for (const difficulty of ['easy', 'medium', 'hard'] as const) {
       const stableCalls = getStableCallsForDifficulty(difficulty);

@@ -1,11 +1,27 @@
-import { applyAction, createInitialState } from '@/domain';
+import { applyAction, createInitialState, getLegalActions } from '@/domain';
 import type { Coord, GameState, RuleConfig, TurnAction } from '@/domain/model/types';
 
-export const LATE_GAME_PERF_SCENARIOS = [
-  { label: 'opening', turnCount: 0 },
-  { label: 'turn50', turnCount: 50 },
-  { label: 'turn100', turnCount: 100 },
-  { label: 'turn200', turnCount: 200 },
+export type LateGamePerfScenario = {
+  /** How to generate the position. 'loop' uses the fixed PREFIX_17 + LOOP_CYCLE trace;
+   *  'randomPlay' uses seeded-random legal moves for a realistic mid-game position. */
+  fixture: 'loop' | 'randomPlay';
+  label: string;
+  /** Only used when fixture === 'randomPlay'. */
+  seed?: number;
+  turnCount: number;
+};
+
+export const LATE_GAME_PERF_SCENARIOS: readonly LateGamePerfScenario[] = [
+  { fixture: 'loop', label: 'opening', turnCount: 0 },
+  // Realistic mid-game positions generated from seeded random legal-move play.
+  // These have all (or most) pieces still active with a typical branching factor,
+  // unlike the loop-based traces which collapse to 2-3 active pieces after turn 17.
+  { fixture: 'randomPlay', label: 'midgame20', seed: 0x1a2b3c, turnCount: 20 },
+  { fixture: 'randomPlay', label: 'midgame40', seed: 0x4d5e6f, turnCount: 40 },
+  // Loop-pressure traces — still useful for testing draw-aversion and loop-escape heuristics.
+  { fixture: 'loop', label: 'loopPressure50', turnCount: 50 },
+  { fixture: 'loop', label: 'loopPressure100', turnCount: 100 },
+  { fixture: 'loop', label: 'lateSparse200', turnCount: 200 },
 ] as const;
 
 const PREFIX_17 = [
@@ -89,4 +105,53 @@ export function createLateGamePerfState(
   }
 
   return state;
+}
+
+/**
+ * Minimal LCG — same algorithm used in searchTestUtils so seeds are portable.
+ * Returns values in [0, 1).
+ */
+function seededLcg(seed: number): () => number {
+  let s = seed >>> 0;
+  return () => {
+    s = (Math.imul(1664525, s) + 1013904223) >>> 0;
+    return s / 0x100000000;
+  };
+}
+
+/**
+ * Generates a realistic mid-game position by replaying `turnCount` random legal
+ * moves from the initial state using a seeded RNG.  Unlike the LOOP_CYCLE traces,
+ * this keeps all pieces on the board and produces a typical branching factor
+ * (~15–30 legal actions), making it a much better proxy for real player games.
+ */
+export function createRandomPlayPerfState(
+  turnCount: number,
+  config: RuleConfig,
+  seed = 0x1a2b3c,
+): GameState {
+  let state = createInitialState(config);
+  const rand = seededLcg(seed);
+
+  for (let i = 0; i < turnCount; i++) {
+    if (state.status === 'gameOver') break;
+    const actions = getLegalActions(state, config);
+    if (!actions.length) break;
+    state = applyAction(state, actions[Math.floor(rand() * actions.length)]!, config);
+  }
+
+  return state;
+}
+
+/** Unified factory used by both the domain perf report and the root cache benchmark. */
+export function createPerfStateForScenario(
+  scenario: LateGamePerfScenario,
+  config: RuleConfig,
+): GameState {
+  if (scenario.fixture === 'randomPlay') {
+    return createRandomPlayPerfState(scenario.turnCount, config, scenario.seed);
+  }
+  return scenario.turnCount === 0
+    ? createInitialState(config)
+    : createLateGamePerfState(scenario.turnCount, config);
 }

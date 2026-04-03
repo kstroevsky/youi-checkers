@@ -10,10 +10,12 @@
 
 import { describe, it } from 'vitest';
 
+import { AI_DIFFICULTY_PRESETS, chooseComputerAction } from '@/ai';
 import { AI_MODEL_ACTION_COUNT, encodeActionIndex } from '@/ai/model/actionSpace';
 import { actionKey } from '@/ai/search/shared';
 import { getLegalActions, createInitialState, applyAction } from '@/domain';
 import { withConfig } from '@/test/factories';
+import { createSeededRandom } from '@/ai/test/searchTestUtils';
 import type { TurnAction } from '@/domain';
 
 // ---------------------------------------------------------------------------
@@ -546,4 +548,80 @@ describe('history heuristic: realistic Map vs Int32Array comparison', () => {
       for (const id of querySeq) void (id >= 0 ? histArr[id] : 0);
     });
   });
+});
+
+// ---------------------------------------------------------------------------
+// End-to-end search throughput: nodes/sec on realistic positions
+//
+// Closes the loop between the micro-benchmarks above and actual search performance.
+// Run this to verify that data-structure optimisations translate into measurable
+// search throughput gains, not just isolated op-count wins.
+//
+// Uses real wall-clock time (performance.now) and seeded random play positions
+// that have all pieces active and a typical branching factor (~15-30 legal moves).
+// ---------------------------------------------------------------------------
+
+function buildMidgameState(turnCount: number, seed: number) {
+  const config = withConfig();
+  const rand = createSeededRandom(seed);
+  let state = createInitialState(config);
+
+  for (let i = 0; i < turnCount; i++) {
+    if (state.status === 'gameOver') break;
+    const actions = getLegalActions(state, config);
+    if (!actions.length) break;
+    state = applyAction(state, actions[Math.floor(rand() * actions.length)]!, config);
+  }
+
+  return { config, state };
+}
+
+describe('end-to-end search throughput: nodes/sec on realistic positions', () => {
+  const RUNS = 5;
+
+  function measureSearchThroughput(
+    difficulty: 'easy' | 'medium' | 'hard',
+    turnCount: number,
+    seed: number,
+  ): { avgNodesPerSecond: number; avgCompletedDepth: number; legalActionCount: number } {
+    const { config, state } = buildMidgameState(turnCount, seed);
+    const legalActionCount = getLegalActions(state, config).length;
+    const rand = createSeededRandom(seed + 1);
+    let totalNodes = 0;
+    let totalWallMs = 0;
+    let totalDepth = 0;
+
+    // Warm-up
+    chooseComputerAction({ difficulty, random: rand, ruleConfig: config, state });
+
+    for (let i = 0; i < RUNS; i++) {
+      const startedAt = performance.now();
+      const result = chooseComputerAction({ difficulty, random: rand, ruleConfig: config, state });
+      totalWallMs += performance.now() - startedAt;
+      totalNodes += result.evaluatedNodes;
+      totalDepth += result.completedDepth;
+    }
+
+    return {
+      avgNodesPerSecond: Math.round(totalNodes / totalWallMs * 1000),
+      avgCompletedDepth: Math.round((totalDepth / RUNS) * 10) / 10,
+      legalActionCount,
+    };
+  }
+
+  for (const difficulty of ['easy', 'medium', 'hard'] as const) {
+    it(`${difficulty}: nodes/sec on midgame20 and midgame40 (realistic branching)`, () => {
+      const preset = AI_DIFFICULTY_PRESETS[difficulty];
+      const turn20 = measureSearchThroughput(difficulty, 20, 0x1a2b3c);
+      const turn40 = measureSearchThroughput(difficulty, 40, 0x4d5e6f);
+
+      console.log(`\n  [throughput] ${difficulty} (budget ${preset.timeBudgetMs}ms, maxDepth ${preset.maxDepth}):`);
+      console.log(
+        `    midgame20  ${String(turn20.legalActionCount).padStart(2)} legal actions  depth ${turn20.avgCompletedDepth}  ${String(turn20.avgNodesPerSecond).padStart(7)} nps`,
+      );
+      console.log(
+        `    midgame40  ${String(turn40.legalActionCount).padStart(2)} legal actions  depth ${turn40.avgCompletedDepth}  ${String(turn40.avgNodesPerSecond).padStart(7)} nps`,
+      );
+    }, 60_000);
+  }
 });

@@ -17,7 +17,7 @@ import { withRuleDefaults } from '@/domain/model/ruleConfig';
 import type { GameState } from '@/domain/model/types';
 import type { AiBehaviorProfileId, AiDifficulty } from '@/shared/types/session';
 
-import { LATE_GAME_PERF_SCENARIOS, createLateGamePerfState } from './lateGamePerfFixtures';
+import { LATE_GAME_PERF_SCENARIOS, createPerfStateForScenario } from './lateGamePerfFixtures';
 
 const OUTPUT_DIR = path.join(process.cwd(), 'output', 'ai');
 const JSON_OUTPUT = path.join(OUTPUT_DIR, 'ai-stage-variety-report.json');
@@ -297,10 +297,13 @@ async function main(): Promise<void> {
   const stageReports: StageReport[] = [];
 
   for (const scenario of LATE_GAME_PERF_SCENARIOS) {
+    // createPerfStateForScenario always uses drawRule:'none' for replay/random-play
+    // positions. Wrap non-zero positions with createContinuationStageState to reset
+    // accumulated position counts before handing over to the threefold-aware ruleConfig.
     const initialState =
       scenario.turnCount === 0
         ? createInitialState(ruleConfig)
-        : createContinuationStageState(createLateGamePerfState(scenario.turnCount, replayRuleConfig));
+        : createContinuationStageState(createPerfStateForScenario(scenario, replayRuleConfig));
     const difficulties = {} as Record<AiDifficulty, StageDifficultyReport>;
 
     for (const difficulty of ['easy', 'medium', 'hard'] as const) {

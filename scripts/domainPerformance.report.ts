@@ -30,7 +30,8 @@ import { actionLabel } from '@/shared/i18n/catalog';
 import { checker, gameStateWithBoard, resetFactoryIds, withConfig } from '@/test/factories';
 import { createSession } from '@/test/factories';
 import {
-  createLateGamePerfState,
+  createPerfStateForScenario,
+  createRandomPlayPerfState,
   LATE_GAME_PERF_SCENARIOS,
 } from './lateGamePerfFixtures';
 
@@ -153,24 +154,6 @@ function createOpponentThreatState(): GameState {
   return gameStateWithBoard(board);
 }
 
-function createJumpContinuationState() {
-  const config = withConfig();
-  const jumpState = gameStateWithBoard(createEmptyBoard());
-
-  jumpState.board.A1.checkers = [checker('white')];
-  jumpState.board.B2.checkers = [checker('black')];
-  jumpState.board.D4.checkers = [checker('black')];
-
-  return applyAction(
-    jumpState,
-    {
-      type: 'jumpSequence',
-      source: 'A1',
-      path: ['C3'],
-    },
-    config,
-  );
-}
 
 function buildSelectableBaseline(state: GameState): Coord[] {
   return Object.keys(state.board).filter((coord) =>
@@ -216,9 +199,9 @@ function targetCellLabels(action: TurnAction): string[] {
 function buildLateGameAiFixtures(
   config: ReturnType<typeof withConfig>,
 ): LateGameAiFixture[] {
-  return LATE_GAME_PERF_SCENARIOS.map(({ label, turnCount }) => {
-    const state =
-      turnCount === 0 ? createInitialState(config) : createLateGamePerfState(turnCount, config);
+  return LATE_GAME_PERF_SCENARIOS.map((scenario) => {
+    const { label } = scenario;
+    const state = createPerfStateForScenario(scenario, config);
     const { action, nextState } = pickTurnEndingAction(state, config);
     const session = createSession(state, {
       matchSettings: {
@@ -239,7 +222,7 @@ function buildLateGameAiFixtures(
           ? cellButtonLabel(action.coord)
           : cellButtonLabel(action.source),
       targetCellLabels: targetCellLabels(action),
-      turnCount,
+      turnCount: scenario.turnCount,
     };
   });
 }
@@ -327,9 +310,9 @@ function measureRootOrderingLoop(
 function buildRootCacheBenchmark(
   config: ReturnType<typeof withConfig>,
 ): RootCacheBenchmarkEntry[] {
-  return LATE_GAME_PERF_SCENARIOS.map(({ label, turnCount }) => {
-    const state =
-      turnCount === 0 ? createInitialState(config) : createLateGamePerfState(turnCount, config);
+  return LATE_GAME_PERF_SCENARIOS.map((scenario) => {
+    const { label } = scenario;
+    const state = createPerfStateForScenario(scenario, config);
     const baselineMs = measureRootOrderingLoop(state, config, 'baseline');
     const optimizedMs = measureRootOrderingLoop(state, config, 'optimized');
     const gainMs = baselineMs - optimizedMs;
@@ -341,7 +324,7 @@ function buildRootCacheBenchmark(
       gainPercent: round(gainPercent, 2),
       label,
       optimizedMs: round(optimizedMs, 4),
-      turnCount,
+      turnCount: scenario.turnCount,
     };
   });
 }
@@ -355,21 +338,20 @@ describePerf('domain performance report', () => {
     resetFactoryIds();
     const config = withConfig();
     const initialState = createInitialState(config);
-    const afterOpening = applyAction(
-      initialState,
-      { type: 'climbOne', source: 'A1', target: 'B2' },
-      config,
-    );
-    const jumpContinuation = createJumpContinuationState();
+    // Realistic mid-game positions: all pieces still active, typical branching factor.
+    // These replace afterOpening (trivially similar to initial) and jumpContinuation
+    // (3-piece artificial board) which were poor proxies for real player game complexity.
+    const midGame20 = createRandomPlayPerfState(20, config, 0x1a2b3c);
+    const midGame40 = createRandomPlayPerfState(40, config, 0x4d5e6f);
     const threatState = createOpponentThreatState();
     const sampleStates = {
-      afterOpening,
       initialState,
-      jumpContinuation,
+      midGame20,
+      midGame40,
       threatState,
     } as const;
     const sampleAction =
-      getLegalActions(afterOpening, config)[0] ??
+      getLegalActions(midGame20, config)[0] ??
       getLegalActions(initialState, config)[0];
 
     expect(sampleAction).toBeDefined();
@@ -379,28 +361,31 @@ describePerf('domain performance report', () => {
 
     const domain = {
       hashPosition: measureAverage(6_000, () => {
-        hashPosition(afterOpening);
+        hashPosition(midGame20);
       }),
       getLegalActions: measureAverage(750, () => {
-        getLegalActions(afterOpening, config);
+        getLegalActions(midGame20, config);
       }),
       getLegalActionsForCell: measureAverage(1_500, () => {
-        getLegalActionsForCell(afterOpening, 'A1', config);
+        // Use initialState so 'A1' is guaranteed to have a piece.
+        getLegalActionsForCell(initialState, 'A1', config);
       }),
       selectableCoordsScan: measureAverage(280, () => {
-        buildSelectableBaseline(afterOpening);
+        buildSelectableBaseline(midGame20);
       }),
       hasLegalActionCheck: measureAverage(420, () => {
-        hasLegalAction(jumpContinuation, config);
+        hasLegalAction(midGame40, config);
       }),
       advanceEngineState: measureAverage(700, () => {
-        advanceEngineState(afterOpening, sampleAction, config);
+        advanceEngineState(midGame20, sampleAction, config);
       }),
     };
 
     const ai = Object.fromEntries(
       (['easy', 'medium', 'hard'] as const).map((difficulty) => {
+        const preset = AI_DIFFICULTY_PRESETS[difficulty];
         const states = Object.entries(sampleStates).map(([label, state]) => {
+          const legalActionCount = getLegalActions(state, config).length;
           const startedAt = performance.now();
           const result = chooseComputerAction({
             difficulty,
@@ -409,6 +394,16 @@ describePerf('domain performance report', () => {
             state,
           });
           const wallTimeMs = round(performance.now() - startedAt);
+          const nodesPerSecond = wallTimeMs > 0
+            ? round(result.evaluatedNodes / wallTimeMs * 1000)
+            : 0;
+          const depthEfficiency = round(result.completedDepth / preset.maxDepth, 4);
+          // Geometric-mean branching factor estimated from node count and completed depth.
+          // Only meaningful when completedDepth > 1 and nodes > 0.
+          const effectiveBranchingFactor =
+            result.completedDepth > 1 && result.evaluatedNodes > 0
+              ? round(Math.pow(result.evaluatedNodes, 1 / result.completedDepth), 2)
+              : null;
 
           return {
             action: actionKey(result.action),
@@ -417,13 +412,17 @@ describePerf('domain performance report', () => {
               result.evaluatedNodes > 0
                 ? round(result.diagnostics.betaCutoffs / result.evaluatedNodes, 4)
                 : 0,
+            depthEfficiency,
             diagnostics: result.diagnostics,
+            effectiveBranchingFactor,
             evaluatedNodes: result.evaluatedNodes,
             label,
+            legalActionCount,
+            nodesPerSecond,
             principalVariationLength: result.principalVariation.length,
             reportedElapsedMs: round(result.elapsedMs),
             rootCandidates: result.rootCandidates.length,
-            timeBudgetMs: AI_DIFFICULTY_PRESETS[difficulty].timeBudgetMs,
+            timeBudgetMs: preset.timeBudgetMs,
             transpositionHitRate:
               result.evaluatedNodes > 0
                 ? round(result.diagnostics.transpositionHits / result.evaluatedNodes, 4)
@@ -435,6 +434,13 @@ describePerf('domain performance report', () => {
         return [
           difficulty,
           {
+            avgDepthEfficiency: round(
+              states.reduce((sum, entry) => sum + entry.depthEfficiency, 0) / states.length,
+              4,
+            ),
+            avgNodesPerSecond: round(
+              states.reduce((sum, entry) => sum + entry.nodesPerSecond, 0) / states.length,
+            ),
             avgWallTimeMs: round(
               states.reduce((sum, entry) => sum + entry.wallTimeMs, 0) / states.length,
             ),

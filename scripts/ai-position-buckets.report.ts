@@ -89,7 +89,7 @@ async function main(): Promise<void> {
         traces.push(
           ...runAiVarietySuite({
             difficulty,
-            initialState: buildScenarioState(scenario.turnCount, ruleConfig),
+            initialState: buildScenarioState(scenario, ruleConfig),
             maxTurns,
             pairCount,
             ruleConfig,
