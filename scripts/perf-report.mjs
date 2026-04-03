@@ -8,6 +8,8 @@ import { spawn } from 'node:child_process';
 
 import { chromium } from 'playwright';
 
+import { generateCharts } from './perf-charts.mjs';
+
 const rootDir = process.cwd();
 const outputDir = path.join(rootDir, 'output', 'playwright');
 const reportPath = path.join(outputDir, 'perf-report.json');
@@ -20,6 +22,63 @@ const defaultMobileCpuRates = [1, 4, 6];
 function cpuRateKey(rate) {
   return `${rate}x`;
 }
+
+/**
+ * Builds the localStorage seed for the Playwright browser context.
+ *
+ * The app defaults to English when localStorage is empty; all selectors in this
+ * script use Russian labels. Seeding a valid Russian-language initial session
+ * ensures the correct locale from the very first paint.
+ */
+function buildSeedSessionJson() {
+  const columns = ['A', 'B', 'C', 'D', 'E', 'F'];
+  const board = {};
+  let wi = 1;
+  let bi = 1;
+
+  for (let row = 1; row <= 6; row++) {
+    for (const col of columns) {
+      const coord = `${col}${row}`;
+
+      if (row <= 3) {
+        board[coord] = {
+          checkers: [{ id: `white-${String(wi++).padStart(2, '0')}`, owner: 'white', frozen: false }],
+        };
+      } else {
+        board[coord] = {
+          checkers: [{ id: `black-${String(bi++).padStart(2, '0')}`, owner: 'black', frozen: false }],
+        };
+      }
+    }
+  }
+
+  const snapshot = {
+    board,
+    currentPlayer: 'white',
+    moveNumber: 1,
+    status: 'active',
+    victory: { type: 'none' },
+    pendingJump: null,
+  };
+
+  const session = {
+    version: 4,
+    ruleConfig: { allowNonAdjacentFriendlyStackTransfer: false, drawRule: 'none', scoringMode: 'basic' },
+    preferences: { language: 'russian', passDeviceOverlayEnabled: true },
+    matchSettings: { opponentMode: 'hotSeat', humanPlayer: 'white', aiDifficulty: 'easy' },
+    aiBehaviorProfile: null,
+    turnLog: [],
+    present: { snapshot, positionCounts: {}, historyCursor: 0 },
+    past: [],
+    future: [],
+  };
+
+  const envelope = { version: 1, sessionId: 'perf-seed', revision: 0, kind: 'compact', session };
+
+  return JSON.stringify(envelope);
+}
+
+const SEED_SESSION_JSON = buildSeedSessionJson();
 
 function parseCpuRates(input) {
   if (!input?.trim()) {
@@ -212,6 +271,10 @@ async function createMeasuredPage(browser, viewport, cpuRate = 1) {
   const page = await browser.newPage({ viewport });
   await applyCpuThrottling(page, cpuRate);
 
+  // Seed Russian-language session before the app boots so all subsequent
+  // selectors (which assume Russian UI labels) can find their elements.
+  await page.addInitScript(`localStorage.setItem('youi/session/v4', ${JSON.stringify(SEED_SESSION_JSON)})`);
+
   await page.addInitScript(() => {
     window.__wmblPerf = {
       largestContentfulPaintMs: null,
@@ -268,7 +331,7 @@ async function createMeasuredPage(browser, viewport, cpuRate = 1) {
   });
 
   await page.goto(previewUrl, { waitUntil: 'load' });
-  await page.getByRole('button', { name: 'Клетка A1' }).waitFor({ state: 'visible', timeout: 3000 });
+  await page.getByRole('button', { name: 'Клетка A1' }).waitFor({ state: 'visible', timeout: 12000 });
   await page.waitForTimeout(600);
 
   return page;
@@ -832,7 +895,12 @@ async function main() {
 
       await writeFile(reportPath, `${JSON.stringify(report, null, 2)}\n`, 'utf8');
       await writeFile(summaryPath, summary.markdown, 'utf8');
-      process.stdout.write(`${JSON.stringify({ reportPath, summaryPath, summary: summary.checks }, null, 2)}\n`);
+
+      process.stderr.write('perf: generating charts\n');
+      const chartsPath = path.join(outputDir, 'perf-charts.html');
+      await generateCharts(reportPath, chartsPath);
+
+      process.stdout.write(`${JSON.stringify({ chartsPath, reportPath, summaryPath, summary: summary.checks }, null, 2)}\n`);
     } finally {
       await browser.close();
     }

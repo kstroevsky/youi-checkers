@@ -1,7 +1,7 @@
 {
   "name": "youi",
   "private": true,
-  "version": "0.3.2",
+  "version": "0.3.3",
   "type": "module",
   "scripts": {
     "ai:crossplay": "tsx scripts/ai-crossplay.report.ts",
@@ -21,6 +21,7 @@
     "build": "tsc --noEmit && vite build",
     "docs:check-links": "node scripts/check-markdown-links.mjs",
     "preview": "vite preview",
+    "perf:charts": "node scripts/perf-charts.mjs",
     "perf:compare": "node scripts/compare-perf-reports.mjs",
     "perf:compare:git": "node scripts/run-git-report-compare.mjs --pipeline=perf-report",
     "perf:report": "npm run build && node scripts/perf-report.mjs",
