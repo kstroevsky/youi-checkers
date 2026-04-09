@@ -6,3 +6,10 @@ node_modules
 .playwright-cli
 .codex-artifactss
 analysis
+
+# wrangler files
+.wrangler
+.dev.vars*
+!.dev.vars.example
+.env*
+!.env.example

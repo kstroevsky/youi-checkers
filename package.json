@@ -20,7 +20,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "docs:check-links": "node scripts/check-markdown-links.mjs",
-    "preview": "vite preview",
+    "preview": "pnpm run build && wrangler dev",
     "perf:charts": "node scripts/perf-charts.mjs",
     "perf:compare": "node scripts/compare-perf-reports.mjs",
     "perf:compare:git": "node scripts/run-git-report-compare.mjs --pipeline=perf-report",
@@ -28,7 +28,8 @@
     "test": "vitest",
     "test:run": "vitest run",
     "lint": "eslint .",
-    "format": "prettier --check ."
+    "format": "prettier --check .",
+    "deploy": "pnpm run build && wrangler deploy"
   },
   "dependencies": {
     "onnxruntime-web": "^1.23.0",
@@ -37,6 +38,7 @@
     "zustand": "^5.0.11"
   },
   "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.31.1",
     "@eslint/js": "^10.0.1",
     "@testing-library/jest-dom": "^6.9.1",
     "@testing-library/react": "^16.3.2",
@@ -56,6 +58,7 @@
     "vite": "^7.3.1",
     "vite-plugin-pwa": "^1.2.0",
     "vitest": "^4.0.18",
-    "workbox-window": "^7.4.0"
+    "workbox-window": "^7.4.0",
+    "wrangler": "^4.81.0"
   }
 }
