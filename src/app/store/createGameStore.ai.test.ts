@@ -6,8 +6,16 @@ import {
   AI_COLD_START_BUFFER_MS,
   AI_SLOW_DEVICE_BUFFER_MS,
 } from '@/app/store/createGameStore/aiController';
-import { AI_MOVE_REVEAL_MS, AI_WATCHDOG_BUFFER_MS } from '@/app/store/createGameStore/constants';
-import { applyAction, createInitialState, getLegalActions, type TurnAction } from '@/domain';
+import {
+  AI_MOVE_REVEAL_MS,
+  AI_WATCHDOG_BUFFER_MS,
+} from '@/app/store/createGameStore/constants';
+import {
+  applyAction,
+  createInitialState,
+  getLegalActions,
+  type TurnAction,
+} from '@/domain';
 import type { MatchSettings } from '@/shared/types/session';
 import {
   boardWithPieces,
@@ -25,12 +33,18 @@ import {
   createQuotaExceededError,
   FakeAiWorker,
 } from '@/app/store/createGameStore.testUtils';
+import { createSeriesState } from '@/app/store/createGameStore/series';
 
-const EASY_WATCHDOG_MS = AI_DIFFICULTY_PRESETS.easy.timeBudgetMs + AI_WATCHDOG_BUFFER_MS;
+const EASY_WATCHDOG_MS =
+  AI_DIFFICULTY_PRESETS.easy.timeBudgetMs + AI_WATCHDOG_BUFFER_MS;
 const EASY_COLD_START_WATCHDOG_MS = EASY_WATCHDOG_MS + AI_COLD_START_BUFFER_MS;
-const EASY_SLOW_RETRY_WATCHDOG_MS = EASY_WATCHDOG_MS + AI_COLD_START_BUFFER_MS + AI_SLOW_DEVICE_BUFFER_MS;
+const EASY_SLOW_RETRY_WATCHDOG_MS =
+  EASY_WATCHDOG_MS + AI_COLD_START_BUFFER_MS + AI_SLOW_DEVICE_BUFFER_MS;
 
-function commitTurnAction(store: ReturnType<typeof createGameStore>, action: TurnAction): void {
+function commitTurnAction(
+  store: ReturnType<typeof createGameStore>,
+  action: TurnAction,
+): void {
   const state = store.getState();
 
   switch (action.type) {
@@ -61,13 +75,53 @@ describe('createGameStore AI integration', () => {
     vi.useRealTimers();
   });
 
+  it('requests finishing search while the computer completes a series game', async () => {
+    const worker = new FakeAiWorker();
+    const matchSettings: MatchSettings = {
+      opponentMode: 'computer',
+      humanPlayer: 'black',
+      aiDifficulty: 'easy',
+      gameFormat: 'series',
+      targetPoints: 100,
+    };
+    const gameState = {
+      ...createInitialState(),
+      currentPlayer: 'white' as const,
+    };
+    const seriesState = {
+      ...createSeriesState(matchSettings),
+      finishingParticipant: 'second' as const,
+      firstVictory: { type: 'homeField' as const, winner: 'black' as const },
+      firstWinner: 'first' as const,
+      pendingPoints: 1,
+      phase: 'finishing' as const,
+    };
+
+    createGameStore({
+      createAiWorker: () => worker,
+      initialSession: createSession(gameState, {
+        matchSettings,
+        seriesState,
+      }),
+      storage: undefined,
+    });
+
+    await Promise.resolve();
+
+    expect(worker.requests).toHaveLength(1);
+    expect(worker.requests[0]?.searchMode).toBe('finishing');
+  });
+
   it('keeps the computer turn flow alive when local storage quota is exceeded on a new game', () => {
     const worker = new FakeAiWorker();
-    const storage = createMemoryStorage({}, {
-      onSetItem: () => {
-        throw createQuotaExceededError();
+    const storage = createMemoryStorage(
+      {},
+      {
+        onSetItem: () => {
+          throw createQuotaExceededError();
+        },
       },
-    });
+    );
     const store = createGameStore({
       createAiWorker: () => worker,
       storage,
@@ -78,6 +132,8 @@ describe('createGameStore AI integration', () => {
         opponentMode: 'computer',
         humanPlayer: 'black',
         aiDifficulty: 'easy',
+        gameFormat: 'single',
+        targetPoints: 100,
       }),
     ).not.toThrow();
     expect(store.getState().aiStatus).toBe('thinking');
@@ -86,11 +142,14 @@ describe('createGameStore AI integration', () => {
 
   it('still schedules the computer reply when a committed move cannot be written to local storage', () => {
     const worker = new FakeAiWorker();
-    const storage = createMemoryStorage({}, {
-      onSetItem: () => {
-        throw createQuotaExceededError();
+    const storage = createMemoryStorage(
+      {},
+      {
+        onSetItem: () => {
+          throw createQuotaExceededError();
+        },
       },
-    });
+    );
     const store = createGameStore({
       createAiWorker: () => worker,
       storage,
@@ -100,6 +159,8 @@ describe('createGameStore AI integration', () => {
       opponentMode: 'computer',
       humanPlayer: 'white',
       aiDifficulty: 'easy',
+      gameFormat: 'single',
+      targetPoints: 100,
     });
     store.getState().selectCell('A1');
     store.getState().chooseActionType('climbOne');
@@ -122,6 +183,8 @@ describe('createGameStore AI integration', () => {
       opponentMode: 'computer',
       humanPlayer: 'black',
       aiDifficulty: 'easy',
+      gameFormat: 'single',
+      targetPoints: 100,
     });
 
     vi.advanceTimersByTime(EASY_WATCHDOG_MS + 50);
@@ -129,7 +192,10 @@ describe('createGameStore AI integration', () => {
     expect(store.getState().aiStatus).toBe('thinking');
     expect(worker.terminated).toBe(false);
 
-    const aiAction = getLegalActions(store.getState().gameState, store.getState().ruleConfig)[0];
+    const aiAction = getLegalActions(
+      store.getState().gameState,
+      store.getState().ruleConfig,
+    )[0];
 
     expect(aiAction).toBeDefined();
     if (!aiAction) {
@@ -155,9 +221,14 @@ describe('createGameStore AI integration', () => {
       opponentMode: 'computer',
       humanPlayer: 'white',
       aiDifficulty: 'easy',
+      gameFormat: 'single',
+      targetPoints: 100,
     });
 
-    const humanOpening = getLegalActions(store.getState().gameState, store.getState().ruleConfig)[0];
+    const humanOpening = getLegalActions(
+      store.getState().gameState,
+      store.getState().ruleConfig,
+    )[0];
 
     expect(humanOpening).toBeDefined();
     if (!humanOpening) {
@@ -167,7 +238,10 @@ describe('createGameStore AI integration', () => {
     commitTurnAction(store, humanOpening);
     expect(store.getState().aiStatus).toBe('thinking');
 
-    const firstAiReply = getLegalActions(store.getState().gameState, store.getState().ruleConfig)[0];
+    const firstAiReply = getLegalActions(
+      store.getState().gameState,
+      store.getState().ruleConfig,
+    )[0];
 
     expect(firstAiReply).toBeDefined();
     if (!firstAiReply) {
@@ -179,7 +253,10 @@ describe('createGameStore AI integration', () => {
     expect(store.getState().aiStatus).toBe('idle');
     expect(worker.requests).toHaveLength(1);
 
-    const secondHumanTurn = getLegalActions(store.getState().gameState, store.getState().ruleConfig)[0];
+    const secondHumanTurn = getLegalActions(
+      store.getState().gameState,
+      store.getState().ruleConfig,
+    )[0];
 
     expect(secondHumanTurn).toBeDefined();
     if (!secondHumanTurn) {
@@ -219,12 +296,16 @@ describe('createGameStore AI integration', () => {
       opponentMode: 'computer',
       humanPlayer: 'black',
       aiDifficulty: 'easy',
+      gameFormat: 'single',
+      targetPoints: 100,
     });
 
     expect(store.getState().matchSettings).toEqual<MatchSettings>({
       opponentMode: 'computer',
       humanPlayer: 'black',
       aiDifficulty: 'easy',
+      gameFormat: 'single',
+      targetPoints: 100,
     });
     expect(store.getState().aiStatus).toBe('thinking');
     expect(worker.requests).toHaveLength(1);
@@ -232,7 +313,10 @@ describe('createGameStore AI integration', () => {
     store.getState().selectCell('A1');
     expect(store.getState().selectedCell).toBeNull();
 
-    const aiAction = getLegalActions(store.getState().gameState, store.getState().ruleConfig)[0];
+    const aiAction = getLegalActions(
+      store.getState().gameState,
+      store.getState().ruleConfig,
+    )[0];
     expect(aiAction).toBeDefined();
     if (!aiAction) {
       return;
@@ -262,6 +346,8 @@ describe('createGameStore AI integration', () => {
       opponentMode: 'computer',
       humanPlayer: 'white',
       aiDifficulty: 'medium',
+      gameFormat: 'single',
+      targetPoints: 100,
     });
 
     expect(store.getState().ruleConfig.drawRule).toBe('threefold');
@@ -278,13 +364,18 @@ describe('createGameStore AI integration', () => {
       opponentMode: 'computer',
       humanPlayer: 'white',
       aiDifficulty: 'easy',
+      gameFormat: 'single',
+      targetPoints: 100,
     });
 
     store.getState().selectCell('A1');
     store.getState().chooseActionType('climbOne');
     store.getState().selectCell('B2');
 
-    const aiAction = getLegalActions(store.getState().gameState, store.getState().ruleConfig)[0];
+    const aiAction = getLegalActions(
+      store.getState().gameState,
+      store.getState().ruleConfig,
+    )[0];
     worker.reply(createAiResult({ action: aiAction }));
 
     expect(store.getState().gameState.currentPlayer).toBe('white');
@@ -306,13 +397,18 @@ describe('createGameStore AI integration', () => {
       opponentMode: 'computer',
       humanPlayer: 'white',
       aiDifficulty: 'easy',
+      gameFormat: 'single',
+      targetPoints: 100,
     });
 
     store.getState().selectCell('A1');
     store.getState().chooseActionType('climbOne');
     store.getState().selectCell('B2');
 
-    const aiAction = getLegalActions(store.getState().gameState, store.getState().ruleConfig)[0];
+    const aiAction = getLegalActions(
+      store.getState().gameState,
+      store.getState().ruleConfig,
+    )[0];
     worker.reply(createAiResult({ action: aiAction }));
 
     expect(store.getState().historyCursor).toBe(2);
@@ -336,6 +432,8 @@ describe('createGameStore AI integration', () => {
           opponentMode: 'computer',
           humanPlayer: 'black',
           aiDifficulty: 'easy',
+          gameFormat: 'single',
+          targetPoints: 100,
         },
       }),
       storage: undefined,
@@ -358,6 +456,8 @@ describe('createGameStore AI integration', () => {
           opponentMode: 'computer',
           humanPlayer: 'black',
           aiDifficulty: 'easy',
+          gameFormat: 'single',
+          targetPoints: 100,
         },
         past: [undoFrame(state0)],
         present: undoFrame(state0),
@@ -391,6 +491,8 @@ describe('createGameStore AI integration', () => {
           opponentMode: 'computer',
           humanPlayer: 'black',
           aiDifficulty: 'easy',
+          gameFormat: 'single',
+          targetPoints: 100,
         },
       }),
       storage: undefined,
@@ -442,6 +544,8 @@ describe('createGameStore AI integration', () => {
           opponentMode: 'computer',
           humanPlayer: 'black',
           aiDifficulty: 'easy',
+          gameFormat: 'single',
+          targetPoints: 100,
         },
       }),
       storage: undefined,
@@ -501,6 +605,8 @@ describe('createGameStore AI integration', () => {
       opponentMode: 'computer',
       humanPlayer: 'black',
       aiDifficulty: 'easy',
+      gameFormat: 'single',
+      targetPoints: 100,
     });
 
     vi.advanceTimersByTime(EASY_WATCHDOG_MS + 1);
@@ -555,6 +661,8 @@ describe('createGameStore AI integration', () => {
       opponentMode: 'computer',
       humanPlayer: 'black',
       aiDifficulty: 'easy',
+      gameFormat: 'single',
+      targetPoints: 100,
     });
 
     const firstWorker = workers[0];
@@ -577,12 +685,18 @@ describe('createGameStore AI integration', () => {
       return;
     }
 
-    secondWorker.dispatch(staleRequestId as number, createAiResult({ action: legalAction }));
+    secondWorker.dispatch(
+      staleRequestId as number,
+      createAiResult({ action: legalAction }),
+    );
 
     expect(store.getState().aiStatus).toBe('thinking');
     expect(store.getState().gameState.history).toHaveLength(0);
 
-    secondWorker.dispatch(freshRequestId as number, createAiResult({ action: legalAction }));
+    secondWorker.dispatch(
+      freshRequestId as number,
+      createAiResult({ action: legalAction }),
+    );
 
     expect(store.getState().aiStatus).toBe('idle');
     expect(store.getState().gameState.history).toHaveLength(1);

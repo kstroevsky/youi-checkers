@@ -5,6 +5,7 @@ import type {
   ActionKind,
   Coord,
   GameState,
+  Player,
   RuleConfig,
   ScoreSummary,
   TargetMap,
@@ -16,6 +17,7 @@ import type {
   InteractionState,
   MatchSettings,
   SerializableSession,
+  SeriesState,
   UndoFrame,
 } from '@/shared/types/session';
 
@@ -44,6 +46,7 @@ export type GameStoreData = {
   matchSettings: MatchSettings;
   aiBehaviorProfile: AiBehaviorProfile | null;
   setupMatchSettings: MatchSettings;
+  seriesState: SeriesState | null;
   gameState: GameState;
   turnLog: TurnRecord[];
   past: UndoFrame[];
@@ -70,6 +73,7 @@ export type GameStoreData = {
 export type GameStoreState = GameStoreData & {
   acknowledgePassScreen: () => void;
   cancelInteraction: () => void;
+  chooseNextSeriesColor: (color: Player) => void;
   chooseActionType: (actionType: ActionKind) => void;
   goToHistoryCursor: (targetCursor: number) => void;
   importSessionFromBuffer: () => void;
@@ -79,10 +83,12 @@ export type GameStoreState = GameStoreData & {
   restart: () => void;
   selectCell: (coord: Coord) => void;
   setImportBuffer: (value: string) => void;
+  setGameFormat: (format: MatchSettings['gameFormat']) => void;
   setSetupMatchSettings: (partial: Partial<MatchSettings>) => void;
   setPreference: (partial: Partial<AppPreferences>) => void;
   setRuleConfig: (partial: Partial<RuleConfig>) => void;
   startNewGame: (matchSettings?: MatchSettings) => void;
+  startNextSeriesGame: () => void;
   undo: () => void;
 };
 
@@ -94,6 +100,7 @@ export type StoreOptions = {
   createAiWorker?: () => AiWorkerLike | null;
   createSessionId?: () => string;
   initialSession?: SerializableSession;
+  random?: () => number;
   storage?: Storage;
 };
 
@@ -103,6 +110,7 @@ export type SessionSlices = Pick<
   | 'ruleConfig'
   | 'preferences'
   | 'matchSettings'
+  | 'seriesState'
   | 'aiBehaviorProfile'
   | 'gameState'
   | 'turnLog'
@@ -121,7 +129,10 @@ export type InitialPersistenceState = {
 };
 
 /** Shared shape returned by board-level derivation helpers. */
-export type BoardDerivation = Pick<GameStoreData, 'selectableCoords' | 'scoreSummary'>;
+export type BoardDerivation = Pick<
+  GameStoreData,
+  'selectableCoords' | 'scoreSummary'
+>;
 
 /** Shared shape returned by selected-cell derivation helpers. */
 export type CellDerivation = Pick<

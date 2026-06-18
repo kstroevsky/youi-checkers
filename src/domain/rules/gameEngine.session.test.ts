@@ -13,7 +13,10 @@ import {
 import { createEmptyBoard } from '@/domain/model/board';
 import { hashPosition } from '@/domain/model/hash';
 import type { GameState } from '@/domain/model/types';
-import { getDrawTiebreakMetrics, resolveDrawOutcome } from '@/domain/rules/victory';
+import {
+  getDrawTiebreakMetrics,
+  resolveDrawOutcome,
+} from '@/domain/rules/victory';
 import {
   boardWithPieces,
   checker,
@@ -66,7 +69,11 @@ describe('game engine victory and serialization', () => {
     const stackBoard = createEmptyBoard();
 
     (['A6', 'B6', 'C6', 'D6', 'E6', 'F6'] as const).forEach((coord) => {
-      stackBoard[coord].checkers = [checker('white'), checker('white'), checker('white')];
+      stackBoard[coord].checkers = [
+        checker('white'),
+        checker('white'),
+        checker('white'),
+      ];
     });
 
     const stackState = gameStateWithBoard(stackBoard);
@@ -81,7 +88,11 @@ describe('game engine victory and serialization', () => {
     const board = createEmptyBoard();
 
     (['A6', 'B6', 'C6', 'D6', 'E6', 'F6'] as const).forEach((coord) => {
-      board[coord].checkers = [checker('black'), checker('white'), checker('white')];
+      board[coord].checkers = [
+        checker('black'),
+        checker('white'),
+        checker('white'),
+      ];
     });
 
     const state = gameStateWithBoard(board);
@@ -106,7 +117,9 @@ describe('game engine victory and serialization', () => {
       },
     };
 
-    expect(checkVictory(repeatedState, withConfig({ drawRule: 'threefold' }))).toEqual({
+    expect(
+      checkVictory(repeatedState, withConfig({ drawRule: 'threefold' })),
+    ).toEqual({
       type: 'threefoldTiebreakWin',
       winner: 'black',
       ownFieldCheckers: { white: 0, black: 1 },
@@ -134,13 +147,15 @@ describe('game engine victory and serialization', () => {
     };
 
     expect(hashA).toBe(hashB);
-    expect(checkVictory(stateB, withConfig({ drawRule: 'threefold' }))).toEqual({
-      type: 'threefoldTiebreakWin',
-      winner: 'black',
-      ownFieldCheckers: { white: 0, black: 1 },
-      completedHomeStacks: { white: 0, black: 0 },
-      decidedBy: 'checkers',
-    });
+    expect(checkVictory(stateB, withConfig({ drawRule: 'threefold' }))).toEqual(
+      {
+        type: 'threefoldTiebreakWin',
+        winner: 'black',
+        ownFieldCheckers: { white: 0, black: 1 },
+        completedHomeStacks: { white: 0, black: 0 },
+        decidedBy: 'checkers',
+      },
+    );
   });
 
   it('keeps threefold as draw when both tiebreak levels are equal', () => {
@@ -158,7 +173,9 @@ describe('game engine victory and serialization', () => {
       },
     };
 
-    expect(checkVictory(repeatedState, withConfig({ drawRule: 'threefold' }))).toEqual({
+    expect(
+      checkVictory(repeatedState, withConfig({ drawRule: 'threefold' })),
+    ).toEqual({
       type: 'threefoldDraw',
     });
   });
@@ -246,11 +263,14 @@ describe('game engine victory and serialization', () => {
     const serialized = serializeSession(session);
     const prettySerialized = serializeSession(session, { pretty: true });
     const restored = deserializeSession(serialized);
-    const restoredGameState = restoreGameState(restored.present, restored.turnLog);
+    const restoredGameState = restoreGameState(
+      restored.present,
+      restored.turnLog,
+    );
 
     expect(serialized).not.toContain('\n');
     expect(prettySerialized).toContain('\n');
-    expect(restored.version).toBe(4);
+    expect(restored.version).toBe(5);
     expect(restored.aiBehaviorProfile).toBeNull();
     expect(restoredGameState.currentPlayer).toBe('white');
     expect(() => deserializeSession('{"version":1,"present":{}}')).toThrow();
@@ -292,7 +312,9 @@ describe('game engine victory and serialization', () => {
       ),
     );
 
-    expect(restored.present.snapshot.victory).toEqual({ type: 'stalemateDraw' });
+    expect(restored.present.snapshot.victory).toEqual({
+      type: 'stalemateDraw',
+    });
   });
 
   it('migrates legacy bilingual preferences and normalizes stale position counts on deserialize', () => {
@@ -360,6 +382,8 @@ describe('game engine victory and serialization', () => {
         opponentMode: 'computer',
         humanPlayer: 'black',
         aiDifficulty: 'hard',
+        gameFormat: 'single',
+        targetPoints: 100,
       },
       turnLog: state.history,
       present: undoFrame(state),
@@ -371,15 +395,17 @@ describe('game engine victory and serialization', () => {
     const restoredV2 = deserializeSession(v2);
     const restoredV3 = deserializeSession(v3);
 
-    expect(restoredV1.version).toBe(4);
+    expect(restoredV1.version).toBe(5);
     expect(restoredV1.aiBehaviorProfile).toBeNull();
-    expect(restoredV2.version).toBe(4);
+    expect(restoredV2.version).toBe(5);
     expect(restoredV2.aiBehaviorProfile).toBeNull();
-    expect(restoredV3.version).toBe(4);
+    expect(restoredV3.version).toBe(5);
     expect(restoredV3.matchSettings).toEqual({
       opponentMode: 'computer',
       humanPlayer: 'black',
       aiDifficulty: 'hard',
+      gameFormat: 'single',
+      targetPoints: 100,
     });
     expect(restoredV3.aiBehaviorProfile).toBeNull();
   });
@@ -387,8 +413,16 @@ describe('game engine victory and serialization', () => {
   it('restores shared-turn-log sessions with history cursor and position counts intact', () => {
     const config = withConfig();
     const state0 = createInitialState(config);
-    const state1 = applyAction(state0, { type: 'climbOne', source: 'A1', target: 'B2' }, config);
-    const state2 = applyAction(state1, getLegalActions(state1, config)[0], config);
+    const state1 = applyAction(
+      state0,
+      { type: 'climbOne', source: 'A1', target: 'B2' },
+      config,
+    );
+    const state2 = applyAction(
+      state1,
+      getLegalActions(state1, config)[0],
+      config,
+    );
     const session = createSession(state2, {
       turnLog: state2.history,
       past: [undoFrame(state0), undoFrame(state1)],

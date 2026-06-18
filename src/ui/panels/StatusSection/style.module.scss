@@ -109,6 +109,16 @@
   justify-content: flex-start;
 }
 
+.formatAction {
+  display: flex;
+  justify-content: flex-start;
+
+  button {
+    padding: 4px 8px;
+    font-size: 0.76rem;
+  }
+}
+
 .summary[data-compact='true'] {
   gap: 10px;
 

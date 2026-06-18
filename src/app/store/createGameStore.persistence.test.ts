@@ -8,8 +8,16 @@ import {
   deserializePersistedSessionEnvelope,
   serializePersistedSessionEnvelope,
 } from '@/app/store/sessionPersistence';
-import { applyAction, createInitialState, deserializeSession, serializeSession } from '@/domain';
-import { LEGACY_SESSION_STORAGE_KEYS, SESSION_STORAGE_KEY } from '@/shared/constants/storage';
+import {
+  applyAction,
+  createInitialState,
+  deserializeSession,
+  serializeSession,
+} from '@/domain';
+import {
+  LEGACY_SESSION_STORAGE_KEYS,
+  SESSION_STORAGE_KEY,
+} from '@/shared/constants/storage';
 import { createSession, resetFactoryIds } from '@/test/factories';
 
 import {
@@ -50,7 +58,9 @@ describe('createGameStore persistence', () => {
         scoringMode: 'off',
       },
     };
-    const deserialized = deserializeSession(JSON.stringify(sessionWithPartialRuleConfig));
+    const deserialized = deserializeSession(
+      JSON.stringify(sessionWithPartialRuleConfig),
+    );
 
     expect(deserialized.ruleConfig).toEqual({
       allowNonAdjacentFriendlyStackTransfer: false,
@@ -75,7 +85,9 @@ describe('createGameStore persistence', () => {
     await Promise.resolve();
 
     const persisted = storage.getItem(SESSION_STORAGE_KEY);
-    const envelope = persisted ? deserializePersistedSessionEnvelope(String(persisted)) : null;
+    const envelope = persisted
+      ? deserializePersistedSessionEnvelope(String(persisted))
+      : null;
 
     expect(store.getState().ruleConfig).toEqual({
       allowNonAdjacentFriendlyStackTransfer: false,
@@ -97,7 +109,11 @@ describe('createGameStore persistence', () => {
       scoringMode: 'basic',
     } as const;
     const state0 = createInitialState(config);
-    const state1 = applyAction(state0, { type: 'climbOne', source: 'A1', target: 'B2' }, config);
+    const state1 = applyAction(
+      state0,
+      { type: 'climbOne', source: 'A1', target: 'B2' },
+      config,
+    );
     const legacySession = createSession(state1, {
       ruleConfig: config,
       turnLog: state1.history,
@@ -123,7 +139,7 @@ describe('createGameStore persistence', () => {
     const initialExport = store.getState().exportBuffer;
 
     expect(initialExport).toContain('\n');
-    expect(initialExport).toContain('"version": 4');
+    expect(initialExport).toContain('"version": 5');
 
     store.getState().setImportBuffer('{"draft": true}');
     expect(store.getState().exportBuffer).toBe(initialExport);
@@ -147,11 +163,15 @@ describe('createGameStore persistence', () => {
       opponentMode: 'computer',
       humanPlayer: 'white',
       aiDifficulty: 'medium',
+      gameFormat: 'single',
+      targetPoints: 100,
     });
 
     const expectedProfile = createAiBehaviorProfile('seed-a');
     const persisted = storage.getItem(SESSION_STORAGE_KEY);
-    const envelope = persisted ? deserializePersistedSessionEnvelope(persisted) : null;
+    const envelope = persisted
+      ? deserializePersistedSessionEnvelope(persisted)
+      : null;
 
     expect(store.getState().aiBehaviorProfile).toEqual(expectedProfile);
     expect(envelope?.session.aiBehaviorProfile).toEqual(expectedProfile);
@@ -194,7 +214,8 @@ describe('createGameStore persistence', () => {
     const sessionId = 'archive-stale';
     const revision = 7;
     const compact = createCompactSession(session);
-    const loadDeferred = createDeferred<Awaited<ReturnType<FakeArchive['loadLatest']>>>();
+    const loadDeferred =
+      createDeferred<Awaited<ReturnType<FakeArchive['loadLatest']>>>();
     const archive = new FakeArchive(() => loadDeferred.promise);
     const storage = createMemoryStorage({
       [SESSION_STORAGE_KEY]: serializePersistedSessionEnvelope(
@@ -207,7 +228,9 @@ describe('createGameStore persistence', () => {
 
     expect(store.getState().historyHydrationStatus).toBe('recentOnly');
 
-    loadDeferred.resolve(createPersistedSessionEnvelope('full', sessionId, revision, session));
+    loadDeferred.resolve(
+      createPersistedSessionEnvelope('full', sessionId, revision, session),
+    );
 
     await Promise.resolve();
     await Promise.resolve();

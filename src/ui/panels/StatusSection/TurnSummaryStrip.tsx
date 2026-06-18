@@ -3,7 +3,13 @@ import { useShallow } from 'zustand/react/shallow';
 import type { Victory } from '@/domain';
 import { useGameStore } from '@/app/providers/GameStoreProvider';
 import type { GlossaryTermId } from '@/features/glossary/terms';
-import { describeInteraction, formatTurnBanner, formatVictory, playerLabel, text } from '@/shared/i18n/catalog';
+import {
+  describeInteraction,
+  formatTurnBanner,
+  formatVictory,
+  playerLabel,
+  text,
+} from '@/shared/i18n/catalog';
 import type { Language } from '@/shared/i18n/types';
 import { Button } from '@/ui/primitives/Button';
 import { GlossaryTooltip } from '@/ui/tooltips/GlossaryTooltip';
@@ -52,9 +58,11 @@ export function TurnSummaryStrip({ compact = false }: TurnSummaryStripProps) {
     matchSettings,
     moveNumber,
     selectedCell,
+    seriesState,
     victory,
     onCancel,
     onRetryComputerMove,
+    onSetGameFormat,
   } = useGameStore(
     useShallow((state) => ({
       aiStatus: state.aiStatus,
@@ -65,18 +73,20 @@ export function TurnSummaryStrip({ compact = false }: TurnSummaryStripProps) {
       matchSettings: state.matchSettings,
       moveNumber: state.gameState.moveNumber,
       selectedCell: state.selectedCell,
+      seriesState: state.seriesState,
       victory: state.gameState.victory,
       onCancel: state.cancelInteraction,
       onRetryComputerMove: state.retryComputerMove,
+      onSetGameFormat: state.setGameFormat,
     })),
   );
 
-  const isMoveActive =
-    selectedCell !== null && availableActionKinds.length > 0;
+  const isMoveActive = selectedCell !== null && availableActionKinds.length > 0;
   const victoryTermId = getVictoryTermId(victory);
   const jumpFollowUp = interaction.type === 'jumpFollowUp' ? interaction : null;
   const isComputerTurn =
-    matchSettings.opponentMode === 'computer' && currentPlayer !== matchSettings.humanPlayer;
+    matchSettings.opponentMode === 'computer' &&
+    currentPlayer !== matchSettings.humanPlayer;
   const interactionCopy =
     isComputerTurn && aiStatus === 'error'
       ? text(language, 'computerMoveFailed')
@@ -96,13 +106,15 @@ export function TurnSummaryStrip({ compact = false }: TurnSummaryStripProps) {
           <small>{interactionCopy}</small>
         </div>
         <Button variant="active" onClick={onCancel} disabled={!isMoveActive}>
-            {text(language, 'clear')}
+          {text(language, 'clear')}
         </Button>
       </div>
 
       {jumpFollowUp ? (
         <div className={styles.jumpFollowUpCallout}>
-          <p className={styles.jumpFollowUpLabel}>{text(language, 'jumpPathLabel')}</p>
+          <p className={styles.jumpFollowUpLabel}>
+            {text(language, 'jumpPathLabel')}
+          </p>
           <strong>{jumpFollowUp.source}</strong>
           <small>{text(language, 'jumpPathHint')}</small>
         </div>
@@ -115,18 +127,35 @@ export function TurnSummaryStrip({ compact = false }: TurnSummaryStripProps) {
         <p className={styles.textRow}>
           <strong>{text(language, 'matchModeLabel')}:</strong> {matchModeCopy}
         </p>
+        <div className={styles.formatAction}>
+          {matchSettings.gameFormat === 'single' ? (
+            <Button variant="ghost" onClick={() => onSetGameFormat('series')}>
+              {text(language, 'switchToMulti')}
+            </Button>
+          ) : seriesState?.gameNumber === 1 ? (
+            <Button variant="ghost" onClick={() => onSetGameFormat('single')}>
+              {text(language, 'switchToSingle')}
+            </Button>
+          ) : null}
+        </div>
         <p className={styles.textRowInline}>
-          <strong>{text(language, 'statusLabel')}:</strong> {formatVictory(language, victory)}
-          {victoryTermId ? <GlossaryTooltip language={language} termId={victoryTermId} /> : null}
+          <strong>{text(language, 'statusLabel')}:</strong>{' '}
+          {formatVictory(language, victory)}
+          {victoryTermId ? (
+            <GlossaryTooltip language={language} termId={victoryTermId} />
+          ) : null}
         </p>
         {selectedCell ? (
           <p className={styles.textRow}>
-            <strong>{text(language, 'selectedCellLabel')}:</strong> {selectedCell}
+            <strong>{text(language, 'selectedCellLabel')}:</strong>{' '}
+            {selectedCell}
           </p>
         ) : null}
         {isComputerTurn && aiStatus === 'error' ? (
           <div className={styles.retryRow}>
-            <Button onClick={onRetryComputerMove}>{text(language, 'retryComputerMove')}</Button>
+            <Button onClick={onRetryComputerMove}>
+              {text(language, 'retryComputerMove')}
+            </Button>
           </div>
         ) : null}
       </div>

@@ -14,7 +14,10 @@ type MatchSetupPanelProps = {
   embedded?: boolean;
 };
 
-function difficultyLabel(language: Language, difficulty: 'easy' | 'medium' | 'hard'): string {
+function difficultyLabel(
+  language: Language,
+  difficulty: 'easy' | 'medium' | 'hard',
+): string {
   switch (difficulty) {
     case 'easy':
       return text(language, 'difficultyEasy');
@@ -26,9 +29,17 @@ function difficultyLabel(language: Language, difficulty: 'easy' | 'medium' | 'ha
 }
 
 /** Renders one compact, game-screen-facing block for configuring the next match. */
-export function MatchSetupPanel({ compact = false, embedded = false }: MatchSetupPanelProps) {
+export function MatchSetupPanel({
+  compact = false,
+  embedded = false,
+}: MatchSetupPanelProps) {
   const fieldId = useId();
-  const { language, setupMatchSettings, onSetSetupMatchSettings, onStartNewGame } = useGameStore(
+  const {
+    language,
+    setupMatchSettings,
+    onSetSetupMatchSettings,
+    onStartNewGame,
+  } = useGameStore(
     useShallow((state) => ({
       language: state.preferences.language,
       setupMatchSettings: state.setupMatchSettings,
@@ -37,6 +48,9 @@ export function MatchSetupPanel({ compact = false, embedded = false }: MatchSetu
     })),
   );
   const computerMatch = setupMatchSettings.opponentMode === 'computer';
+  const seriesMatch = setupMatchSettings.gameFormat === 'series';
+  const formatFieldId = `${fieldId}-format`;
+  const targetFieldId = `${fieldId}-target`;
   const opponentFieldId = `${fieldId}-opponent`;
   const playerFieldId = `${fieldId}-player`;
   const difficultyFieldId = `${fieldId}-difficulty`;
@@ -44,35 +58,110 @@ export function MatchSetupPanel({ compact = false, embedded = false }: MatchSetu
     <>
       <div className={styles.header}>
         <h2>{text(language, 'matchSetup')}</h2>
-        {!compact ? <p className={styles.hint}>{text(language, 'matchSetupHint')}</p> : null}
+        {!compact ? (
+          <p className={styles.hint}>{text(language, 'matchSetupHint')}</p>
+        ) : null}
+      </div>
+
+      <div className={styles.field}>
+        <p className={styles.fieldLabel} id={formatFieldId}>
+          {text(language, 'gameFormat')}
+        </p>
+        <div
+          className={styles.toggleRow}
+          aria-labelledby={formatFieldId}
+          role="radiogroup"
+        >
+          <label
+            className={styles.toggleOption}
+            data-checked={
+              setupMatchSettings.gameFormat === 'single' || undefined
+            }
+          >
+            <input
+              checked={setupMatchSettings.gameFormat === 'single'}
+              name={`${fieldId}-gameFormat`}
+              type="radio"
+              onChange={() => onSetSetupMatchSettings({ gameFormat: 'single' })}
+            />
+            <span>{text(language, 'singleGame')}</span>
+          </label>
+          <label
+            className={styles.toggleOption}
+            data-checked={seriesMatch || undefined}
+          >
+            <input
+              checked={seriesMatch}
+              name={`${fieldId}-gameFormat`}
+              type="radio"
+              onChange={() => onSetSetupMatchSettings({ gameFormat: 'series' })}
+            />
+            <span>{text(language, 'multiGame')}</span>
+          </label>
+        </div>
+      </div>
+
+      <div className={styles.field} data-disabled={!seriesMatch || undefined}>
+        <label className={styles.fieldLabel} htmlFor={targetFieldId}>
+          {text(language, 'targetPoints')}
+        </label>
+        <input
+          id={targetFieldId}
+          className={styles.select}
+          disabled={!seriesMatch}
+          min={1}
+          step={1}
+          type="number"
+          value={setupMatchSettings.targetPoints || ''}
+          onChange={(event) =>
+            onSetSetupMatchSettings({
+              targetPoints:
+                event.target.value === ''
+                  ? 0
+                  : Math.max(1, Math.trunc(Number(event.target.value))),
+            })
+          }
+        />
       </div>
 
       <div className={styles.field}>
         <p className={styles.fieldLabel} id={opponentFieldId}>
           {text(language, 'opponentMode')}
         </p>
-        <div className={styles.toggleRow} aria-labelledby={opponentFieldId} role="radiogroup">
+        <div
+          className={styles.toggleRow}
+          aria-labelledby={opponentFieldId}
+          role="radiogroup"
+        >
           <label
             className={styles.toggleOption}
-            data-checked={setupMatchSettings.opponentMode === 'hotSeat' || undefined}
+            data-checked={
+              setupMatchSettings.opponentMode === 'hotSeat' || undefined
+            }
           >
             <input
               checked={setupMatchSettings.opponentMode === 'hotSeat'}
               name={`${fieldId}-opponentMode`}
               type="radio"
-              onChange={() => onSetSetupMatchSettings({ opponentMode: 'hotSeat' })}
+              onChange={() =>
+                onSetSetupMatchSettings({ opponentMode: 'hotSeat' })
+              }
             />
             <span>{text(language, 'hotSeat')}</span>
           </label>
           <label
             className={styles.toggleOption}
-            data-checked={setupMatchSettings.opponentMode === 'computer' || undefined}
+            data-checked={
+              setupMatchSettings.opponentMode === 'computer' || undefined
+            }
           >
             <input
               checked={setupMatchSettings.opponentMode === 'computer'}
               name={`${fieldId}-opponentMode`}
               type="radio"
-              onChange={() => onSetSetupMatchSettings({ opponentMode: 'computer' })}
+              onChange={() =>
+                onSetSetupMatchSettings({ opponentMode: 'computer' })
+              }
             />
             <span>{text(language, 'computerOpponent')}</span>
           </label>
@@ -83,7 +172,11 @@ export function MatchSetupPanel({ compact = false, embedded = false }: MatchSetu
         <p className={styles.fieldLabel} id={playerFieldId}>
           {text(language, 'playAs')}
         </p>
-        <div className={styles.toggleRow} aria-labelledby={playerFieldId} role="radiogroup">
+        <div
+          className={styles.toggleRow}
+          aria-labelledby={playerFieldId}
+          role="radiogroup"
+        >
           {(['white', 'black'] as const).map((player) => {
             const checked = setupMatchSettings.humanPlayer === player;
 
@@ -104,7 +197,9 @@ export function MatchSetupPanel({ compact = false, embedded = false }: MatchSetu
                   disabled={!computerMatch}
                   name={`${fieldId}-humanPlayer`}
                   type="radio"
-                  onChange={() => onSetSetupMatchSettings({ humanPlayer: player })}
+                  onChange={() =>
+                    onSetSetupMatchSettings({ humanPlayer: player })
+                  }
                 />
                 <span>{playerLabel(language, player)}</span>
               </label>
@@ -134,7 +229,11 @@ export function MatchSetupPanel({ compact = false, embedded = false }: MatchSetu
         </select>
       </div>
 
-      <Button className={styles.startButton} fullWidth onClick={() => onStartNewGame(setupMatchSettings)}>
+      <Button
+        className={styles.startButton}
+        fullWidth
+        onClick={() => onStartNewGame(setupMatchSettings)}
+      >
         {text(language, 'startNewGame')}
       </Button>
     </>
@@ -142,7 +241,11 @@ export function MatchSetupPanel({ compact = false, embedded = false }: MatchSetu
 
   if (embedded) {
     return (
-      <section className={styles.root} data-compact={compact || undefined} data-embedded="true">
+      <section
+        className={styles.root}
+        data-compact={compact || undefined}
+        data-embedded="true"
+      >
         {content}
       </section>
     );

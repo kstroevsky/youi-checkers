@@ -1,9 +1,19 @@
-import { startTransition, useDeferredValue, useEffect, useRef, useState } from 'react';
+import {
+  startTransition,
+  useDeferredValue,
+  useEffect,
+  useRef,
+  useState,
+} from 'react';
 import { useShallow } from 'zustand/react/shallow';
 
 import { useGameStore } from '@/app/providers/GameStoreProvider';
 import { useIsMobileViewport } from '@/shared/hooks/useIsMobileViewport';
-import { formatHistorySummary, formatTurnRecord, text } from '@/shared/i18n/catalog';
+import {
+  formatHistorySummary,
+  formatTurnRecord,
+  text,
+} from '@/shared/i18n/catalog';
 import { MatchSetupPanel } from '@/ui/panels/MatchSetupPanel';
 import { Button } from '@/ui/primitives/Button';
 import { Panel } from '@/ui/primitives/Panel';
@@ -21,6 +31,7 @@ export function HistorySection() {
     canUndo,
     historyCursor,
     historyHydrationStatus,
+    historyLocked,
     language,
     onGoToHistoryCursor,
     onRedo,
@@ -28,10 +39,16 @@ export function HistorySection() {
     turnLog,
   } = useGameStore(
     useShallow((state) => ({
-      canRedo: state.future.length > 0,
-      canUndo: state.past.length > 0,
+      canRedo:
+        state.future.length > 0 &&
+        (state.seriesState === null || state.seriesState.phase === 'playing'),
+      canUndo:
+        state.past.length > 0 &&
+        (state.seriesState === null || state.seriesState.phase === 'playing'),
       historyCursor: state.historyCursor,
       historyHydrationStatus: state.historyHydrationStatus,
+      historyLocked:
+        state.seriesState !== null && state.seriesState.phase !== 'playing',
       language: state.preferences.language,
       onGoToHistoryCursor: state.goToHistoryCursor,
       onRedo: state.redo,
@@ -40,18 +57,24 @@ export function HistorySection() {
     })),
   );
   const deferredTurnLog = useDeferredValue(turnLog);
-  const historyEntries = deferredTurnLog.map((record, index) => ({ record, index })).reverse();
+  const historyEntries = deferredTurnLog
+    .map((record, index) => ({ record, index }))
+    .reverse();
   const hydrationNote =
     historyHydrationStatus === 'hydrating'
       ? text(language, 'historyHydrating')
       : historyHydrationStatus === 'recentOnly'
         ? text(language, 'historyRecentOnly')
         : null;
-  const copyLabel = historyCopied ? text(language, 'historyCopied') : text(language, 'historyCopy');
+  const copyLabel = historyCopied
+    ? text(language, 'historyCopied')
+    : text(language, 'historyCopy');
 
   const showMatchSetup = !compactLayout;
   const historyCopyPayload = deferredTurnLog
-    .map((record, index) => `${index + 1}. ${formatTurnRecord(language, record)}`)
+    .map(
+      (record, index) => `${index + 1}. ${formatTurnRecord(language, record)}`,
+    )
     .join('\n');
 
   useEffect(() => {
@@ -95,10 +118,20 @@ export function HistorySection() {
       <div className={styles.header}>
         <h2>{text(language, 'history')}</h2>
         <div className={styles.headerActions}>
-          <Button className={styles.headerButton} variant="ghost" onClick={onUndo} disabled={!canUndo}>
+          <Button
+            className={styles.headerButton}
+            variant="ghost"
+            onClick={onUndo}
+            disabled={!canUndo}
+          >
             {text(language, 'undo')}
           </Button>
-          <Button className={styles.headerButton} variant="ghost" onClick={onRedo} disabled={!canRedo}>
+          <Button
+            className={styles.headerButton}
+            variant="ghost"
+            onClick={onRedo}
+            disabled={!canRedo}
+          >
             {text(language, 'redo')}
           </Button>
           <button
@@ -113,13 +146,25 @@ export function HistorySection() {
             <span className={styles.copyIcon} aria-hidden="true" />
           </button>
         </div>
-        <small>{formatHistorySummary(language, deferredTurnLog.length, historyCursor)}</small>
-        {hydrationNote ? <small className={styles.statusNote}>{hydrationNote}</small> : null}
+        <small>
+          {formatHistorySummary(
+            language,
+            deferredTurnLog.length,
+            historyCursor,
+          )}
+        </small>
+        {hydrationNote ? (
+          <small className={styles.statusNote}>{hydrationNote}</small>
+        ) : null}
       </div>
       <ol className={styles.list}>
         {historyEntries.map(({ record, index }) => {
           const state: HistoryState =
-            index + 1 === historyCursor ? 'current' : index >= historyCursor ? 'future' : 'past';
+            index + 1 === historyCursor
+              ? 'current'
+              : index >= historyCursor
+                ? 'future'
+                : 'past';
 
           return (
             <li key={`${record.positionHash}-${index}`}>
@@ -128,8 +173,10 @@ export function HistorySection() {
                 className={styles.historyButton}
                 data-state={state}
                 aria-current={state === 'current' ? 'step' : undefined}
-                onClick={() => startTransition(() => onGoToHistoryCursor(index + 1))}
-                disabled={state === 'current'}
+                onClick={() =>
+                  startTransition(() => onGoToHistoryCursor(index + 1))
+                }
+                disabled={historyLocked || state === 'current'}
                 title={formatTurnRecord(language, record)}
               >
                 {formatTurnRecord(language, record)}

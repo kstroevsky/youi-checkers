@@ -10,8 +10,16 @@ import type {
   TurnAction,
   Victory,
 } from '@/domain/model/types';
-import { applyValidatedAction, getLegalActions, validateAction } from '@/domain/rules/moveGeneration';
-import { checkVictory, resolveDrawOutcome } from '@/domain/rules/victory';
+import {
+  applyValidatedAction,
+  getLegalActions,
+  validateAction,
+} from '@/domain/rules/moveGeneration';
+import {
+  checkPlayerVictory,
+  checkVictory,
+  resolveDrawOutcome,
+} from '@/domain/rules/victory';
 
 export type EngineCommand = {
   type: 'submitAction';
@@ -19,15 +27,27 @@ export type EngineCommand = {
 };
 
 export type EngineTransitionOptions = {
+  drawResolution?: 'enabled' | 'disabled';
   emitEvents?: boolean;
+  turnMode?: 'alternate' | 'samePlayer';
+  victoryPlayer?: Player;
 };
 
 export type DomainEvent =
   | { type: 'actionAccepted'; actor: Player; action: TurnAction }
   | { type: 'boardChanged'; actor: Player; action: TurnAction }
-  | { type: 'jumpContinuationOpened'; player: Player; source: Coord; targets: Coord[] }
+  | {
+      type: 'jumpContinuationOpened';
+      player: Player;
+      source: Coord;
+      targets: Coord[];
+    }
   | { type: 'turnChanged'; player: Player }
-  | { type: 'turnRetained'; player: Player; reason: 'jumpContinuation' | 'forcedPass' }
+  | {
+      type: 'turnRetained';
+      player: Player;
+      reason: 'jumpContinuation' | 'forcedPass';
+    }
   | { type: 'autoPass'; player: Player }
   | { type: 'gameOver'; victory: Victory }
   | { type: 'positionCountUpdated'; positionHash: string; count: number };
@@ -72,7 +92,11 @@ function nextStateSeed(
 }
 
 /** Counts legal actions for a specified player in a hypothetical state. */
-function getLegalActionCount(state: EngineState, player: Player, config: RuleConfig): number {
+function getLegalActionCount(
+  state: EngineState,
+  player: Player,
+  config: RuleConfig,
+): number {
   return getLegalActions(
     {
       ...state,
@@ -152,6 +176,7 @@ function resolveEngineCommand(
   state: EngineState,
   command: EngineCommand,
   config: Partial<RuleConfig> = {},
+  options: EngineTransitionOptions = {},
 ): ResolvedEngineTransition {
   const resolvedConfig = withRuleDefaults(config);
   const validation = validateAction(state, command.action, resolvedConfig);
@@ -171,14 +196,25 @@ function resolveEngineCommand(
   }
 
   const actor = state.currentPlayer;
-  const nextPlayer = appliedState.pendingJump ? actor : getOpponent(actor);
+  const nextPlayer =
+    appliedState.pendingJump || options.turnMode === 'samePlayer'
+      ? actor
+      : getOpponent(actor);
   const immediateState = nextStateSeed(
     state,
     appliedState.board,
     nextPlayer,
     appliedState.pendingJump,
   );
-  const winAfterMove = checkVictory(immediateState, resolvedConfig);
+  const victoryConfig =
+    options.drawResolution === 'disabled'
+      ? { ...resolvedConfig, drawRule: 'none' as const }
+      : resolvedConfig;
+  const evaluateVictory = (candidate: EngineState): Victory =>
+    options.victoryPlayer
+      ? checkPlayerVictory(candidate, options.victoryPlayer)
+      : checkVictory(candidate, victoryConfig);
+  const winAfterMove = evaluateVictory(immediateState);
   const autoPasses: Player[] = [];
   let finalState = immediateState;
 
@@ -192,12 +228,22 @@ function resolveEngineCommand(
     };
   } else if (
     !immediateState.pendingJump &&
-    getLegalActionCount(immediateState, immediateState.currentPlayer, resolvedConfig) === 0
+    getLegalActionCount(
+      immediateState,
+      immediateState.currentPlayer,
+      resolvedConfig,
+    ) === 0
   ) {
+    if (options.turnMode === 'samePlayer') {
+      throw new Error('The finishing player has no legal action.');
+    }
+
     autoPasses.push(immediateState.currentPlayer);
     const retryPlayer = actor;
 
-    if (getLegalActionCount(immediateState, retryPlayer, resolvedConfig) === 0) {
+    if (
+      getLegalActionCount(immediateState, retryPlayer, resolvedConfig) === 0
+    ) {
       autoPasses.push(retryPlayer);
       finalState = {
         ...immediateState,
@@ -224,7 +270,7 @@ function resolveEngineCommand(
   };
 
   if (finalState.status !== 'gameOver') {
-    const finalVictory = checkVictory(finalState, resolvedConfig);
+    const finalVictory = evaluateVictory(finalState);
 
     if (finalVictory.type !== 'none') {
       finalState = {
@@ -252,7 +298,7 @@ export function runEngineCommand(
   config: Partial<RuleConfig> = {},
   options: EngineTransitionOptions = {},
 ): EngineTransitionResult {
-  const result = resolveEngineCommand(state, command, config);
+  const result = resolveEngineCommand(state, command, config, options);
 
   return {
     actor: result.actor,
@@ -278,8 +324,9 @@ export function runGameCommand(
   state: GameState,
   command: EngineCommand,
   config: Partial<RuleConfig> = {},
+  options: EngineTransitionOptions = {},
 ): GameTransitionResult {
-  const result = runEngineCommand(state, command, config);
+  const result = runEngineCommand(state, command, config, options);
   const beforeState = createSnapshot(state);
   const afterState = createSnapshot({
     ...result.state,

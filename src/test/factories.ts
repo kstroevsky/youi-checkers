@@ -11,7 +11,11 @@ import type {
   Player,
   RuleConfig,
 } from '@/domain/model/types';
-import type { AppPreferences, SerializableSession, UndoFrame } from '@/shared/types/session';
+import type {
+  AppPreferences,
+  SerializableSession,
+  UndoFrame,
+} from '@/shared/types/session';
 
 let checkerIndex = 1;
 
@@ -25,14 +29,23 @@ export function resetFactoryIds(): void {
   checkerIndex = 1;
 }
 
-export function checker(owner: Player, frozen = false, id = nextId(owner)): Checker {
+export function checker(
+  owner: Player,
+  frozen = false,
+  id = nextId(owner),
+): Checker {
   return { id, owner, frozen };
 }
 
-export function boardWithPieces(pieces: Partial<Record<Coord, Checker[]>>): Board {
+export function boardWithPieces(
+  pieces: Partial<Record<Coord, Checker[]>>,
+): Board {
   const board = createEmptyBoard();
 
-  for (const [coord, checkers] of Object.entries(pieces) as [Coord, Checker[]][]) {
+  for (const [coord, checkers] of Object.entries(pieces) as [
+    Coord,
+    Checker[],
+  ][]) {
     board[coord].checkers = checkers.map((entry) => ({ ...entry }));
   }
 
@@ -61,11 +74,9 @@ export function gameStateWithBoard(
 
   return {
     ...state,
-    positionCounts:
-      overrides.positionCounts ??
-      {
-        [positionHash]: 1,
-      },
+    positionCounts: overrides.positionCounts ?? {
+      [positionHash]: 1,
+    },
   };
 }
 
@@ -74,18 +85,18 @@ export function createSession(
   overrides: Partial<SerializableSession> = {},
 ): SerializableSession {
   const ruleConfig = overrides.ruleConfig ?? withRuleDefaults();
-  const preferences: AppPreferences =
-    overrides.preferences ?? {
-      passDeviceOverlayEnabled: true,
-      language: 'russian',
-    };
+  const preferences: AppPreferences = overrides.preferences ?? {
+    passDeviceOverlayEnabled: true,
+    language: 'russian',
+  };
 
   return {
-    version: 4,
+    version: 5,
     ruleConfig,
     preferences,
     matchSettings: overrides.matchSettings ?? DEFAULT_MATCH_SETTINGS,
     aiBehaviorProfile: overrides.aiBehaviorProfile ?? null,
+    seriesState: overrides.seriesState ?? null,
     turnLog: overrides.turnLog ?? present.history,
     present: overrides.present ?? createUndoFrame(present),
     past: overrides.past ?? [],

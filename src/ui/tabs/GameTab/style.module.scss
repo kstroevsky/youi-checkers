@@ -37,6 +37,10 @@
   flex: 1 1 640px;
 }
 
+.root[data-layout='desktop'] .boardSlot {
+  container-type: size;
+}
+
 .panelSlot {
   order: 2;
   min-height: 0;

@@ -4,14 +4,20 @@ import { getModelGuidance } from '@/ai/model/guidance';
 import { chooseComputerAction } from '@/ai/search';
 import type { AiWorkerRequest, AiWorkerResponse } from '@/ai/types';
 
-async function handleChooseMove(message: AiWorkerRequest): Promise<AiWorkerResponse> {
+async function handleChooseMove(
+  message: AiWorkerRequest,
+): Promise<AiWorkerResponse> {
   try {
-    const modelGuidance = await getModelGuidance(message.state, message.ruleConfig);
+    const modelGuidance =
+      message.searchMode === 'finishing'
+        ? null
+        : await getModelGuidance(message.state, message.ruleConfig);
     const result = chooseComputerAction({
       behaviorProfile: message.behaviorProfile,
       difficulty: message.matchSettings.aiDifficulty,
       modelGuidance,
       ruleConfig: message.ruleConfig,
+      searchMode: message.searchMode,
       state: message.state,
     });
 
@@ -22,7 +28,8 @@ async function handleChooseMove(message: AiWorkerRequest): Promise<AiWorkerRespo
     };
   } catch (error) {
     return {
-      message: error instanceof Error ? error.message : 'Unknown AI worker error.',
+      message:
+        error instanceof Error ? error.message : 'Unknown AI worker error.',
       requestId: message.requestId,
       type: 'error',
     };

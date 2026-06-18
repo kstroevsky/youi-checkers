@@ -43,8 +43,28 @@
   font-size: 1rem;
 }
 
+.seriesSummary {
+  margin: 10px 0 0;
+  color: tokens.$color-heading;
+  font-weight: 700;
+}
+
+.colorChoice {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-top: 16px;
+  color: tokens.$color-panel-text;
+}
+
 .actions {
   margin-top: 18px;
   display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
   justify-content: center;
+}
+
+.colorChoice .actions {
+  margin-top: 0;
 }

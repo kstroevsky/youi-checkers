@@ -4,15 +4,30 @@ import {
   getTopChecker,
   isSingleChecker,
 } from '@/domain/model/board';
-import { BOARD_COLUMNS, FRONT_HOME_ROW, HOME_ROWS } from '@/domain/model/constants';
+import {
+  BOARD_COLUMNS,
+  FRONT_HOME_ROW,
+  HOME_ROWS,
+} from '@/domain/model/constants';
 import { allCoords, createCoord, parseCoord } from '@/domain/model/coordinates';
 import { hashPosition } from '@/domain/model/hash';
 import { withRuleDefaults } from '@/domain/model/ruleConfig';
-import type { Column, Coord, EngineState, Player, RuleConfig, Victory } from '@/domain/model/types';
+import type {
+  Column,
+  Coord,
+  EngineState,
+  Player,
+  RuleConfig,
+  Victory,
+} from '@/domain/model/types';
 
 const FRONT_HOME_COORDS: Record<Player, Coord[]> = {
-  white: BOARD_COLUMNS.map((column) => createCoord(column as Column, FRONT_HOME_ROW.white)),
-  black: BOARD_COLUMNS.map((column) => createCoord(column as Column, FRONT_HOME_ROW.black)),
+  white: BOARD_COLUMNS.map((column) =>
+    createCoord(column as Column, FRONT_HOME_ROW.white),
+  ),
+  black: BOARD_COLUMNS.map((column) =>
+    createCoord(column as Column, FRONT_HOME_ROW.black),
+  ),
 };
 const DRAW_TIEBREAK_CACHE_LIMIT = 20_000;
 
@@ -60,7 +75,8 @@ function countOwnFieldCheckers(state: EngineState, player: Player): number {
 
     return (
       count +
-      state.board[coord].checkers.filter((checker) => checker.owner === player).length
+      state.board[coord].checkers.filter((checker) => checker.owner === player)
+        .length
     );
   }, 0);
 }
@@ -73,11 +89,16 @@ function countCompletedHomeStacks(state: EngineState, player: Player): number {
       return count;
     }
 
-    return count + (isFullStackOwnedByPlayer(state.board, coord, player) ? 1 : 0);
+    return (
+      count + (isFullStackOwnedByPlayer(state.board, coord, player) ? 1 : 0)
+    );
   }, 0);
 }
 
-function rememberDrawTiebreakMetrics(key: string, metrics: DrawTiebreakMetrics): DrawTiebreakMetrics {
+function rememberDrawTiebreakMetrics(
+  key: string,
+  metrics: DrawTiebreakMetrics,
+): DrawTiebreakMetrics {
   if (drawTiebreakMetricsCache.size >= DRAW_TIEBREAK_CACHE_LIMIT) {
     const oldestKey = drawTiebreakMetricsCache.keys().next().value;
 
@@ -90,7 +111,9 @@ function rememberDrawTiebreakMetrics(key: string, metrics: DrawTiebreakMetrics):
   return metrics;
 }
 
-export function getDrawTiebreakMetrics(state: EngineState): DrawTiebreakMetrics {
+export function getDrawTiebreakMetrics(
+  state: EngineState,
+): DrawTiebreakMetrics {
   return getDrawTiebreakMetricsByKey(state, hashPosition(state));
 }
 
@@ -124,7 +147,8 @@ function createTiebreakWin(
   decidedBy: 'checkers' | 'stacks',
 ): Victory {
   return {
-    type: source === 'threefold' ? 'threefoldTiebreakWin' : 'stalemateTiebreakWin',
+    type:
+      source === 'threefold' ? 'threefoldTiebreakWin' : 'stalemateTiebreakWin',
     winner,
     ownFieldCheckers: { ...metrics.ownFieldCheckers },
     completedHomeStacks: { ...metrics.completedHomeStacks },
@@ -132,7 +156,10 @@ function createTiebreakWin(
   };
 }
 
-export function resolveDrawOutcome(state: EngineState, source: DrawSource): Victory {
+export function resolveDrawOutcome(
+  state: EngineState,
+  source: DrawSource,
+): Victory {
   const metrics = getDrawTiebreakMetrics(state);
   const whiteCheckers = metrics.ownFieldCheckers.white;
   const blackCheckers = metrics.ownFieldCheckers.black;
@@ -161,6 +188,22 @@ export function resolveDrawOutcome(state: EngineState, source: DrawSource): Vict
   return { type: source === 'threefold' ? 'threefoldDraw' : 'stalemateDraw' };
 }
 
+/** Evaluates only one player's normal board-completion conditions. */
+export function checkPlayerVictory(
+  state: EngineState,
+  player: Player,
+): Victory {
+  if (hasHomeFieldWin(state, player)) {
+    return { type: 'homeField', winner: player };
+  }
+
+  if (hasSixStackWin(state, player)) {
+    return { type: 'sixStacks', winner: player };
+  }
+
+  return { type: 'none' };
+}
+
 /** Evaluates deterministic terminal status for current state under provided rules. */
 export function checkVictory(
   state: EngineState,
@@ -169,12 +212,10 @@ export function checkVictory(
   const resolvedConfig = withRuleDefaults(config);
 
   for (const player of ['white', 'black'] as const) {
-    if (hasHomeFieldWin(state, player)) {
-      return { type: 'homeField', winner: player };
-    }
+    const victory = checkPlayerVictory(state, player);
 
-    if (hasSixStackWin(state, player)) {
-      return { type: 'sixStacks', winner: player };
+    if (victory.type !== 'none') {
+      return victory;
     }
   }
 

@@ -1,6 +1,9 @@
 import type { EngineState, RuleConfig, TurnAction } from '@/domain';
 import type { AiDifficulty, MatchSettings } from '@/shared/types/session';
-import type { AiBehaviorProfile, AiBehaviorProfileId } from '@/shared/types/session';
+import type {
+  AiBehaviorProfile,
+  AiBehaviorProfileId,
+} from '@/shared/types/session';
 
 export type AiStrategicIntent = 'home' | 'sixStack' | 'hybrid';
 export type AiStrategicTag =
@@ -13,6 +16,7 @@ export type AiStrategicTag =
   | 'rescue';
 
 export type AiRiskMode = 'normal' | 'stagnation' | 'late';
+export type AiSearchMode = 'normal' | 'finishing';
 export type AiTiebreakEdgeKind = 'ahead' | 'tied' | 'behind';
 
 /** Search-budget tuning for one exposed difficulty level. */
@@ -62,6 +66,7 @@ export type ChooseComputerActionRequest = {
   now?: () => number;
   random?: () => number;
   ruleConfig: RuleConfig;
+  searchMode?: AiSearchMode;
   state: EngineState;
 };
 
@@ -138,6 +143,7 @@ export type AiWorkerRequest = {
   matchSettings: MatchSettings;
   requestId: number;
   ruleConfig: RuleConfig;
+  searchMode: AiSearchMode;
   state: EngineState;
   type: 'chooseMove';
 };

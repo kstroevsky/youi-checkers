@@ -1,8 +1,14 @@
 import { AI_DIFFICULTY_PRESETS, type AiSearchResult } from '@/ai';
 import type { TurnAction } from '@/domain';
 
-import { AI_MOVE_REVEAL_MS, AI_WATCHDOG_BUFFER_MS } from '@/app/store/createGameStore/constants';
-import { isComputerMatch, isComputerTurn } from '@/app/store/createGameStore/match';
+import {
+  AI_MOVE_REVEAL_MS,
+  AI_WATCHDOG_BUFFER_MS,
+} from '@/app/store/createGameStore/constants';
+import {
+  isComputerMatch,
+  isComputerTurn,
+} from '@/app/store/createGameStore/match';
 import type {
   AiStatus,
   AiWorkerLike,
@@ -18,7 +24,10 @@ type StoreSetter = (
 ) => void;
 
 type AiControllerOptions = {
-  commitAction: (action: TurnAction, aiDecision?: AiSearchResult | null) => void;
+  commitAction: (
+    action: TurnAction,
+    aiDecision?: AiSearchResult | null,
+  ) => void;
   get: () => GameStoreState;
   options: StoreOptions;
   set: StoreSetter;
@@ -46,7 +55,12 @@ export const AI_SLOW_DEVICE_BUFFER_MS = 500;
 const AI_SLOW_DEVICE_THRESHOLD = 0.75;
 
 /** Owns the AI worker, request ids, and watchdog for one store instance. */
-export function createAiController({ commitAction, get, options, set }: AiControllerOptions) {
+export function createAiController({
+  commitAction,
+  get,
+  options,
+  set,
+}: AiControllerOptions) {
   let aiWorker: AiWorkerLike | null = null;
   let aiWatchdogId: ReturnType<typeof globalThis.setTimeout> | null = null;
   let aiRevealTimeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
@@ -130,7 +144,10 @@ export function createAiController({ commitAction, get, options, set }: AiContro
     });
   }
 
-  function scheduleAiWatchdog(requestId: number, matchSettings: GameStoreState['matchSettings']): void {
+  function scheduleAiWatchdog(
+    requestId: number,
+    matchSettings: GameStoreState['matchSettings'],
+  ): void {
     clearAiWatchdog();
 
     if (!isComputerMatch(matchSettings)) {
@@ -140,7 +157,8 @@ export function createAiController({ commitAction, get, options, set }: AiContro
     const preset = AI_DIFFICULTY_PRESETS[matchSettings.aiDifficulty];
     const isSlowDevice =
       lastAiTimedOut ||
-      (lastAiElapsedMs !== null && lastAiElapsedMs > preset.timeBudgetMs * AI_SLOW_DEVICE_THRESHOLD);
+      (lastAiElapsedMs !== null &&
+        lastAiElapsedMs > preset.timeBudgetMs * AI_SLOW_DEVICE_THRESHOLD);
 
     const timeoutMs =
       preset.timeBudgetMs +
@@ -175,9 +193,12 @@ export function createAiController({ commitAction, get, options, set }: AiContro
           return null;
         }
 
-        return new Worker(new URL('../../../ai/worker/ai.worker.ts', import.meta.url), {
-          type: 'module',
-        }) as AiWorkerLike;
+        return new Worker(
+          new URL('../../../ai/worker/ai.worker.ts', import.meta.url),
+          {
+            type: 'module',
+          },
+        ) as AiWorkerLike;
       });
 
     aiWorker = workerFactory();
@@ -290,6 +311,8 @@ export function createAiController({ commitAction, get, options, set }: AiContro
       state: state.gameState,
       matchSettings: state.matchSettings,
       behaviorProfile: state.aiBehaviorProfile,
+      searchMode:
+        state.seriesState?.phase === 'finishing' ? 'finishing' : 'normal',
     });
   }
 

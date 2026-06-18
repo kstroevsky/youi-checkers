@@ -7,7 +7,9 @@ export const PERSISTED_SESSION_ENVELOPE_VERSION = 1;
 
 export type PersistedSessionKind = 'compact' | 'full';
 
-export type PersistedSessionEnvelope<K extends PersistedSessionKind = PersistedSessionKind> = {
+export type PersistedSessionEnvelope<
+  K extends PersistedSessionKind = PersistedSessionKind,
+> = {
   version: typeof PERSISTED_SESSION_ENVELOPE_VERSION;
   sessionId: string;
   revision: number;
@@ -25,9 +27,14 @@ function cloneUndoFrame(frame: UndoFrame): UndoFrame {
 }
 
 /** Deep-copies a serializable session for compaction, migration, and archive writes. */
-export function cloneSession(session: SerializableSession): SerializableSession {
+export function cloneSession(
+  session: SerializableSession,
+): SerializableSession {
   return {
     ...session,
+    seriesState: session.seriesState
+      ? structuredClone(session.seriesState)
+      : null,
     turnLog: session.turnLog.slice(),
     present: cloneUndoFrame(session.present),
     past: session.past.map(cloneUndoFrame),
@@ -51,7 +58,7 @@ export function createCompactSession(
   const windowSize = Math.max(1, maxTurnRecords);
   const totalTurns = session.turnLog.length;
 
-  if (totalTurns <= windowSize) {
+  if (totalTurns <= windowSize || session.seriesState?.gameOneCheckpoint) {
     return cloneSession(session);
   }
 
@@ -69,10 +76,16 @@ export function createCompactSession(
       historyCursor: cursor - windowStart,
     },
     past: session.past
-      .filter((frame) => frame.historyCursor >= windowStart && frame.historyCursor < cursor)
+      .filter(
+        (frame) =>
+          frame.historyCursor >= windowStart && frame.historyCursor < cursor,
+      )
       .map((frame) => rebaseUndoFrame(frame, windowStart)),
     future: session.future
-      .filter((frame) => frame.historyCursor > cursor && frame.historyCursor <= windowEnd)
+      .filter(
+        (frame) =>
+          frame.historyCursor > cursor && frame.historyCursor <= windowEnd,
+      )
       .map((frame) => rebaseUndoFrame(frame, windowStart)),
   };
 }
@@ -111,7 +124,9 @@ export function deserializePersistedSessionEnvelope(
 ): PersistedSessionEnvelope {
   const parsed = JSON.parse(serialized) as unknown;
   const revision =
-    isRecord(parsed) && typeof parsed.revision === 'number' ? parsed.revision : null;
+    isRecord(parsed) && typeof parsed.revision === 'number'
+      ? parsed.revision
+      : null;
 
   if (
     !isRecord(parsed) ||

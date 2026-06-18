@@ -1,6 +1,15 @@
-import type { EngineState, GameState, RuleConfig, TurnAction } from '@/domain/model/types';
+import type {
+  EngineState,
+  GameState,
+  Player,
+  RuleConfig,
+  TurnAction,
+} from '@/domain/model/types';
 
-import { runEngineCommand, runGameCommand } from '@/domain/reducers/engineTransition';
+import {
+  runEngineCommand,
+  runGameCommand,
+} from '@/domain/reducers/engineTransition';
 
 /** History-free state transition used by UI, serialization, and AI search. */
 export function advanceEngineState(
@@ -10,6 +19,21 @@ export function advanceEngineState(
 ): EngineState {
   return runEngineCommand(state, { type: 'submitAction', action }, config, {
     emitEvents: false,
+  }).state;
+}
+
+/** Same-player transition used while the loser completes a finished series game. */
+export function advanceFinishingEngineState(
+  state: EngineState,
+  action: TurnAction,
+  player: Player,
+  config: Partial<RuleConfig> = {},
+): EngineState {
+  return runEngineCommand(state, { type: 'submitAction', action }, config, {
+    drawResolution: 'disabled',
+    emitEvents: false,
+    turnMode: 'samePlayer',
+    victoryPlayer: player,
   }).state;
 }
 

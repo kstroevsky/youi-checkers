@@ -1,14 +1,21 @@
 import { createUndoFrame, restoreGameState, type TurnRecord } from '@/domain';
 
 import { isComputerTurn } from '@/app/store/createGameStore/match';
-import type { GameStoreData, GameStoreState } from '@/app/store/createGameStore/types';
+import type {
+  GameStoreData,
+  GameStoreState,
+} from '@/app/store/createGameStore/types';
 
 /** Groups consecutive turn records by actor for computer-mode undo behavior. */
 export function getTurnSpans(
   turnLog: TurnRecord[],
   historyCursor: number,
 ): Array<{ actor: TurnRecord['actor']; end: number; start: number }> {
-  const spans: Array<{ actor: TurnRecord['actor']; end: number; start: number }> = [];
+  const spans: Array<{
+    actor: TurnRecord['actor'];
+    end: number;
+    start: number;
+  }> = [];
 
   for (let index = 0; index < historyCursor; index += 1) {
     const record = turnLog[index];
@@ -29,7 +36,6 @@ export function getTurnSpans(
   return spans;
 }
 
-
 /** Returns the history cursor the undo action should target in computer mode. */
 export function getComputerUndoTarget(state: GameStoreState): number {
   const spans = getTurnSpans(state.turnLog, state.historyCursor);
@@ -49,7 +55,11 @@ export function getComputerUndoTarget(state: GameStoreState): number {
   if (lastSpan.actor !== state.matchSettings.humanPlayer) {
     const previousHumanSpan = [...spans]
       .reverse()
-      .find((span) => span.actor === state.matchSettings.humanPlayer && span.start < lastSpan.start);
+      .find(
+        (span) =>
+          span.actor === state.matchSettings.humanPlayer &&
+          span.start < lastSpan.start,
+      );
 
     return previousHumanSpan?.start ?? lastSpan.start;
   }
@@ -65,22 +75,24 @@ export function getHistoryStepData(
     | 'preferences'
     | 'matchSettings'
     | 'aiBehaviorProfile'
+    | 'seriesState'
     | 'gameState'
     | 'turnLog'
     | 'past'
     | 'future'
   >,
   direction: 'backward' | 'forward',
-  getBoardDerivation: (gameState: GameStoreData['gameState'], ruleConfig: GameStoreData['ruleConfig']) => Pick<
-    GameStoreData,
-    'selectableCoords' | 'scoreSummary'
-  >,
+  getBoardDerivation: (
+    gameState: GameStoreData['gameState'],
+    ruleConfig: GameStoreData['ruleConfig'],
+  ) => Pick<GameStoreData, 'selectableCoords' | 'scoreSummary'>,
 ): Pick<
   GameStoreData,
   | 'ruleConfig'
   | 'preferences'
   | 'matchSettings'
   | 'aiBehaviorProfile'
+  | 'seriesState'
   | 'gameState'
   | 'turnLog'
   | 'past'
@@ -105,6 +117,7 @@ export function getHistoryStepData(
       preferences: state.preferences,
       matchSettings: state.matchSettings,
       aiBehaviorProfile: state.aiBehaviorProfile,
+      seriesState: state.seriesState,
       gameState: previousGameState,
       turnLog: state.turnLog,
       past: nextPast,
@@ -129,6 +142,7 @@ export function getHistoryStepData(
     preferences: state.preferences,
     matchSettings: state.matchSettings,
     aiBehaviorProfile: state.aiBehaviorProfile,
+    seriesState: state.seriesState,
     gameState: nextGameState,
     turnLog: state.turnLog,
     past: nextPast,

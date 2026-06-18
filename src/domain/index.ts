@@ -1,7 +1,18 @@
-export { createInitialBoard, createInitialState } from '@/domain/generators/createInitialState';
+export {
+  createInitialBoard,
+  createInitialState,
+} from '@/domain/generators/createInitialState';
 export { hashPosition } from '@/domain/model/hash';
-export { RULE_DEFAULTS, RULE_TOGGLE_DESCRIPTORS, withRuleDefaults } from '@/domain/model/ruleConfig';
-export { advanceEngineState, applyAction } from '@/domain/reducers/gameReducer';
+export {
+  RULE_DEFAULTS,
+  RULE_TOGGLE_DESCRIPTORS,
+  withRuleDefaults,
+} from '@/domain/model/ruleConfig';
+export {
+  advanceEngineState,
+  advanceFinishingEngineState,
+  applyAction,
+} from '@/domain/reducers/gameReducer';
 export {
   runEngineCommand,
   runGameCommand,

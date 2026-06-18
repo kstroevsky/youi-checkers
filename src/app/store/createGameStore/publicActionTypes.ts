@@ -47,6 +47,7 @@ export type PublicActionsOptions = {
       | 'ruleConfig'
       | 'preferences'
       | 'matchSettings'
+      | 'seriesState'
       | 'aiBehaviorProfile'
       | 'gameState'
       | 'turnLog'
@@ -54,7 +55,11 @@ export type PublicActionsOptions = {
       | 'future'
     >,
   ) => void;
-  resetAiState: () => Pick<GameStoreData, 'aiError' | 'aiStatus' | 'pendingAiRequestId'>;
+  random: () => number;
+  resetAiState: () => Pick<
+    GameStoreData,
+    'aiError' | 'aiStatus' | 'pendingAiRequestId'
+  >;
   set: StoreSetter;
   syncComputerTurn: () => void;
 };

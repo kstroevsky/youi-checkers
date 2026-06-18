@@ -9,6 +9,7 @@ export type {
   AiModelGuidance,
   AiRiskMode,
   AiRootCandidate,
+  AiSearchMode,
   AiSearchDiagnostics,
   AiSearchResult,
   AiStrategicIntent,

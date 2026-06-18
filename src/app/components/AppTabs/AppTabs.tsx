@@ -20,10 +20,10 @@ function getTabLabel(language: Language, tab: AppTab): string {
   switch (tab) {
     case 'game':
       return text(language, 'tabGame');
-    case 'instructions':
-      return text(language, 'tabInstructions');
     case 'settings':
       return text(language, 'tabSettings');
+    case 'instructions':
+      return text(language, 'tabInstructions');
   }
 }
 

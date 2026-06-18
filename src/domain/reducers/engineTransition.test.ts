@@ -106,7 +106,9 @@ describe('engine transition pipeline', () => {
     ] as const;
     const pieces = Object.fromEntries(
       homeCoords.map((coord) => [coord, [checker('white')]]),
-    ) as Partial<Record<(typeof homeCoords)[number] | 'A3', ReturnType<typeof checker>[]>>;
+    ) as Partial<
+      Record<(typeof homeCoords)[number] | 'A3', ReturnType<typeof checker>[]>
+    >;
     pieces.A3 = [checker('white')];
     const state = gameStateWithBoard(boardWithPieces(pieces));
     const result = runGameCommand(
@@ -131,5 +133,90 @@ describe('engine transition pipeline', () => {
       },
     });
     expect(result.state.history).toHaveLength(1);
+  });
+
+  it('retains the finishing player and ignores the established winner', () => {
+    const state = gameStateWithBoard(
+      boardWithPieces({
+        A1: [checker('black')],
+        A6: [checker('white'), checker('white'), checker('white')],
+        B6: [checker('white'), checker('white'), checker('white')],
+        C6: [checker('white'), checker('white'), checker('white')],
+        D6: [checker('white'), checker('white'), checker('white')],
+        E6: [checker('white'), checker('white'), checker('white')],
+        F6: [checker('white'), checker('white'), checker('white')],
+      }),
+      {
+        currentPlayer: 'black',
+      },
+    );
+    const result = runGameCommand(
+      state,
+      {
+        type: 'submitAction',
+        action: {
+          type: 'moveSingleToEmpty',
+          source: 'A1',
+          target: 'B1',
+        },
+      },
+      withConfig(),
+      {
+        drawResolution: 'disabled',
+        turnMode: 'samePlayer',
+        victoryPlayer: 'black',
+      },
+    );
+
+    expect(result.state.status).toBe('active');
+    expect(result.state.currentPlayer).toBe('black');
+    expect(result.state.victory).toEqual({ type: 'none' });
+    expect(result.state.history).toHaveLength(1);
+  });
+
+  it('ends finishing play when the finishing player reaches a normal victory', () => {
+    const state = gameStateWithBoard(
+      boardWithPieces({
+        A2: [checker('black')],
+        A1: [checker('black'), checker('black')],
+        B1: [checker('black'), checker('black'), checker('black')],
+        C1: [checker('black'), checker('black'), checker('black')],
+        D1: [checker('black'), checker('black'), checker('black')],
+        E1: [checker('black'), checker('black'), checker('black')],
+        F1: [checker('black'), checker('black'), checker('black')],
+        A6: [checker('white'), checker('white'), checker('white')],
+        B6: [checker('white'), checker('white'), checker('white')],
+        C6: [checker('white'), checker('white'), checker('white')],
+        D6: [checker('white'), checker('white'), checker('white')],
+        E6: [checker('white'), checker('white'), checker('white')],
+        F6: [checker('white'), checker('white'), checker('white')],
+      }),
+      {
+        currentPlayer: 'black',
+      },
+    );
+    const result = runGameCommand(
+      state,
+      {
+        type: 'submitAction',
+        action: {
+          type: 'climbOne',
+          source: 'A2',
+          target: 'A1',
+        },
+      },
+      withConfig(),
+      {
+        drawResolution: 'disabled',
+        turnMode: 'samePlayer',
+        victoryPlayer: 'black',
+      },
+    );
+
+    expect(result.state.status).toBe('gameOver');
+    expect(result.state.victory).toEqual({
+      type: 'sixStacks',
+      winner: 'black',
+    });
   });
 });

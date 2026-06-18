@@ -1,10 +1,26 @@
-import { createUndoFrame, runGameCommand, type DomainEvent, type TurnAction } from '@/domain';
+import {
+  createUndoFrame,
+  runGameCommand,
+  type DomainEvent,
+  type TurnAction,
+} from '@/domain';
 import type { SerializableSession } from '@/shared/types/session';
 import type { AiSearchResult } from '@/ai';
 import type { InteractionState } from '@/shared/types/session';
 
 import { getHistoryStepData } from '@/app/store/createGameStore/history';
-import { isComputerMatch, isComputerTurn } from '@/app/store/createGameStore/match';
+import {
+  isComputerMatch,
+  isComputerTurn,
+} from '@/app/store/createGameStore/match';
+import {
+  beginSeriesGameResolution,
+  chooseNextSeriesColor,
+  completeFinishingPhase,
+  countFinishingAction,
+  matchSettingsForSeriesColors,
+  reopenGameForFinishing,
+} from '@/app/store/createGameStore/series';
 import {
   buildSessionFromSlices,
   createRuntimeState,
@@ -53,6 +69,7 @@ type StoreTransitionsOptions = {
       persistArchive?: boolean;
     },
   ) => void;
+  random: () => number;
   resetAiState: (
     status?: AiStatus,
   ) => Pick<GameStoreData, 'aiError' | 'aiStatus' | 'pendingAiRequestId'>;
@@ -69,6 +86,7 @@ export function createStoreTransitions({
   getBoardDerivation,
   scheduleAiRevealSync,
   persistRuntimeSession,
+  random,
   resetAiState,
   set,
   syncComputerTurn,
@@ -93,20 +111,87 @@ export function createStoreTransitions({
    * history is advanced, interaction state is updated, AI state is reset, and the
    * next persisted session snapshot is emitted.
    */
-  function commitAction(action: TurnAction, aiDecision: AiSearchResult | null = null): void {
+  function commitAction(
+    action: TurnAction,
+    aiDecision: AiSearchResult | null = null,
+  ): void {
     const state = get();
     const nextHistoryHydrationStatus = consumeStartupHydrationOnMutation();
+    const finishingSeries =
+      state.seriesState?.phase === 'finishing' ? state.seriesState : null;
     const transition = runGameCommand(
       state.gameState,
       { type: 'submitAction', action },
       state.ruleConfig,
+      finishingSeries
+        ? {
+            drawResolution: 'disabled',
+            turnMode: 'samePlayer',
+            victoryPlayer: state.gameState.currentPlayer,
+          }
+        : {},
     );
-    const nextGameState = transition.state;
+    let nextGameState = transition.state;
+    let nextSeriesState = state.seriesState;
+    let nextMatchSettings = state.matchSettings;
+
+    if (finishingSeries) {
+      nextSeriesState = countFinishingAction(finishingSeries);
+
+      if (
+        nextGameState.status === 'gameOver' &&
+        (nextGameState.victory.type === 'homeField' ||
+          nextGameState.victory.type === 'sixStacks')
+      ) {
+        nextSeriesState = completeFinishingPhase(
+          nextSeriesState,
+          nextGameState.victory,
+        );
+      }
+    } else if (
+      nextSeriesState?.phase === 'playing' &&
+      nextGameState.status === 'gameOver' &&
+      nextGameState.victory.type !== 'none'
+    ) {
+      nextSeriesState = beginSeriesGameResolution(
+        nextSeriesState,
+        nextGameState.victory,
+        createUndoFrame(nextGameState),
+      );
+
+      if (nextSeriesState.phase === 'finishing') {
+        nextGameState = reopenGameForFinishing(nextGameState, nextSeriesState);
+      }
+    }
+
+    if (
+      nextSeriesState?.phase === 'betweenGames' &&
+      nextSeriesState.colorChooser === 'second' &&
+      nextMatchSettings.opponentMode === 'computer'
+    ) {
+      nextSeriesState = chooseNextSeriesColor(
+        nextSeriesState,
+        'second',
+        random() < 0.5 ? 'white' : 'black',
+      );
+    }
+
+    if (nextSeriesState) {
+      nextMatchSettings = matchSettingsForSeriesColors(
+        nextMatchSettings,
+        nextSeriesState,
+      );
+    }
+
     const nextTurnLog = nextGameState.history;
-    const nextPast = [...state.past, createUndoFrame(state.gameState)];
+    const nextPast = finishingSeries
+      ? state.past
+      : [...state.past, createUndoFrame(state.gameState)];
     const nextFuture: GameStoreState['future'] = [];
     const jumpFollowUpEvent = transition.events.find(
-      (event): event is Extract<DomainEvent, { type: 'jumpContinuationOpened' }> =>
+      (
+        event,
+      ): event is Extract<DomainEvent, { type: 'jumpContinuationOpened' }> =>
         event.type === 'jumpContinuationOpened',
     );
     const jumpFollowUp = jumpFollowUpEvent
@@ -115,21 +200,26 @@ export function createStoreTransitions({
           targets: jumpFollowUpEvent.targets,
         }
       : getJumpFollowUpSelection(nextGameState);
-    const computerMatch = isComputerMatch(state.matchSettings);
+    const computerMatch = isComputerMatch(nextMatchSettings);
+    const finishingActive = nextSeriesState?.phase === 'finishing';
     const nextInteraction: InteractionState =
       nextGameState.status === 'gameOver'
         ? { type: 'gameOver' }
-        : computerMatch
+        : computerMatch || finishingActive
           ? { type: 'idle' }
           : state.preferences.passDeviceOverlayEnabled
             ? { type: 'passingDevice', nextPlayer: nextGameState.currentPlayer }
             : { type: 'turnResolved', nextPlayer: nextGameState.currentPlayer };
-    const nextBoardDerivation = getBoardDerivation(nextGameState, state.ruleConfig);
+    const nextBoardDerivation = getBoardDerivation(
+      nextGameState,
+      state.ruleConfig,
+    );
     const nextData = {
       ruleConfig: state.ruleConfig,
       preferences: state.preferences,
-      matchSettings: state.matchSettings,
+      matchSettings: nextMatchSettings,
       aiBehaviorProfile: state.aiBehaviorProfile,
+      seriesState: nextSeriesState,
       gameState: nextGameState,
       turnLog: nextTurnLog,
       past: nextPast,
@@ -152,7 +242,7 @@ export function createStoreTransitions({
     if (
       aiDecision &&
       nextGameState.status === 'active' &&
-      isComputerTurn(nextGameState, state.matchSettings)
+      isComputerTurn(nextGameState, nextMatchSettings)
     ) {
       scheduleAiRevealSync();
     } else {
@@ -162,7 +252,8 @@ export function createStoreTransitions({
     if (
       !state.preferences.passDeviceOverlayEnabled &&
       nextGameState.status !== 'gameOver' &&
-      !isComputerTurn(nextGameState, state.matchSettings)
+      !finishingActive &&
+      !isComputerTurn(nextGameState, nextMatchSettings)
     ) {
       queueMicrotask(() => {
         const latest = get();
@@ -181,6 +272,11 @@ export function createStoreTransitions({
     applyHistoryStep(direction: 'backward' | 'forward'): boolean {
       disposeAiWorker();
       const state = get();
+
+      if (state.seriesState && state.seriesState.phase !== 'playing') {
+        return false;
+      }
+
       const nextHistoryHydrationStatus = consumeStartupHydrationOnMutation();
       const nextData = getHistoryStepData(state, direction, getBoardDerivation);
 
@@ -200,7 +296,10 @@ export function createStoreTransitions({
       return true;
     },
     /** Replaces the live session from import, hydration, or test-controlled boot data. */
-    applySession(session: SerializableSession, options: ApplySessionOptions = {}): void {
+    applySession(
+      session: SerializableSession,
+      options: ApplySessionOptions = {},
+    ): void {
       disposeAiWorker();
       const historyHydrationStatus = updateSessionMeta(options);
       const runtimeState = createRuntimeState(session);

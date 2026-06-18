@@ -17,7 +17,10 @@ import { DEFAULT_MATCH_SETTINGS } from '@/shared/constants/match';
 import type {
   AiBehaviorProfile,
   AppPreferences,
+  MatchParticipant,
   MatchSettings,
+  SeriesState,
+  UndoFrame,
 } from '@/shared/types/session';
 import { isRecord } from '@/shared/utils/collections';
 
@@ -36,7 +39,11 @@ function assertPlayerCountRecord(
   value: unknown,
   label: string,
 ): Record<Player, number> {
-  if (!isRecord(value) || typeof value.white !== 'number' || typeof value.black !== 'number') {
+  if (
+    !isRecord(value) ||
+    typeof value.white !== 'number' ||
+    typeof value.black !== 'number'
+  ) {
     throw new Error(`Invalid ${label}.`);
   }
 
@@ -178,7 +185,9 @@ export function assertPreferences(value: unknown): AppPreferences {
         ? value.passDeviceOverlayEnabled
         : true,
     language:
-      value.language === 'english' || value.language === 'russian' || value.language === 'ukrainian'
+      value.language === 'english' ||
+      value.language === 'russian' ||
+      value.language === 'ukrainian'
         ? value.language
         : legacyLanguageMode === 'english'
           ? 'english'
@@ -207,11 +216,201 @@ export function assertMatchSettings(value: unknown): MatchSettings {
       value.aiDifficulty === 'hard'
         ? value.aiDifficulty
         : DEFAULT_MATCH_SETTINGS.aiDifficulty,
+    gameFormat:
+      value.gameFormat === 'single' || value.gameFormat === 'series'
+        ? value.gameFormat
+        : DEFAULT_MATCH_SETTINGS.gameFormat,
+    targetPoints:
+      typeof value.targetPoints === 'number' &&
+      Number.isSafeInteger(value.targetPoints) &&
+      value.targetPoints > 0
+        ? value.targetPoints
+        : DEFAULT_MATCH_SETTINGS.targetPoints,
+  };
+}
+
+function assertMatchParticipant(
+  value: unknown,
+  label: string,
+): MatchParticipant {
+  if (value !== 'first' && value !== 'second') {
+    throw new Error(`Invalid ${label}.`);
+  }
+
+  return value;
+}
+
+function assertOptionalMatchParticipant(
+  value: unknown,
+  label: string,
+): MatchParticipant | null {
+  return value == null ? null : assertMatchParticipant(value, label);
+}
+
+function assertParticipantCounts(
+  value: unknown,
+  label: string,
+): Record<MatchParticipant, number> {
+  if (
+    !isRecord(value) ||
+    typeof value.first !== 'number' ||
+    !Number.isSafeInteger(value.first) ||
+    value.first < 0 ||
+    typeof value.second !== 'number' ||
+    !Number.isSafeInteger(value.second) ||
+    value.second < 0
+  ) {
+    throw new Error(`Invalid ${label}.`);
+  }
+
+  return {
+    first: value.first,
+    second: value.second,
+  };
+}
+
+function assertSeriesCheckpoint(value: unknown): UndoFrame | null {
+  if (value == null) {
+    return null;
+  }
+
+  if (
+    !isRecord(value) ||
+    typeof value.historyCursor !== 'number' ||
+    !Number.isSafeInteger(value.historyCursor) ||
+    value.historyCursor < 0
+  ) {
+    throw new Error('Invalid series checkpoint.');
+  }
+
+  return {
+    historyCursor: value.historyCursor,
+    positionCounts: assertPositionCounts(value.positionCounts),
+    snapshot: assertStateSnapshot(value.snapshot),
+  };
+}
+
+/** Runtime guard for the persisted multi-game match state. */
+export function assertSeriesState(value: unknown): SeriesState | null {
+  if (value == null) {
+    return null;
+  }
+
+  if (!isRecord(value)) {
+    throw new Error('Invalid series state.');
+  }
+
+  const firstColor = assertPlayer(
+    value.colors && isRecord(value.colors) ? value.colors.first : null,
+    'series first color',
+  );
+  const secondColor = assertPlayer(
+    value.colors && isRecord(value.colors) ? value.colors.second : null,
+    'series second color',
+  );
+
+  if (firstColor === secondColor) {
+    throw new Error('Series participants must have different colors.');
+  }
+
+  const phase =
+    value.phase === 'playing' ||
+    value.phase === 'finishing' ||
+    value.phase === 'betweenGames' ||
+    value.phase === 'matchOver'
+      ? value.phase
+      : null;
+
+  if (!phase) {
+    throw new Error('Invalid series phase.');
+  }
+
+  const lastGame = (() => {
+    if (value.lastGame == null) {
+      return null;
+    }
+
+    if (!isRecord(value.lastGame)) {
+      throw new Error('Invalid last series game.');
+    }
+
+    const victory = assertVictory(value.lastGame.victory);
+
+    if (
+      value.lastGame.outcome === 'draw' &&
+      (victory.type === 'threefoldDraw' || victory.type === 'stalemateDraw')
+    ) {
+      return { outcome: 'draw' as const, victory };
+    }
+
+    if (
+      value.lastGame.outcome === 'win' &&
+      victory.type !== 'none' &&
+      victory.type !== 'threefoldDraw' &&
+      victory.type !== 'stalemateDraw' &&
+      typeof value.lastGame.pointsAwarded === 'number' &&
+      Number.isSafeInteger(value.lastGame.pointsAwarded) &&
+      value.lastGame.pointsAwarded >= 0
+    ) {
+      return {
+        outcome: 'win' as const,
+        pointsAwarded: value.lastGame.pointsAwarded,
+        victory,
+        winner: assertMatchParticipant(
+          value.lastGame.winner,
+          'last game winner',
+        ),
+      };
+    }
+
+    throw new Error('Invalid last series game.');
+  })();
+
+  if (
+    typeof value.gameNumber !== 'number' ||
+    !Number.isSafeInteger(value.gameNumber) ||
+    value.gameNumber < 1 ||
+    typeof value.pendingPoints !== 'number' ||
+    !Number.isSafeInteger(value.pendingPoints) ||
+    value.pendingPoints < 0 ||
+    typeof value.targetPoints !== 'number' ||
+    !Number.isSafeInteger(value.targetPoints) ||
+    value.targetPoints < 1
+  ) {
+    throw new Error('Invalid series counters.');
+  }
+
+  return {
+    colorChooser: assertOptionalMatchParticipant(
+      value.colorChooser,
+      'series color chooser',
+    ),
+    colors: { first: firstColor, second: secondColor },
+    finishingParticipant: assertOptionalMatchParticipant(
+      value.finishingParticipant,
+      'finishing participant',
+    ),
+    firstVictory:
+      value.firstVictory == null ? null : assertVictory(value.firstVictory),
+    firstWinner: assertOptionalMatchParticipant(
+      value.firstWinner,
+      'first winner',
+    ),
+    gameNumber: value.gameNumber,
+    gameOneCheckpoint: assertSeriesCheckpoint(value.gameOneCheckpoint),
+    gameWins: assertParticipantCounts(value.gameWins, 'series game wins'),
+    lastGame,
+    pendingPoints: value.pendingPoints,
+    phase,
+    points: assertParticipantCounts(value.points, 'series points'),
+    targetPoints: value.targetPoints,
   };
 }
 
 /** Runtime guard for the hidden per-match AI persona persisted with computer games. */
-export function assertAiBehaviorProfile(value: unknown): AiBehaviorProfile | null {
+export function assertAiBehaviorProfile(
+  value: unknown,
+): AiBehaviorProfile | null {
   if (value == null) {
     return null;
   }
@@ -232,7 +431,11 @@ export function assertAiBehaviorProfile(value: unknown): AiBehaviorProfile | nul
 
 /** Runtime guard for single checker payload. */
 export function assertChecker(value: unknown): Checker {
-  if (!isRecord(value) || typeof value.id !== 'string' || typeof value.frozen !== 'boolean') {
+  if (
+    !isRecord(value) ||
+    typeof value.id !== 'string' ||
+    typeof value.frozen !== 'boolean'
+  ) {
     throw new Error('Invalid checker.');
   }
 
@@ -320,7 +523,10 @@ export function assertStateSnapshot(value: unknown): StateSnapshot {
       value.moveNumber > 0
         ? value.moveNumber
         : 1,
-    status: value.status === 'active' || value.status === 'gameOver' ? value.status : 'active',
+    status:
+      value.status === 'active' || value.status === 'gameOver'
+        ? value.status
+        : 'active',
     victory: assertVictory(value.victory),
     pendingJump: assertPendingJump(value.pendingJump),
   };
@@ -341,7 +547,8 @@ export function assertTurnRecord(value: unknown): TurnRecord {
       assertPlayer(entry, `autoPasses[${index}]`),
     ),
     victoryAfter: assertVictory(value.victoryAfter),
-    positionHash: typeof value.positionHash === 'string' ? value.positionHash : '',
+    positionHash:
+      typeof value.positionHash === 'string' ? value.positionHash : '',
   };
 }
 
@@ -351,10 +558,13 @@ export function assertPositionCounts(value: unknown): Record<string, number> {
     return {};
   }
 
-  return Object.entries(value).reduce<Record<string, number>>((counts, [key, entry]) => {
-    if (typeof entry === 'number' && Number.isFinite(entry)) {
-      counts[key] = entry;
-    }
-    return counts;
-  }, {});
+  return Object.entries(value).reduce<Record<string, number>>(
+    (counts, [key, entry]) => {
+      if (typeof entry === 'number' && Number.isFinite(entry)) {
+        counts[key] = entry;
+      }
+      return counts;
+    },
+    {},
+  );
 }

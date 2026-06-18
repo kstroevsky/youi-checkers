@@ -6,6 +6,7 @@ import type {
   RuleConfig,
   StateSnapshot,
   TurnRecord,
+  Victory,
 } from '@/domain/model/types';
 import type { Language } from '@/shared/i18n/types';
 
@@ -23,11 +24,46 @@ export type AiBehaviorProfile = {
 
 export type OpponentMode = 'hotSeat' | 'computer';
 export type AiDifficulty = 'easy' | 'medium' | 'hard';
+export type GameFormat = 'single' | 'series';
+export type MatchParticipant = 'first' | 'second';
 
 export type MatchSettings = {
   opponentMode: OpponentMode;
   humanPlayer: Player;
   aiDifficulty: AiDifficulty;
+  gameFormat: GameFormat;
+  targetPoints: number;
+};
+
+export type SeriesGameResult =
+  | {
+      outcome: 'draw';
+      victory: Extract<Victory, { type: 'threefoldDraw' | 'stalemateDraw' }>;
+    }
+  | {
+      outcome: 'win';
+      pointsAwarded: number;
+      victory: Exclude<
+        Victory,
+        { type: 'none' | 'threefoldDraw' | 'stalemateDraw' }
+      >;
+      winner: MatchParticipant;
+    };
+
+export type SeriesState = {
+  colorChooser: MatchParticipant | null;
+  colors: Record<MatchParticipant, Player>;
+  finishingParticipant: MatchParticipant | null;
+  firstVictory: Victory | null;
+  firstWinner: MatchParticipant | null;
+  gameNumber: number;
+  gameOneCheckpoint: UndoFrame | null;
+  gameWins: Record<MatchParticipant, number>;
+  lastGame: SeriesGameResult | null;
+  pendingPoints: number;
+  phase: 'playing' | 'finishing' | 'betweenGames' | 'matchOver';
+  points: Record<MatchParticipant, number>;
+  targetPoints: number;
 };
 
 export type InteractionState =
@@ -40,7 +76,12 @@ export type InteractionState =
       actionType: Exclude<ActionKind, 'jumpSequence' | 'manualUnfreeze'>;
       availableTargets: Coord[];
     }
-  | { type: 'buildingJumpChain'; source: Coord; path: Coord[]; availableTargets: Coord[] }
+  | {
+      type: 'buildingJumpChain';
+      source: Coord;
+      path: Coord[];
+      availableTargets: Coord[];
+    }
   | { type: 'turnResolved'; nextPlayer: Player }
   | { type: 'passingDevice'; nextPlayer: Player }
   | { type: 'gameOver' };
@@ -93,10 +134,24 @@ export type SerializableSessionV4 = {
   future: UndoFrame[];
 };
 
-export type SerializableSession = SerializableSessionV4;
+export type SerializableSessionV5 = {
+  version: 5;
+  ruleConfig: RuleConfig;
+  preferences: AppPreferences;
+  matchSettings: MatchSettings;
+  aiBehaviorProfile: AiBehaviorProfile | null;
+  seriesState: SeriesState | null;
+  turnLog: TurnRecord[];
+  present: UndoFrame;
+  past: UndoFrame[];
+  future: UndoFrame[];
+};
+
+export type SerializableSession = SerializableSessionV5;
 
 export type DeserializedSession =
   | SerializableSessionV1
   | SerializableSessionV2
   | SerializableSessionV3
-  | SerializableSessionV4;
+  | SerializableSessionV4
+  | SerializableSessionV5;

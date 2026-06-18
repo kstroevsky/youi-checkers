@@ -26,6 +26,7 @@ import {
   getRootSelfUndoPositionKey,
   MAX_QUIESCENCE_DEPTH,
 } from '@/ai/search/heuristics';
+import { chooseFinishingAction } from '@/ai/search/finishingSearch';
 import { negamax } from '@/ai/search/negamax';
 import {
   buildPrincipalVariation,
@@ -35,8 +36,18 @@ import {
   selectCandidateAction,
   sortRankedActions,
 } from '@/ai/search/result';
-import { actionId, isSearchTimeout, makeTableKey, throwIfTimedOut } from '@/ai/search/shared';
-import type { RootRankedAction, SearchContext, SearchStack, TranspositionEntry } from '@/ai/search/types';
+import {
+  actionId,
+  isSearchTimeout,
+  makeTableKey,
+  throwIfTimedOut,
+} from '@/ai/search/shared';
+import type {
+  RootRankedAction,
+  SearchContext,
+  SearchStack,
+  TranspositionEntry,
+} from '@/ai/search/types';
 
 /**
  * Builds a minimal ranked candidate when the search must fall back before it has
@@ -88,7 +99,10 @@ function createRootFallbackCandidate(
 
 /** Counts how many root-ordered moves actually received non-zero model guidance. */
 function countPolicyPriorHits(ranked: Array<{ policyPrior: number }>): number {
-  return ranked.reduce((count, entry) => count + (entry.policyPrior > 0 ? 1 : 0), 0);
+  return ranked.reduce(
+    (count, entry) => count + (entry.policyPrior > 0 ? 1 : 0),
+    0,
+  );
 }
 
 function hasRiskWorthwhileRootCandidate(
@@ -137,7 +151,10 @@ function getSelectionBandBoost(
 ): number {
   let boost = moveNumber <= 6 ? 900 : 0;
 
-  if (riskMode !== 'normal' && (options.completedDepth === 0 || options.fallbackKind !== 'none')) {
+  if (
+    riskMode !== 'normal' &&
+    (options.completedDepth === 0 || options.fallbackKind !== 'none')
+  ) {
     boost += 4_000;
   }
 
@@ -145,9 +162,7 @@ function getSelectionBandBoost(
 }
 
 /** Converts ordered-move entries into the public ranked-root shape used by fallback reporting. */
-function toFallbackRanked(
-  orderedMoves: OrderedAction[],
-): RootRankedAction[] {
+function toFallbackRanked(orderedMoves: OrderedAction[]): RootRankedAction[] {
   return sortRankedActions(
     orderedMoves.map((entry) => ({
       action: entry.action,
@@ -183,24 +198,49 @@ export function chooseComputerAction({
   now = () => performance.now(),
   random = Math.random,
   ruleConfig,
+  searchMode = 'normal',
   state,
 }: ChooseComputerActionRequest): AiSearchResult {
+  if (searchMode === 'finishing') {
+    return chooseFinishingAction({
+      behaviorProfile,
+      difficulty,
+      now,
+      random,
+      ruleConfig,
+      searchMode,
+      state,
+    });
+  }
+
   const preset = AI_DIFFICULTY_PRESETS[difficulty];
   const startedAt = now();
   const deadline = startedAt + preset.timeBudgetMs;
   const perfCache = createSearchPerfCache();
   const rootPerfBundle = getStatePerfBundle(state, ruleConfig, perfCache);
-  const legalActions = getCachedLegalActions(state, ruleConfig, rootPerfBundle.positionKey);
-  const inferredIntent = getPerfStrategicIntent(rootPerfBundle, state, state.currentPlayer).intent;
+  const legalActions = getCachedLegalActions(
+    state,
+    ruleConfig,
+    rootPerfBundle.positionKey,
+  );
+  const inferredIntent = getPerfStrategicIntent(
+    rootPerfBundle,
+    state,
+    state.currentPlayer,
+  ).intent;
   const diagnostics = createSearchDiagnostics();
   const riskProfile = getRiskProfile(state, ruleConfig, preset, diagnostics);
   const policyPriors = modelGuidance?.actionPriors ?? null;
-  const rootParticipationState = buildParticipationState(state, preset.participationWindow);
+  const rootParticipationState = buildParticipationState(
+    state,
+    preset.participationWindow,
+  );
   const rootPositionKey = makeTableKey(state);
   const rootPreviousOwnAction = getRootPreviousOwnAction(state);
   const rootPreviousStrategicTags = getRootPreviousStrategicTags(state);
   const rootSelfUndoPositionKey = getRootSelfUndoPositionKey(state);
-  const openingVarietyActive = state.moveNumber <= 6 && behaviorProfile !== null;
+  const openingVarietyActive =
+    state.moveNumber <= 6 && behaviorProfile !== null;
   let effectiveRiskMode = riskProfile.riskMode;
   let rootPolicyPriorWeight =
     effectiveRiskMode === 'normal'
@@ -248,25 +288,20 @@ export function chooseComputerAction({
 
   const strategicIntent =
     effectiveRiskMode === 'normal'
-      ? modelGuidance?.strategicIntent ?? inferredIntent
+      ? (modelGuidance?.strategicIntent ?? inferredIntent)
       : inferredIntent;
   let fallbackScore: number | null = null;
 
   /** Lazily computes the root static fallback so timeout/error paths stay cheap unless needed. */
   function getFallbackScore(): number {
-    fallbackScore ??= evaluateState(
-      state,
-      state.currentPlayer,
-      ruleConfig,
-      {
-        behaviorProfile,
-        diagnostics,
-        perfCache,
-        participationState: rootParticipationState,
-        preset,
-        riskMode: effectiveRiskMode,
-      },
-    );
+    fallbackScore ??= evaluateState(state, state.currentPlayer, ruleConfig, {
+      behaviorProfile,
+      diagnostics,
+      perfCache,
+      participationState: rootParticipationState,
+      preset,
+      riskMode: effectiveRiskMode,
+    });
     return fallbackScore;
   }
 
@@ -319,7 +354,10 @@ export function chooseComputerAction({
       previousActionId: null,
       pvMoveId,
       continuationScores: context.continuationScores,
-      ttMoveId: (() => { const a = context.table.get(rootPositionKey)?.bestAction ?? null; return a ? actionId(a) : null; })(),
+      ttMoveId: (() => {
+        const a = context.table.get(rootPositionKey)?.bestAction ?? null;
+        return a ? actionId(a) : null;
+      })(),
     });
   /** Timeout fallback ordering avoids the deadline check so it can always produce a legal answer. */
   const buildOrderedFallback = (): OrderedAction[] =>
@@ -329,7 +367,10 @@ export function chooseComputerAction({
       killerIds: context.killerMovesByDepth.get(0) ?? [],
       previousActionId: null,
       continuationScores: context.continuationScores,
-      ttMoveId: (() => { const a = context.table.get(rootPositionKey)?.bestAction ?? null; return a ? actionId(a) : null; })(),
+      ttMoveId: (() => {
+        const a = context.table.get(rootPositionKey)?.bestAction ?? null;
+        return a ? actionId(a) : null;
+      })(),
     });
 
   let completedDepth = 0;
@@ -360,7 +401,8 @@ export function chooseComputerAction({
 
   try {
     rootOrderedMoves = buildRootOrdering(null);
-    context.diagnostics.policyPriorHits += countPolicyPriorHits(rootOrderedMoves);
+    context.diagnostics.policyPriorHits +=
+      countPolicyPriorHits(rootOrderedMoves);
 
     for (const entry of rootOrderedMoves) {
       if (
@@ -419,7 +461,8 @@ export function chooseComputerAction({
     }
 
     context.diagnostics.orderedFallbacks += 1;
-    rootOrderedMoves = rootOrderedMoves.length > 0 ? rootOrderedMoves : buildOrderedFallback();
+    rootOrderedMoves =
+      rootOrderedMoves.length > 0 ? rootOrderedMoves : buildOrderedFallback();
     const fallbackRanked = toFallbackRanked(rootOrderedMoves);
     const fallbackBest = fallbackRanked.length
       ? selectCandidateAction(fallbackRanked, preset, random, {
@@ -430,7 +473,8 @@ export function chooseComputerAction({
     const orderedFallbackScore = fallbackRanked[0]?.score ?? getFallbackScore();
 
     return {
-      action: fallbackBest?.action ?? rootOrderedMoves[0]?.action ?? legalActions[0],
+      action:
+        fallbackBest?.action ?? rootOrderedMoves[0]?.action ?? legalActions[0],
       behaviorProfileId: behaviorProfile?.id ?? null,
       completedDepth: 0,
       completedRootMoves: 0,
@@ -438,7 +482,9 @@ export function chooseComputerAction({
       elapsedMs: now() - startedAt,
       evaluatedNodes: 0,
       fallbackKind: 'orderedRoot',
-      principalVariation: [fallbackBest?.action ?? rootOrderedMoves[0]?.action ?? legalActions[0]],
+      principalVariation: [
+        fallbackBest?.action ?? rootOrderedMoves[0]?.action ?? legalActions[0],
+      ],
       riskMode: effectiveRiskMode,
       rootCandidates: orderRootCandidates(
         fallbackRanked.length
@@ -449,7 +495,9 @@ export function chooseComputerAction({
                   action: legalActions[0],
                   movedMass: 0,
                   participationDelta: 0,
-                  policyPrior: policyPriors ? (policyPriors[actionId(legalActions[0])] ?? 0) : 0,
+                  policyPrior: policyPriors
+                    ? (policyPriors[actionId(legalActions[0])] ?? 0)
+                    : 0,
                   sourceFamily: 'none',
                 },
                 orderedFallbackScore,
@@ -491,7 +539,10 @@ export function chooseComputerAction({
       throwIfTimedOut(now, deadline);
 
       const keepsTurn = entry.nextState.currentPlayer === state.currentPlayer;
-      const nextDepth = Math.max(0, depth - 1 + getSelectiveExtension(entry, depth, 0));
+      const nextDepth = Math.max(
+        0,
+        depth - 1 + getSelectiveExtension(entry, depth, 0),
+      );
 
       stack.entries[stack.depth] = {
         action: entry.action,
@@ -562,10 +613,15 @@ export function chooseComputerAction({
 
   for (let depth = 1; depth <= preset.maxDepth; depth += 1) {
     let ranked: RootRankedAction[] = [];
-    const hasAspirationCenter = completedDepth > 0 && Number.isFinite(bestScore);
+    const hasAspirationCenter =
+      completedDepth > 0 && Number.isFinite(bestScore);
     const windowSize = 220 + depth * 80;
-    let alphaWindow = hasAspirationCenter ? bestScore - windowSize : Number.NEGATIVE_INFINITY;
-    let betaWindow = hasAspirationCenter ? bestScore + windowSize : Number.POSITIVE_INFINITY;
+    let alphaWindow = hasAspirationCenter
+      ? bestScore - windowSize
+      : Number.NEGATIVE_INFINITY;
+    let betaWindow = hasAspirationCenter
+      ? bestScore + windowSize
+      : Number.POSITIVE_INFINITY;
 
     try {
       throwIfTimedOut(now, deadline);
@@ -590,10 +646,14 @@ export function chooseComputerAction({
           const partialBest = ranked[0];
 
           bestAction = selectCandidateAction(ranked, preset, random, {
-            bandBoost: getSelectionBandBoost(state.moveNumber, effectiveRiskMode, {
-              completedDepth: 0,
-              fallbackKind: 'partialCurrentDepth',
-            }),
+            bandBoost: getSelectionBandBoost(
+              state.moveNumber,
+              effectiveRiskMode,
+              {
+                completedDepth: 0,
+                fallbackKind: 'partialCurrentDepth',
+              },
+            ),
             behaviorProfileId: behaviorProfile?.id ?? null,
             behaviorSeed: behaviorProfile?.seed ?? null,
             riskMode: effectiveRiskMode,
@@ -611,7 +671,10 @@ export function chooseComputerAction({
 
           context.diagnostics.orderedFallbacks += 1;
           fallbackKind = 'orderedRoot';
-          bestScore = fallbackRanked[0]?.score ?? orderedFallback?.score ?? getFallbackScore();
+          bestScore =
+            fallbackRanked[0]?.score ??
+            orderedFallback?.score ??
+            getFallbackScore();
           completedRootMoves = 0;
           rootCandidates = fallbackRanked.length
             ? fallbackRanked
@@ -625,7 +688,9 @@ export function chooseComputerAction({
                     mobilityDelta: 0,
                     movedMass: 0,
                     participationDelta: 0,
-                    policyPrior: policyPriors ? (policyPriors[actionId(legalActions[0])] ?? 0) : 0,
+                    policyPrior: policyPriors
+                      ? (policyPriors[actionId(legalActions[0])] ?? 0)
+                      : 0,
                     repeatedPositionCount: 1,
                     sixStackDelta: 0,
                     sourceFamily: 'none',
@@ -636,15 +701,19 @@ export function chooseComputerAction({
               ];
           bestAction = fallbackRanked.length
             ? selectCandidateAction(fallbackRanked, preset, random, {
-                bandBoost: getSelectionBandBoost(state.moveNumber, effectiveRiskMode, {
-                  completedDepth: 0,
-                  fallbackKind,
-                }),
+                bandBoost: getSelectionBandBoost(
+                  state.moveNumber,
+                  effectiveRiskMode,
+                  {
+                    completedDepth: 0,
+                    fallbackKind,
+                  },
+                ),
                 behaviorProfileId: behaviorProfile?.id ?? null,
                 behaviorSeed: behaviorProfile?.seed ?? null,
                 riskMode: effectiveRiskMode,
               }).action
-            : orderedFallback?.action ?? legalActions[0];
+            : (orderedFallback?.action ?? legalActions[0]);
         }
 
         break;
@@ -692,9 +761,17 @@ export function chooseComputerAction({
     elapsedMs: now() - startedAt,
     evaluatedNodes: context.evaluatedNodes,
     fallbackKind,
-    principalVariation: buildPrincipalVariation(state, bestAction, completedDepth, context),
+    principalVariation: buildPrincipalVariation(
+      state,
+      bestAction,
+      completedDepth,
+      context,
+    ),
     riskMode: effectiveRiskMode,
-    rootCandidates: orderRootCandidates(rootCandidates, preset.rootCandidateLimit),
+    rootCandidates: orderRootCandidates(
+      rootCandidates,
+      preset.rootCandidateLimit,
+    ),
     score: bestScore,
     strategicIntent,
     timedOut,

@@ -6,6 +6,7 @@ import type {
   SerializableSessionV2,
   SerializableSessionV3,
   SerializableSessionV4,
+  SerializableSessionV5,
 } from '@/shared/types/session';
 import { isRecord } from '@/shared/utils/collections';
 
@@ -15,6 +16,7 @@ import {
   assertMatchSettings,
   assertPreferences,
   assertRuleConfig,
+  assertSeriesState,
 } from '@/domain/serialization/session/guards';
 import {
   assertGameState,
@@ -25,30 +27,79 @@ import {
   getCanonicalTurnLog,
 } from '@/domain/serialization/session/normalization';
 
-/** Converts legacy session payloads into the v4 storage shape. */
+/** Converts legacy session payloads into the v5 storage shape. */
 function migrateSession(
-  session: SerializableSessionV1 | SerializableSessionV2 | SerializableSessionV3,
+  session:
+    | SerializableSessionV1
+    | SerializableSessionV2
+    | SerializableSessionV3
+    | SerializableSessionV4,
 ): SerializableSession {
   const turnLog =
     session.version === 1
-      ? getCanonicalTurnLog([session.present, ...session.past, ...session.future])
+      ? getCanonicalTurnLog([
+          session.present,
+          ...session.past,
+          ...session.future,
+        ])
       : session.turnLog;
-  const present = session.version === 1 ? createUndoFrame(session.present) : session.present;
-  const past = session.version === 1 ? session.past.map(createUndoFrame) : session.past;
-  const future = session.version === 1 ? session.future.map(createUndoFrame) : session.future;
+  const present =
+    session.version === 1 ? createUndoFrame(session.present) : session.present;
+  const past =
+    session.version === 1 ? session.past.map(createUndoFrame) : session.past;
+  const future =
+    session.version === 1
+      ? session.future.map(createUndoFrame)
+      : session.future;
 
   return {
-    // Session v4 persists the hidden AI persona so resumed computer games keep
-    // the same style profile, while all older sessions migrate safely to null.
-    version: 4,
+    version: 5,
     ruleConfig: session.ruleConfig,
     preferences: session.preferences,
-    matchSettings: session.version === 3 ? session.matchSettings : DEFAULT_MATCH_SETTINGS,
-    aiBehaviorProfile: null,
+    matchSettings:
+      session.version === 3 || session.version === 4
+        ? session.matchSettings
+        : DEFAULT_MATCH_SETTINGS,
+    aiBehaviorProfile: session.version === 4 ? session.aiBehaviorProfile : null,
+    seriesState: null,
     turnLog,
     present,
     past,
     future,
+  };
+}
+
+/** Runtime guard for full v5 session payload. */
+function assertSessionV5(value: unknown): SerializableSessionV5 {
+  if (!isRecord(value) || value.version !== 5) {
+    throw new Error('Unsupported session payload.');
+  }
+
+  const turnLog = assertTurnLog(value.turnLog);
+  const present = assertValidFrame(
+    assertUndoFrame(value.present, turnLog.length),
+    turnLog,
+  );
+
+  if (!Array.isArray(value.past) || !Array.isArray(value.future)) {
+    throw new Error('Invalid session history frames.');
+  }
+
+  return {
+    version: 5,
+    ruleConfig: assertRuleConfig(value.ruleConfig),
+    preferences: assertPreferences(value.preferences),
+    matchSettings: assertMatchSettings(value.matchSettings),
+    aiBehaviorProfile: assertAiBehaviorProfile(value.aiBehaviorProfile),
+    seriesState: assertSeriesState(value.seriesState),
+    turnLog,
+    present,
+    past: value.past.map((entry) =>
+      assertValidFrame(assertUndoFrame(entry, turnLog.length), turnLog),
+    ),
+    future: value.future.map((entry) =>
+      assertValidFrame(assertUndoFrame(entry, turnLog.length), turnLog),
+    ),
   };
 }
 
@@ -75,7 +126,10 @@ function assertSessionV2(value: unknown): SerializableSessionV2 {
   }
 
   const turnLog = assertTurnLog(value.turnLog);
-  const present = assertValidFrame(assertUndoFrame(value.present, turnLog.length), turnLog);
+  const present = assertValidFrame(
+    assertUndoFrame(value.present, turnLog.length),
+    turnLog,
+  );
 
   if (!Array.isArray(value.past) || !Array.isArray(value.future)) {
     throw new Error('Invalid session history frames.');
@@ -103,7 +157,10 @@ function assertSessionV3(value: unknown): SerializableSessionV3 {
   }
 
   const turnLog = assertTurnLog(value.turnLog);
-  const present = assertValidFrame(assertUndoFrame(value.present, turnLog.length), turnLog);
+  const present = assertValidFrame(
+    assertUndoFrame(value.present, turnLog.length),
+    turnLog,
+  );
 
   if (!Array.isArray(value.past) || !Array.isArray(value.future)) {
     throw new Error('Invalid session history frames.');
@@ -132,7 +189,10 @@ function assertSessionV4(value: unknown): SerializableSessionV4 {
   }
 
   const turnLog = assertTurnLog(value.turnLog);
-  const present = assertValidFrame(assertUndoFrame(value.present, turnLog.length), turnLog);
+  const present = assertValidFrame(
+    assertUndoFrame(value.present, turnLog.length),
+    turnLog,
+  );
 
   if (!Array.isArray(value.past) || !Array.isArray(value.future)) {
     throw new Error('Invalid session history frames.');
@@ -155,7 +215,7 @@ function assertSessionV4(value: unknown): SerializableSessionV4 {
   };
 }
 
-/** Deserializes session JSON and normalizes every payload to the v4 session shape. */
+/** Deserializes session JSON and normalizes every payload to the v5 session shape. */
 export function deserializeSession(serialized: string): SerializableSession {
   const parsed = JSON.parse(serialized) as unknown;
   const session: DeserializedSession =
@@ -165,7 +225,9 @@ export function deserializeSession(serialized: string): SerializableSession {
         ? assertSessionV2(parsed)
         : isRecord(parsed) && parsed.version === 3
           ? assertSessionV3(parsed)
-          : assertSessionV4(parsed);
+          : isRecord(parsed) && parsed.version === 4
+            ? assertSessionV4(parsed)
+            : assertSessionV5(parsed);
 
-  return session.version === 4 ? session : migrateSession(session);
+  return session.version === 5 ? session : migrateSession(session);
 }

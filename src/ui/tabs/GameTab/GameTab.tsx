@@ -1,5 +1,6 @@
 import { GameControlPanel } from '@/ui/panels/GameControlPanel';
 import { MoveInputPanel } from '@/ui/panels/MoveInputPanel';
+import { SeriesScoreboard } from '@/ui/panels/SeriesScoreboard';
 import { TurnSummaryStrip } from '@/ui/panels/StatusSection';
 import { Panel } from '@/ui/primitives/Panel';
 import { useIsMobileViewport } from '@/shared/hooks/useIsMobileViewport';
@@ -13,9 +14,14 @@ export function GameTab() {
   const isCompactLayout = useIsMobileViewport(960);
 
   return (
-    <div className={styles.root} role="tabpanel" data-layout={isCompactLayout ? 'compact' : 'desktop'}>
+    <div
+      className={styles.root}
+      role="tabpanel"
+      data-layout={isCompactLayout ? 'compact' : 'desktop'}
+    >
       {isCompactLayout ? (
         <div className={styles.compactShell}>
+          <SeriesScoreboard />
           <div className={styles.boardSlot}>
             <BoardStage />
           </div>
@@ -27,6 +33,7 @@ export function GameTab() {
         </div>
       ) : (
         <>
+          <SeriesScoreboard />
           <DesktopScoreStrip />
           <div className={styles.layout}>
             <div className={styles.boardSlot}>

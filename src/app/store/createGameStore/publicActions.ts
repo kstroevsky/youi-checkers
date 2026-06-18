@@ -11,6 +11,7 @@ export function createPublicGameStoreActions({
   GameStoreState,
   | 'acknowledgePassScreen'
   | 'cancelInteraction'
+  | 'chooseNextSeriesColor'
   | 'chooseActionType'
   | 'goToHistoryCursor'
   | 'importSessionFromBuffer'
@@ -20,10 +21,12 @@ export function createPublicGameStoreActions({
   | 'restart'
   | 'selectCell'
   | 'setImportBuffer'
+  | 'setGameFormat'
   | 'setPreference'
   | 'setRuleConfig'
   | 'setSetupMatchSettings'
   | 'startNewGame'
+  | 'startNextSeriesGame'
   | 'undo'
 > {
   return {

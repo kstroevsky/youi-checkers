@@ -1,7 +1,10 @@
 import type { TurnAction } from '@/domain';
 
 import { getComputerUndoTarget } from '@/app/store/createGameStore/history';
-import { isComputerMatch, isComputerTurn } from '@/app/store/createGameStore/match';
+import {
+  isComputerMatch,
+  isComputerTurn,
+} from '@/app/store/createGameStore/match';
 import {
   createJumpFollowUpState,
   createIdleSelection,
@@ -28,7 +31,6 @@ export function createGameplayActions({
   | 'goToHistoryCursor'
   | 'redo'
   | 'retryComputerMove'
-  | 'restart'
   | 'selectCell'
   | 'undo'
 > {
@@ -36,12 +38,18 @@ export function createGameplayActions({
     acknowledgePassScreen: () => {
       const state = get();
 
-      if (state.interaction.type !== 'passingDevice' && state.interaction.type !== 'turnResolved') {
+      if (
+        state.interaction.type !== 'passingDevice' &&
+        state.interaction.type !== 'turnResolved'
+      ) {
         return;
       }
 
       set({
-        interaction: state.gameState.status === 'gameOver' ? { type: 'gameOver' } : { type: 'idle' },
+        interaction:
+          state.gameState.status === 'gameOver'
+            ? { type: 'gameOver' }
+            : { type: 'idle' },
       });
     },
     cancelInteraction: () => {
@@ -130,7 +138,8 @@ export function createGameplayActions({
         return;
       }
 
-      const direction = normalizedTarget < initialState.historyCursor ? 'backward' : 'forward';
+      const direction =
+        normalizedTarget < initialState.historyCursor ? 'backward' : 'forward';
 
       while (get().historyCursor !== normalizedTarget) {
         const moved = applyHistoryStep(direction);
@@ -148,21 +157,24 @@ export function createGameplayActions({
       const state = get();
       const justReplayed = state.turnLog[state.historyCursor - 1];
 
-      if (isComputerMatch(state.matchSettings) && justReplayed?.actor === state.matchSettings.humanPlayer) {
+      if (
+        isComputerMatch(state.matchSettings) &&
+        justReplayed?.actor === state.matchSettings.humanPlayer
+      ) {
         applyHistoryStep('forward');
       }
     },
     retryComputerMove: () => {
       const state = get();
 
-      if (!isComputerTurn(state.gameState, state.matchSettings) || state.aiStatus === 'thinking') {
+      if (
+        !isComputerTurn(state.gameState, state.matchSettings) ||
+        state.aiStatus === 'thinking'
+      ) {
         return;
       }
 
       syncComputerTurn();
-    },
-    restart: () => {
-      get().startNewGame(get().matchSettings);
     },
     selectCell: (coord) => {
       const state = get();
@@ -174,7 +186,11 @@ export function createGameplayActions({
         return;
       }
 
-      if (state.selectedCell && state.selectedActionType && state.legalTargets.includes(coord)) {
+      if (
+        state.selectedCell &&
+        state.selectedActionType &&
+        state.legalTargets.includes(coord)
+      ) {
         if (state.selectedActionType === 'jumpSequence') {
           commitAction({
             type: 'jumpSequence',
@@ -229,6 +245,10 @@ export function createGameplayActions({
     },
     undo: () => {
       const state = get();
+
+      if (state.seriesState && state.seriesState.phase !== 'playing') {
+        return;
+      }
 
       if (isComputerMatch(state.matchSettings)) {
         const targetCursor = getComputerUndoTarget(state);

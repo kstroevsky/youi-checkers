@@ -19,7 +19,7 @@
 .layout {
   --axis-col-size: 34px;
   --axis-gap: 8px;
-  --board-size: 68vh;
+  --board-size: min(68vh, calc(100cqh - 60px), calc(100cqw - 72px));
 
   min-height: 0;
   display: grid;

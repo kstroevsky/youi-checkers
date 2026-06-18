@@ -55,7 +55,9 @@ export function createGameStoreStateRuntime({
     initialRuntimeState.gameState,
     initialRuntimeState.ruleConfig,
   );
-  const initialJumpFollowUp = getJumpFollowUpSelection(initialRuntimeState.gameState);
+  const initialJumpFollowUp = getJumpFollowUpSelection(
+    initialRuntimeState.gameState,
+  );
   const initialSelection = createSelectionUpdate(
     initialRuntimeState.gameState,
     initialJumpFollowUp,
@@ -70,7 +72,10 @@ export function createGameStoreStateRuntime({
    * The resulting state object is the meeting point of three subsystems:
    * persistent session truth, transient UI interaction state, and asynchronous AI.
    */
-  function stateCreator(set: StoreSetter, get: () => GameStoreState): GameStoreState {
+  function stateCreator(
+    set: StoreSetter,
+    get: () => GameStoreState,
+  ): GameStoreState {
     const persistenceRuntime = createPersistenceRuntime({
       archive: archive ?? null,
       createSessionId: options.createSessionId,
@@ -94,12 +99,14 @@ export function createGameStoreStateRuntime({
     });
 
     transitions = createStoreTransitions({
-      consumeStartupHydrationOnMutation: persistenceRuntime.consumeStartupHydrationOnMutation,
+      consumeStartupHydrationOnMutation:
+        persistenceRuntime.consumeStartupHydrationOnMutation,
       disposeAiWorker: aiController.disposeAiWorker,
       get,
       getBoardDerivation,
       scheduleAiRevealSync: aiController.scheduleAiRevealSync,
       persistRuntimeSession: persistenceRuntime.persistRuntimeSession,
+      random: options.random ?? Math.random,
       resetAiState: aiController.resetAiState,
       set,
       syncComputerTurn: aiController.syncComputerTurn,
@@ -147,13 +154,15 @@ export function createGameStoreStateRuntime({
         applySession: transitions.applySession,
         beginFreshFullSession: persistenceRuntime.beginFreshFullSession,
         commitAction: transitions.commitAction,
-        consumeStartupHydrationOnMutation: persistenceRuntime.consumeStartupHydrationOnMutation,
+        consumeStartupHydrationOnMutation:
+          persistenceRuntime.consumeStartupHydrationOnMutation,
         createSessionId: options.createSessionId ?? createSessionId,
         disposeAiWorker: aiController.disposeAiWorker,
         get,
         getBoardDerivation,
         getCellDerivation,
         persistCurrentState: transitions.persistCurrentState,
+        random: options.random ?? Math.random,
         resetAiState: aiController.resetAiState,
         set,
         syncComputerTurn: aiController.syncComputerTurn,

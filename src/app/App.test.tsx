@@ -5,9 +5,19 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { App } from '@/app/App';
 import { setPwaLifecycleStateForTests } from '@/app/pwa/pwaLifecycleStore';
 import { GameStoreProvider } from '@/app/providers/GameStoreProvider';
+import { createSeriesState } from '@/app/store/createGameStore/series';
 import { createInitialState } from '@/domain';
-import type { SerializableSession } from '@/shared/types/session';
-import { boardWithPieces, checker, createSession, gameStateWithBoard, resetFactoryIds } from '@/test/factories';
+import type {
+  MatchSettings,
+  SerializableSession,
+} from '@/shared/types/session';
+import {
+  boardWithPieces,
+  checker,
+  createSession,
+  gameStateWithBoard,
+  resetFactoryIds,
+} from '@/test/factories';
 
 function renderApp(session = createSession(createInitialState())) {
   return render(
@@ -26,9 +36,21 @@ describe('App', () => {
     const user = userEvent.setup();
     renderApp();
 
-    await user.click(await screen.findByRole('button', { name: 'Клетка A1' }, { timeout: 3000 }));
+    await user.click(
+      await screen.findByRole(
+        'button',
+        { name: 'Клетка A1' },
+        { timeout: 3000 },
+      ),
+    );
 
-    expect(await screen.findByRole('button', { name: 'Восхождение' }, { timeout: 6000 })).toBeInTheDocument();
+    expect(
+      await screen.findByRole(
+        'button',
+        { name: 'Восхождение' },
+        { timeout: 6000 },
+      ),
+    ).toBeInTheDocument();
   }, 10000);
 
   it('opens move choice in a dialog after selecting a checker', async () => {
@@ -40,13 +62,22 @@ describe('App', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Выберите ход' });
 
     expect(
-      within(dialog).getByText((_, element) => element?.textContent === 'Выбранная клетка: A1'),
+      within(dialog).getByText(
+        (_, element) => element?.textContent === 'Выбранная клетка: A1',
+      ),
     ).toBeInTheDocument();
 
-    await user.click(within(dialog).getByRole('button', { name: 'Восхождение' }));
+    await user.click(
+      within(dialog).getByRole('button', { name: 'Восхождение' }),
+    );
 
-    expect(screen.queryByRole('dialog', { name: 'Выберите ход' })).not.toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Клетка B2' })).toHaveAttribute('data-target', 'true');
+    expect(
+      screen.queryByRole('dialog', { name: 'Выберите ход' }),
+    ).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Клетка B2' })).toHaveAttribute(
+      'data-target',
+      'true',
+    );
   });
 
   it('shows a jump-follow-up callout and source highlight after a jump', async () => {
@@ -69,10 +100,19 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Клетка C3' }));
 
     expect(
-      await screen.findByText(/Цепочка прыжков готова из C3/i, {}, { timeout: 3000 }),
+      await screen.findByText(
+        /Цепочка прыжков готова из C3/i,
+        {},
+        { timeout: 3000 },
+      ),
     ).toBeInTheDocument();
-    expect(screen.getByText(/Эта подсвеченная шашка может продолжать прыгать/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Клетка C3' })).toHaveAttribute('data-followup', 'true');
+    expect(
+      screen.getByText(/Эта подсвеченная шашка может продолжать прыгать/i),
+    ).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Клетка C3' })).toHaveAttribute(
+      'data-followup',
+      'true',
+    );
   }, 10_000);
 
   it('shows the waiting-update banner and applies the update on demand', async () => {
@@ -88,10 +128,14 @@ describe('App', () => {
     renderApp();
 
     expect(
-      await screen.findByText('Готова новая версия. Обновите приложение, когда текущий ход можно безопасно прервать.'),
+      await screen.findByText(
+        'Готова новая версия. Обновите приложение, когда текущий ход можно безопасно прервать.',
+      ),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: 'Обновить приложение' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Обновить приложение' }),
+    );
 
     expect(applyUpdate).toHaveBeenCalledTimes(1);
   });
@@ -103,17 +147,35 @@ describe('App', () => {
     await user.click(await screen.findByRole('button', { name: 'EN' }));
 
     expect(screen.getByText('Match setup')).toBeInTheDocument();
-    expect(await screen.findByRole('button', { name: 'Cell A1' }, { timeout: 6000 })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Cell A1' }, { timeout: 6000 }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Instructions' }));
 
-    expect(await screen.findByRole('heading', { name: 'Canonical instructions' }, { timeout: 6000 })).toBeInTheDocument();
-    expect(screen.getByText('Precise game instruction - English')).toBeInTheDocument();
+    expect(
+      await screen.findByRole(
+        'heading',
+        { name: 'Canonical instructions' },
+        { timeout: 6000 },
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText('Precise game instruction - English'),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Settings' }));
 
-    expect(await screen.findByRole('heading', { name: 'Rules and session' }, { timeout: 6000 })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Export / Import' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole(
+        'heading',
+        { name: 'Rules and session' },
+        { timeout: 6000 },
+      ),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Export / Import' }),
+    ).toBeInTheDocument();
   }, 10000);
 
   it('keeps the game state when switching between game, instructions, and settings tabs', async () => {
@@ -121,20 +183,28 @@ describe('App', () => {
     renderApp();
 
     await user.click(await screen.findByRole('button', { name: 'Клетка A1' }));
-    await user.click(await screen.findByRole('button', { name: 'Восхождение' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Восхождение' }),
+    );
     await user.click(screen.getByRole('button', { name: 'Клетка B2' }));
     await user.click(await screen.findByRole('button', { name: 'Продолжить' }));
     await user.click(screen.getByRole('tab', { name: 'Инструкция' }));
 
-    expect(await screen.findByRole('heading', { name: 'Каноническая инструкция' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Каноническая инструкция' }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Настройки' }));
 
-    expect(await screen.findByRole('heading', { name: 'Правила и партия' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Правила и партия' }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Игра' }));
 
-    expect(await screen.findByText('Белые: Восхождение A1 -> B2')).toBeInTheDocument();
+    expect(
+      await screen.findByText('Белые: Восхождение A1 -> B2'),
+    ).toBeInTheDocument();
     expect(screen.getByText('Чёрные ходят')).toBeInTheDocument();
   });
 
@@ -144,26 +214,147 @@ describe('App', () => {
 
     await screen.findByRole('button', { name: 'Клетка A1' });
 
-    expect(screen.queryByRole('heading', { name: 'Правила и партия' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Экспорт / импорт' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Правила и партия' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Экспорт / импорт' }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Настройки' }));
 
-    expect(await screen.findByRole('heading', { name: 'Правила и партия' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: 'Экспорт / импорт' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Правила и партия' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('heading', { name: 'Экспорт / импорт' }),
+    ).toBeInTheDocument();
   });
 
   it('shows match setup on the game tab instead of inside settings', async () => {
     const user = userEvent.setup();
     renderApp();
 
-    expect(await screen.findByRole('heading', { name: 'Параметры матча' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Начать новую партию' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Параметры матча' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Начать новую партию' }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Настройки' }));
 
-    expect(await screen.findByRole('heading', { name: 'Правила и партия' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Параметры матча' })).not.toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Правила и партия' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Параметры матча' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('configures a multi-game match and its target score from match setup', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(await screen.findByText('Матч до очков'));
+
+    const targetInput = screen.getByRole('spinbutton', {
+      name: 'Очки для победы',
+    });
+
+    expect(targetInput).toHaveValue(100);
+
+    await user.clear(targetInput);
+    await user.type(targetInput, '25');
+    await user.click(
+      screen.getByRole('button', { name: 'Начать новую партию' }),
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'Счёт матча' }),
+    ).toBeInTheDocument();
+    expect(screen.getByText('Цель: 25')).toBeInTheDocument();
+  });
+
+  it('switches a live game into match mode and back during game one', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(
+      await screen.findByRole('button', { name: 'Включить матч' }),
+    );
+
+    expect(
+      await screen.findByRole('heading', { name: 'Счёт матча' }),
+    ).toBeInTheDocument();
+
+    await user.click(
+      screen.getByRole('button', { name: 'Вернуться к одной партии' }),
+    );
+
+    expect(
+      screen.queryByRole('heading', { name: 'Счёт матча' }),
+    ).not.toBeInTheDocument();
+  });
+
+  it('requires the previous winner to choose a color before starting the next game', async () => {
+    const user = userEvent.setup();
+    const matchSettings: MatchSettings = {
+      opponentMode: 'hotSeat',
+      humanPlayer: 'white',
+      aiDifficulty: 'medium',
+      gameFormat: 'series',
+      targetPoints: 100,
+    };
+    const victory = { type: 'homeField' as const, winner: 'white' as const };
+    const seriesState = {
+      ...createSeriesState(matchSettings),
+      colorChooser: 'first' as const,
+      firstVictory: victory,
+      firstWinner: 'first' as const,
+      gameWins: { first: 1, second: 0 },
+      lastGame: {
+        outcome: 'win' as const,
+        pointsAwarded: 3,
+        victory,
+        winner: 'first' as const,
+      },
+      phase: 'betweenGames' as const,
+      points: { first: 3, second: 0 },
+    };
+    const session = createSession(
+      {
+        ...createInitialState(),
+        status: 'gameOver',
+        victory,
+      },
+      {
+        matchSettings,
+        seriesState,
+      },
+    );
+
+    renderApp(session);
+
+    const dialog = await screen.findByRole('dialog', {
+      name: 'Следующая партия',
+    });
+    const startButton = within(dialog).getByRole('button', {
+      name: 'Начать следующую партию',
+    });
+
+    expect(startButton).toBeDisabled();
+
+    await user.click(within(dialog).getByRole('button', { name: 'Чёрные' }));
+
+    expect(startButton).toBeEnabled();
+
+    await user.click(startButton);
+
+    expect(
+      screen.queryByRole('dialog', { name: 'Следующая партия' }),
+    ).not.toBeInTheDocument();
+    expect(await screen.findByText('Партия 2')).toBeInTheDocument();
   });
 
   it('shows clickable glossary tooltips for gameplay terms', async () => {
@@ -171,10 +362,14 @@ describe('App', () => {
     renderApp();
 
     await user.click(await screen.findByRole('button', { name: 'Клетка A1' }));
-    await user.click(screen.getByRole('button', { name: 'Подробнее: Восхождение' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Подробнее: Восхождение' }),
+    );
 
     expect(
-      screen.getByText(/Перенести одну активную верхнюю шашку на соседнюю занятую активную клетку/i),
+      screen.getByText(
+        /Перенести одну активную верхнюю шашку на соседнюю занятую активную клетку/i,
+      ),
     ).toBeInTheDocument();
   });
 
@@ -186,26 +381,38 @@ describe('App', () => {
     await user.click(screen.getByRole('button', { name: 'Восхождение' }));
 
     await user.click(screen.getByRole('tab', { name: 'Настройки' }));
-    await user.click(await screen.findByRole('checkbox', { name: 'Базовый подсчёт' }));
+    await user.click(
+      await screen.findByRole('checkbox', { name: 'Базовый подсчёт' }),
+    );
 
     await user.click(screen.getByRole('tab', { name: 'Игра' }));
 
     expect(screen.queryByText(/Выбранная клетка/i)).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: 'Восхождение' })).not.toBeInTheDocument();
-    expect(screen.getAllByText('Выберите шашку или контролируемую горку.')).not.toHaveLength(0);
+    expect(
+      screen.queryByRole('button', { name: 'Восхождение' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByText('Выберите шашку или контролируемую горку.'),
+    ).not.toHaveLength(0);
   });
 
   it('hides compact score table when score mode is turned off', async () => {
     const user = userEvent.setup();
     renderApp();
 
-    expect(await screen.findByRole('table', { name: 'Подсчёт' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('table', { name: 'Подсчёт' }),
+    ).toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Настройки' }));
-    await user.click(await screen.findByRole('checkbox', { name: 'Базовый подсчёт' }));
+    await user.click(
+      await screen.findByRole('checkbox', { name: 'Базовый подсчёт' }),
+    );
     await user.click(screen.getByRole('tab', { name: 'Игра' }));
 
-    expect(screen.queryByRole('table', { name: 'Подсчёт' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('table', { name: 'Подсчёт' }),
+    ).not.toBeInTheDocument();
   });
 
   it('locks move input when the game is over', async () => {
@@ -220,8 +427,12 @@ describe('App', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Клетка A1' }));
 
-    expect(screen.getAllByText('Ничья по трёхкратному повторению')).not.toHaveLength(0);
-    expect(screen.queryByRole('button', { name: 'Восхождение' })).not.toBeInTheDocument();
+    expect(
+      screen.getAllByText('Ничья по трёхкратному повторению'),
+    ).not.toHaveLength(0);
+    expect(
+      screen.queryByRole('button', { name: 'Восхождение' }),
+    ).not.toBeInTheDocument();
   });
 
   it('shows a final-result modal for finished games and lets the user dismiss it', async () => {
@@ -237,62 +448,64 @@ describe('App', () => {
     const dialog = await screen.findByRole('dialog', { name: 'Ничья' });
 
     expect(within(dialog).getByText('Итог партии')).toBeInTheDocument();
-    expect(within(dialog).getByText('Ничья по трёхкратному повторению')).toBeInTheDocument();
+    expect(
+      within(dialog).getByText('Ничья по трёхкратному повторению'),
+    ).toBeInTheDocument();
 
     await user.click(within(dialog).getByRole('button', { name: 'Закрыть' }));
 
-    expect(screen.queryByRole('dialog', { name: 'Ничья' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('dialog', { name: 'Ничья' }),
+    ).not.toBeInTheDocument();
   });
 
-  it(
-    'supports history back/forward, fogged future moves, and click-to-travel',
-    async () => {
-      const user = userEvent.setup();
-      renderApp();
+  it('supports history back/forward, fogged future moves, and click-to-travel', async () => {
+    const user = userEvent.setup();
+    renderApp();
 
-      await user.click(await screen.findByRole('button', { name: 'Клетка A1' }));
-      await user.click(screen.getByRole('button', { name: 'Восхождение' }));
-      await user.click(screen.getByRole('button', { name: 'Клетка B2' }));
-      await user.click(await screen.findByRole('button', { name: 'Продолжить' }));
+    await user.click(await screen.findByRole('button', { name: 'Клетка A1' }));
+    await user.click(screen.getByRole('button', { name: 'Восхождение' }));
+    await user.click(screen.getByRole('button', { name: 'Клетка B2' }));
+    await user.click(await screen.findByRole('button', { name: 'Продолжить' }));
 
-      await user.click(screen.getByRole('button', { name: 'Клетка F6' }));
-      await user.click(screen.getByRole('button', { name: 'Восхождение' }));
-      await user.click(screen.getByRole('button', { name: 'Клетка E5' }));
-      await user.click(await screen.findByRole('button', { name: 'Продолжить' }));
+    await user.click(screen.getByRole('button', { name: 'Клетка F6' }));
+    await user.click(screen.getByRole('button', { name: 'Восхождение' }));
+    await user.click(screen.getByRole('button', { name: 'Клетка E5' }));
+    await user.click(await screen.findByRole('button', { name: 'Продолжить' }));
 
-      const historyList = screen.getByRole('list');
-      expect(historyList).toBeInTheDocument();
+    const historyList = screen.getByRole('list');
+    expect(historyList).toBeInTheDocument();
 
-      expect(screen.getByRole('button', { name: 'Чёрные: Восхождение F6 -> E5' })).toHaveAttribute(
-        'aria-current',
-        'step',
-      );
+    expect(
+      screen.getByRole('button', { name: 'Чёрные: Восхождение F6 -> E5' }),
+    ).toHaveAttribute('aria-current', 'step');
 
-      const backButton = screen.getByRole('button', { name: 'Назад' });
-      const forwardButton = screen.getByRole('button', { name: 'Вперёд' });
+    const backButton = screen.getByRole('button', { name: 'Назад' });
+    const forwardButton = screen.getByRole('button', { name: 'Вперёд' });
 
-      expect(backButton).toBeEnabled();
-      expect(forwardButton).toBeDisabled();
+    expect(backButton).toBeEnabled();
+    expect(forwardButton).toBeDisabled();
 
-      await user.click(backButton);
+    await user.click(backButton);
 
-      expect(screen.getByText(/Позиция истории:\s*1/)).toBeInTheDocument();
-      expect(forwardButton).toBeEnabled();
-      expect(screen.getByRole('button', { name: 'Чёрные: Восхождение F6 -> E5' })).toHaveAttribute(
-        'data-state',
-        'future',
-      );
+    expect(screen.getByText(/Позиция истории:\s*1/)).toBeInTheDocument();
+    expect(forwardButton).toBeEnabled();
+    expect(
+      screen.getByRole('button', { name: 'Чёрные: Восхождение F6 -> E5' }),
+    ).toHaveAttribute('data-state', 'future');
 
-      await user.click(screen.getByRole('button', { name: 'Чёрные: Восхождение F6 -> E5' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Чёрные: Восхождение F6 -> E5' }),
+    );
 
-      expect(screen.getByText(/Позиция истории:\s*2/)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Вперёд' })).toBeDisabled();
+    expect(screen.getByText(/Позиция истории:\s*2/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Вперёд' })).toBeDisabled();
 
-      await user.click(screen.getByRole('button', { name: 'Белые: Восхождение A1 -> B2' }));
+    await user.click(
+      screen.getByRole('button', { name: 'Белые: Восхождение A1 -> B2' }),
+    );
 
-      expect(screen.getByText(/Позиция истории:\s*1/)).toBeInTheDocument();
-      expect(screen.getByRole('button', { name: 'Вперёд' })).toBeEnabled();
-    },
-    20000,
-  );
+    expect(screen.getByText(/Позиция истории:\s*1/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Вперёд' })).toBeEnabled();
+  }, 20000);
 });
