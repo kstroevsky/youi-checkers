@@ -520,7 +520,7 @@ describe('game engine action application', () => {
     ).toBe(false);
   });
 
-  it('supports non-adjacent friendly stack transfer behind config', () => {
+  it('supports non-adjacent friendly stack transfer by default', () => {
     const state = gameStateWithBoard(
       boardWithPieces({
         A1: [checker('white'), checker('white')],
@@ -531,10 +531,31 @@ describe('game engine action application', () => {
     const actions = getLegalActionsForCell(
       state,
       'A1',
-      withConfig({ allowNonAdjacentFriendlyStackTransfer: true }),
+      withConfig(),
     );
 
     expect(actions).toContainEqual({
+      type: 'friendlyStackTransfer',
+      source: 'A1',
+      target: 'F6',
+    });
+  });
+
+  it('disables non-adjacent friendly stack transfer behind config', () => {
+    const state = gameStateWithBoard(
+      boardWithPieces({
+        A1: [checker('white'), checker('white')],
+        F6: [checker('white'), checker('white')],
+      }),
+    );
+
+    const actions = getLegalActionsForCell(
+      state,
+      'A1',
+      withConfig({ allowNonAdjacentFriendlyStackTransfer: false }),
+    );
+
+    expect(actions).not.toContainEqual({
       type: 'friendlyStackTransfer',
       source: 'A1',
       target: 'F6',

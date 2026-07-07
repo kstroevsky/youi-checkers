@@ -43,7 +43,7 @@ describe('createGameStore persistence', () => {
     });
 
     expect(store.getState().ruleConfig).toEqual({
-      allowNonAdjacentFriendlyStackTransfer: false,
+      allowNonAdjacentFriendlyStackTransfer: true,
       drawRule: 'none',
       scoringMode: 'basic',
     });
@@ -63,13 +63,13 @@ describe('createGameStore persistence', () => {
     );
 
     expect(deserialized.ruleConfig).toEqual({
-      allowNonAdjacentFriendlyStackTransfer: false,
+      allowNonAdjacentFriendlyStackTransfer: true,
       drawRule: 'none',
       scoringMode: 'off',
     });
   });
 
-  it('migrates untouched legacy persisted defaults to updated OFF/OFF/ON defaults', async () => {
+  it('migrates untouched legacy persisted defaults to updated ON/OFF/ON defaults', async () => {
     const legacySession = createSession(createInitialState(), {
       ruleConfig: {
         allowNonAdjacentFriendlyStackTransfer: true,
@@ -90,13 +90,13 @@ describe('createGameStore persistence', () => {
       : null;
 
     expect(store.getState().ruleConfig).toEqual({
-      allowNonAdjacentFriendlyStackTransfer: false,
+      allowNonAdjacentFriendlyStackTransfer: true,
       drawRule: 'none',
       scoringMode: 'basic',
     });
     expect(envelope).not.toBeNull();
     expect(envelope?.session.ruleConfig).toEqual({
-      allowNonAdjacentFriendlyStackTransfer: false,
+      allowNonAdjacentFriendlyStackTransfer: true,
       drawRule: 'none',
       scoringMode: 'basic',
     });

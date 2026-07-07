@@ -15,7 +15,7 @@ export type RuleToggleDescriptor = {
 };
 
 export const RULE_DEFAULTS: RuleConfig = {
-  allowNonAdjacentFriendlyStackTransfer: false,
+  allowNonAdjacentFriendlyStackTransfer: true,
   drawRule: 'none',
   scoringMode: 'basic',
 };
