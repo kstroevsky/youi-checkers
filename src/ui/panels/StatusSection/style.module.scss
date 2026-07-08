@@ -109,6 +109,35 @@
   justify-content: flex-start;
 }
 
+.modeCard {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border: 1px solid tokens.$color-brown-300;
+  border-radius: tokens.$radius-md;
+  background: rgba(255, 250, 238, 0.74);
+}
+
+.modeCopy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+  color: tokens.$color-panel-text;
+
+  strong {
+    font-size: 0.78rem;
+  }
+
+  span {
+    color: tokens.$color-brown-700;
+    font-size: 0.78rem;
+    line-height: 1.2;
+  }
+}
+
 .formatAction {
   display: flex;
   justify-content: flex-start;
@@ -128,5 +157,10 @@
 
   .jumpFollowUpCallout {
     padding: 9px 10px;
+  }
+
+  .modeCard {
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
 }

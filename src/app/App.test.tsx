@@ -27,9 +27,25 @@ function renderApp(session = createSession(createInitialState())) {
   );
 }
 
+function setViewport(width: number, height: number) {
+  Object.defineProperty(window, 'innerWidth', {
+    configurable: true,
+    writable: true,
+    value: width,
+  });
+  Object.defineProperty(window, 'innerHeight', {
+    configurable: true,
+    writable: true,
+    value: height,
+  });
+
+  window.dispatchEvent(new Event('resize'));
+}
+
 describe('App', () => {
   beforeEach(() => {
     resetFactoryIds();
+    setViewport(1440, 900);
   });
 
   it('reveals localized legal move buttons after selecting a cell', async () => {
@@ -142,6 +158,7 @@ describe('App', () => {
 
   it('switches the interface language globally, including lazy-loaded tabs', async () => {
     const user = userEvent.setup();
+    setViewport(390, 844);
     renderApp();
 
     await user.click(await screen.findByRole('button', { name: 'EN' }));
@@ -233,6 +250,7 @@ describe('App', () => {
 
   it('shows match setup on the game tab instead of inside settings', async () => {
     const user = userEvent.setup();
+    setViewport(390, 844);
     renderApp();
 
     expect(
@@ -254,9 +272,17 @@ describe('App', () => {
 
   it('configures a multi-game match and its target score from match setup', async () => {
     const user = userEvent.setup();
+    setViewport(390, 844);
     renderApp();
 
-    await user.click(await screen.findByText('Матч до очков'));
+    expect(screen.queryByText('Формат игры')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('spinbutton', { name: 'Очки для победы' }),
+    ).not.toBeInTheDocument();
+
+    await user.click(
+      await screen.findByRole('checkbox', { name: 'Включить матч' }),
+    );
 
     const targetInput = screen.getByRole('spinbutton', {
       name: 'Очки для победы',

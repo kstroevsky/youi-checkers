@@ -192,9 +192,12 @@ async function testResponsiveLayout(
   page: Page,
   baseUrl: string,
 ): Promise<void> {
+  await page.setViewportSize({ height: 844, width: 390 });
   await page.goto(baseUrl);
   await useEnglish(page);
-  await page.getByText('Points match', { exact: true }).click();
+  await page
+    .getByRole('checkbox', { name: 'Enable match', exact: true })
+    .check();
   await page.getByLabel('Points to win', { exact: true }).fill('7');
   await clickUnique(
     page.getByRole('button', { name: 'Start new game', exact: true }),
@@ -216,12 +219,20 @@ async function testResponsiveLayout(
       .getByRole('heading', { name: 'Match score', exact: true })
       .waitFor();
     await assertNoHorizontalOverflow(page, viewport.name);
-    assert(
-      await page
-        .getByRole('region', { name: 'Game board', exact: true })
-        .isVisible(),
-      `${viewport.name}: board is not visible.`,
-    );
+    const board = page.getByRole('region', {
+      name: 'Game board',
+      exact: true,
+    });
+    await board.waitFor({ state: 'visible' });
+
+    if (viewport.name === 'desktop') {
+      const boardBox = await board.boundingBox();
+      assert(boardBox, 'desktop: board has no layout box.');
+      assert(
+        boardBox.y + boardBox.height <= viewport.height,
+        `desktop: board is clipped at ${boardBox.y + boardBox.height}px in a ${viewport.height}px viewport.`,
+      );
+    }
     await page.screenshot({
       fullPage: true,
       path: path.join(SCREENSHOT_DIR, `${viewport.name}.png`),

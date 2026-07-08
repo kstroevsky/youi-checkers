@@ -124,19 +124,22 @@ export function TurnSummaryStrip({ compact = false }: TurnSummaryStripProps) {
         <p className={styles.textRow}>
           <strong>{text(language, 'moveNumberLabel')}:</strong> {moveNumber}
         </p>
-        <p className={styles.textRow}>
-          <strong>{text(language, 'matchModeLabel')}:</strong> {matchModeCopy}
-        </p>
-        <div className={styles.formatAction}>
-          {matchSettings.gameFormat === 'single' ? (
-            <Button variant="ghost" onClick={() => onSetGameFormat('series')}>
-              {text(language, 'switchToMulti')}
-            </Button>
-          ) : seriesState?.gameNumber === 1 ? (
-            <Button variant="ghost" onClick={() => onSetGameFormat('single')}>
-              {text(language, 'switchToSingle')}
-            </Button>
-          ) : null}
+        <div className={styles.modeCard}>
+          <div className={styles.modeCopy}>
+            <strong>{text(language, 'matchModeLabel')}</strong>
+            <span>{matchModeCopy}</span>
+          </div>
+          <div className={styles.formatAction}>
+            {matchSettings.gameFormat === 'single' ? (
+              <Button variant="ghost" onClick={() => onSetGameFormat('series')}>
+                {text(language, 'switchToMulti')}
+              </Button>
+            ) : seriesState?.gameNumber === 1 ? (
+              <Button variant="ghost" onClick={() => onSetGameFormat('single')}>
+                {text(language, 'switchToSingle')}
+              </Button>
+            ) : null}
+          </div>
         </div>
         <p className={styles.textRowInline}>
           <strong>{text(language, 'statusLabel')}:</strong>{' '}

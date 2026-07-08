@@ -49,11 +49,13 @@ export function MatchSetupPanel({
   );
   const computerMatch = setupMatchSettings.opponentMode === 'computer';
   const seriesMatch = setupMatchSettings.gameFormat === 'series';
-  const formatFieldId = `${fieldId}-format`;
+  const matchFieldId = `${fieldId}-match`;
   const targetFieldId = `${fieldId}-target`;
   const opponentFieldId = `${fieldId}-opponent`;
   const playerFieldId = `${fieldId}-player`;
   const difficultyFieldId = `${fieldId}-difficulty`;
+  const onToggleSeriesMatch = (enabled: boolean) =>
+    onSetSetupMatchSettings({ gameFormat: enabled ? 'series' : 'single' });
   const content = (
     <>
       <div className={styles.header}>
@@ -63,65 +65,35 @@ export function MatchSetupPanel({
         ) : null}
       </div>
 
-      <div className={styles.field}>
-        <p className={styles.fieldLabel} id={formatFieldId}>
-          {text(language, 'gameFormat')}
-        </p>
-        <div
-          className={styles.toggleRow}
-          aria-labelledby={formatFieldId}
-          role="radiogroup"
-        >
-          <label
-            className={styles.toggleOption}
-            data-checked={
-              setupMatchSettings.gameFormat === 'single' || undefined
-            }
-          >
-            <input
-              checked={setupMatchSettings.gameFormat === 'single'}
-              name={`${fieldId}-gameFormat`}
-              type="radio"
-              onChange={() => onSetSetupMatchSettings({ gameFormat: 'single' })}
-            />
-            <span>{text(language, 'singleGame')}</span>
-          </label>
-          <label
-            className={styles.toggleOption}
-            data-checked={seriesMatch || undefined}
-          >
-            <input
-              checked={seriesMatch}
-              name={`${fieldId}-gameFormat`}
-              type="radio"
-              onChange={() => onSetSetupMatchSettings({ gameFormat: 'series' })}
-            />
-            <span>{text(language, 'multiGame')}</span>
-          </label>
+      <div
+        className={styles.matchSwitch}
+        data-enabled={seriesMatch || undefined}
+      >
+        <div className={styles.matchSwitchCopy}>
+          <p className={styles.fieldLabel} id={matchFieldId}>
+            {text(language, 'multiGame')}
+          </p>
+          {!compact ? (
+            <p className={styles.fieldHint}>
+              {text(language, 'matchSetupHint')}
+            </p>
+          ) : null}
         </div>
-      </div>
-
-      <div className={styles.field} data-disabled={!seriesMatch || undefined}>
-        <label className={styles.fieldLabel} htmlFor={targetFieldId}>
-          {text(language, 'targetPoints')}
+        <label
+          className={styles.switchOption}
+          data-checked={seriesMatch || undefined}
+        >
+          <input
+            checked={seriesMatch}
+            type="checkbox"
+            onChange={(event) =>
+              onToggleSeriesMatch(event.currentTarget.checked)
+            }
+          />
+          <span>
+            {text(language, seriesMatch ? 'matchEnabled' : 'switchToMulti')}
+          </span>
         </label>
-        <input
-          id={targetFieldId}
-          className={styles.select}
-          disabled={!seriesMatch}
-          min={1}
-          step={1}
-          type="number"
-          value={setupMatchSettings.targetPoints || ''}
-          onChange={(event) =>
-            onSetSetupMatchSettings({
-              targetPoints:
-                event.target.value === ''
-                  ? 0
-                  : Math.max(1, Math.trunc(Number(event.target.value))),
-            })
-          }
-        />
       </div>
 
       <div className={styles.field}>
@@ -167,6 +139,30 @@ export function MatchSetupPanel({
           </label>
         </div>
       </div>
+
+      {seriesMatch ? (
+        <div className={styles.field}>
+          <label className={styles.fieldLabel} htmlFor={targetFieldId}>
+            {text(language, 'targetPoints')}
+          </label>
+          <input
+            id={targetFieldId}
+            className={styles.select}
+            min={1}
+            step={1}
+            type="number"
+            value={setupMatchSettings.targetPoints || ''}
+            onChange={(event) =>
+              onSetSetupMatchSettings({
+                targetPoints:
+                  event.target.value === ''
+                    ? 0
+                    : Math.max(1, Math.trunc(Number(event.target.value))),
+              })
+            }
+          />
+        </div>
+      ) : null}
 
       <div className={styles.field} data-disabled={!computerMatch || undefined}>
         <p className={styles.fieldLabel} id={playerFieldId}>

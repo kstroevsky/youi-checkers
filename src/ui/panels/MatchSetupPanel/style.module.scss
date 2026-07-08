@@ -21,7 +21,8 @@
   }
 }
 
-.white, .black {
+.white,
+.black {
   width: 8px;
   height: 8px;
   overflow: visible;
@@ -49,11 +50,13 @@
 }
 
 .hint,
+.fieldHint,
 .fieldLabel {
   margin: 0;
 }
 
-.hint {
+.hint,
+.fieldHint {
   color: tokens.$color-brown-600;
   font-size: 0.8rem;
 }
@@ -74,12 +77,41 @@
   font-weight: 600;
 }
 
+.fieldHint {
+  font-size: 0.74rem;
+  line-height: 1.2;
+}
+
+.matchSwitch {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 8px;
+  border: 1px solid tokens.$color-brown-300;
+  border-radius: tokens.$radius-lg;
+  background: rgba(255, 250, 238, 0.76);
+
+  &[data-enabled='true'] {
+    border-color: tokens.$color-accent-dark;
+    background: #f8ead0;
+  }
+}
+
+.matchSwitchCopy {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 2px;
+}
+
 .toggleRow {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 6px;
 }
 
+.switchOption,
 .toggleOption {
   position: relative;
   display: flex;
@@ -104,7 +136,6 @@
     position: absolute;
     inset: 0;
     opacity: 0;
-    pointer-events: none;
   }
 
   span {
@@ -130,6 +161,10 @@
     outline: 2px solid tokens.$color-accent;
     outline-offset: 2px;
   }
+}
+
+.switchOption {
+  min-width: 112px;
 }
 
 .select {
@@ -161,6 +196,15 @@
     font-size: 0.76rem;
   }
 
+  .fieldHint {
+    font-size: 0.72rem;
+  }
+
+  .matchSwitch {
+    gap: 6px;
+    padding: 6px;
+  }
+
   .toggleRow {
     gap: 5px;
   }
@@ -188,6 +232,14 @@
 
   .fieldLabel {
     font-size: 0.74rem;
+  }
+
+  .matchSwitch {
+    padding: 5px;
+  }
+
+  .switchOption {
+    min-width: 96px;
   }
 
   .toggleRow {

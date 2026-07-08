@@ -87,12 +87,17 @@ describe('GameTab compact layout', () => {
     renderGameTab();
 
     expect(screen.queryByRole('tab', { name: 'Ходы' })).not.toBeInTheDocument();
-    expect(screen.getByRole('tab', { name: 'Инфо' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Инфо' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
 
     await user.click(await screen.findByRole('button', { name: 'Клетка A1' }));
 
     const dialog = await screen.findByRole('dialog', { name: 'Выберите ход' });
-    expect(within(dialog).getByRole('button', { name: 'Восхождение' })).toBeInTheDocument();
+    expect(
+      within(dialog).getByRole('button', { name: 'Восхождение' }),
+    ).toBeInTheDocument();
   });
 
   it('shows score summary only inside the info tray on compact layout', async () => {
@@ -100,31 +105,63 @@ describe('GameTab compact layout', () => {
     renderGameTab();
 
     expect(screen.getByRole('table', { name: 'Подсчёт' })).toBeInTheDocument();
-    
+
     await user.click(screen.getByRole('tab', { name: 'История' }));
-    
-    expect(screen.queryByRole('table', { name: 'Подсчёт' })).not.toBeInTheDocument();
+
+    expect(
+      screen.queryByRole('table', { name: 'Подсчёт' }),
+    ).not.toBeInTheDocument();
 
     await user.click(screen.getByRole('tab', { name: 'Инфо' }));
 
-    expect(await screen.findByRole('table', { name: 'Подсчёт' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Белые' })).toBeInTheDocument();
-    expect(screen.getByRole('columnheader', { name: 'Чёрные' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('table', { name: 'Подсчёт' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Белые' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('columnheader', { name: 'Чёрные' }),
+    ).toBeInTheDocument();
   });
 
   it('shows the compact match setup block inside the info tray on compact layout', async () => {
     const user = userEvent.setup();
     renderGameTab();
 
-    expect(screen.getByRole('tab', { name: 'Инфо' })).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tab', { name: 'Инфо' })).toHaveAttribute(
+      'aria-selected',
+      'true',
+    );
 
-    expect(await screen.findByRole('heading', { name: 'Параметры матча' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('heading', { name: 'Параметры матча' }),
+    ).toBeInTheDocument();
+    expect(screen.queryByText('Формат игры')).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('checkbox', { name: 'Включить матч' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.queryByRole('spinbutton', { name: 'Очки для победы' }),
+    ).not.toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Hot-seat' })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: 'Играть с компьютером' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('radio', { name: 'Играть с компьютером' }),
+    ).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Белые' })).toBeInTheDocument();
     expect(screen.getByRole('radio', { name: 'Чёрные' })).toBeInTheDocument();
-    expect(screen.getByRole('combobox', { name: 'Сложность' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Начать новую партию' })).toBeInTheDocument();
+    expect(
+      screen.getByRole('combobox', { name: 'Сложность' }),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Начать новую партию' }),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('checkbox', { name: 'Включить матч' }));
+
+    expect(
+      await screen.findByRole('spinbutton', { name: 'Очки для победы' }),
+    ).toHaveValue(100);
   });
 
   it('shows history controls in the history tray on compact layout', async () => {
@@ -137,10 +174,18 @@ describe('GameTab compact layout', () => {
 
     await user.click(screen.getByRole('tab', { name: 'История' }));
 
-    expect(await screen.findByRole('heading', { name: 'История' }, { timeout: 6000 })).toBeInTheDocument();
+    expect(
+      await screen.findByRole(
+        'heading',
+        { name: 'История' },
+        { timeout: 6000 },
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Назад' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Вперёд' })).toBeInTheDocument();
-    expect(screen.queryByRole('heading', { name: 'Параметры матча' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('heading', { name: 'Параметры матча' }),
+    ).not.toBeInTheDocument();
   }, 10000);
 
   it('copies the full move history from the history tray', async () => {
@@ -153,7 +198,9 @@ describe('GameTab compact layout', () => {
     renderGameTab(createHistoryHeavySession());
 
     await user.click(screen.getByRole('tab', { name: 'История' }));
-    await user.click(await screen.findByRole('button', { name: 'Скопировать историю' }));
+    await user.click(
+      await screen.findByRole('button', { name: 'Скопировать историю' }),
+    );
 
     expect(writeText).toHaveBeenCalledTimes(1);
     const copied = writeText.mock.calls[0]?.[0];
