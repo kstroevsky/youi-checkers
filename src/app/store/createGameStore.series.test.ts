@@ -195,6 +195,7 @@ describe('createGameStore multi-game series', () => {
 
     store.getState().setGameFormat('series');
 
+    expect(store.getState().setupMatchSettings.gameFormat).toBe('series');
     expect(store.getState().seriesState).toMatchObject({
       colors: { first: 'black', second: 'white' },
       phase: 'betweenGames',
@@ -203,6 +204,7 @@ describe('createGameStore multi-game series', () => {
 
     store.getState().setGameFormat('single');
 
+    expect(store.getState().setupMatchSettings.gameFormat).toBe('single');
     expect(store.getState().seriesState).toBeNull();
     expect(store.getState().gameState).toMatchObject({
       status: 'gameOver',

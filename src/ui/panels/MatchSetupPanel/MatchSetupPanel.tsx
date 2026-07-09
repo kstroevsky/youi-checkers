@@ -49,13 +49,10 @@ export function MatchSetupPanel({
   );
   const computerMatch = setupMatchSettings.opponentMode === 'computer';
   const seriesMatch = setupMatchSettings.gameFormat === 'series';
-  const matchFieldId = `${fieldId}-match`;
   const targetFieldId = `${fieldId}-target`;
   const opponentFieldId = `${fieldId}-opponent`;
   const playerFieldId = `${fieldId}-player`;
   const difficultyFieldId = `${fieldId}-difficulty`;
-  const onToggleSeriesMatch = (enabled: boolean) =>
-    onSetSetupMatchSettings({ gameFormat: enabled ? 'series' : 'single' });
   const content = (
     <>
       <div className={styles.header}>
@@ -63,37 +60,6 @@ export function MatchSetupPanel({
         {!compact ? (
           <p className={styles.hint}>{text(language, 'matchSetupHint')}</p>
         ) : null}
-      </div>
-
-      <div
-        className={styles.matchSwitch}
-        data-enabled={seriesMatch || undefined}
-      >
-        <div className={styles.matchSwitchCopy}>
-          <p className={styles.fieldLabel} id={matchFieldId}>
-            {text(language, 'multiGame')}
-          </p>
-          {!compact ? (
-            <p className={styles.fieldHint}>
-              {text(language, 'matchSetupHint')}
-            </p>
-          ) : null}
-        </div>
-        <label
-          className={styles.switchOption}
-          data-checked={seriesMatch || undefined}
-        >
-          <input
-            checked={seriesMatch}
-            type="checkbox"
-            onChange={(event) =>
-              onToggleSeriesMatch(event.currentTarget.checked)
-            }
-          />
-          <span>
-            {text(language, seriesMatch ? 'matchEnabled' : 'switchToMulti')}
-          </span>
-        </label>
       </div>
 
       <div className={styles.field}>

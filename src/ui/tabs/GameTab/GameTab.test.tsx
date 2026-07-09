@@ -139,8 +139,11 @@ describe('GameTab compact layout', () => {
     ).toBeInTheDocument();
     expect(screen.queryByText('Формат игры')).not.toBeInTheDocument();
     expect(
-      screen.getByRole('checkbox', { name: 'Включить матч' }),
-    ).toBeInTheDocument();
+      screen.queryByRole('checkbox', { name: 'Включить матч' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole('button', { name: 'Включить матч' }),
+    ).toHaveLength(1);
     expect(
       screen.queryByRole('spinbutton', { name: 'Очки для победы' }),
     ).not.toBeInTheDocument();
@@ -157,7 +160,7 @@ describe('GameTab compact layout', () => {
       screen.getByRole('button', { name: 'Начать новую партию' }),
     ).toBeInTheDocument();
 
-    await user.click(screen.getByRole('checkbox', { name: 'Включить матч' }));
+    await user.click(screen.getByRole('button', { name: 'Включить матч' }));
 
     expect(
       await screen.findByRole('spinbutton', { name: 'Очки для победы' }),

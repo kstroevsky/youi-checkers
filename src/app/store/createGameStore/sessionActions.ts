@@ -207,6 +207,10 @@ export function createSessionActions({
 
         set({
           ...nextData,
+          setupMatchSettings: {
+            ...state.setupMatchSettings,
+            gameFormat: 'single',
+          },
           ...createIdleSelection(gameState),
           interaction:
             gameState.status === 'gameOver'
@@ -263,6 +267,7 @@ export function createSessionActions({
 
       set({
         ...nextData,
+        setupMatchSettings: matchSettings,
         ...createIdleSelection(gameState),
         interaction:
           gameState.status === 'gameOver'

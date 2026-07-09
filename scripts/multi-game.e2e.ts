@@ -195,9 +195,10 @@ async function testResponsiveLayout(
   await page.setViewportSize({ height: 844, width: 390 });
   await page.goto(baseUrl);
   await useEnglish(page);
-  await page
-    .getByRole('checkbox', { name: 'Enable match', exact: true })
-    .check();
+  await clickUnique(
+    page.getByRole('button', { name: 'Enable match', exact: true }),
+    'Enable match',
+  );
   await page.getByLabel('Points to win', { exact: true }).fill('7');
   await clickUnique(
     page.getByRole('button', { name: 'Start new game', exact: true }),

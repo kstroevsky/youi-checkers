@@ -279,9 +279,12 @@ describe('App', () => {
     expect(
       screen.queryByRole('spinbutton', { name: 'Очки для победы' }),
     ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('checkbox', { name: 'Включить матч' }),
+    ).not.toBeInTheDocument();
 
     await user.click(
-      await screen.findByRole('checkbox', { name: 'Включить матч' }),
+      await screen.findByRole('button', { name: 'Включить матч' }),
     );
 
     const targetInput = screen.getByRole('spinbutton', {
