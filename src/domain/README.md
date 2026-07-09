@@ -64,7 +64,7 @@ The engine uses an explicit action union rather than a generic `{ source, target
 | `moveSingleToEmpty` | move an active single, or an entire controlled stack, one cell to an adjacent empty cell |
 | `splitOneFromStack` | peel the top checker from a controlled stack to an adjacent empty or legal occupied cell |
 | `splitTwoFromStack` | peel the top two checkers together to an adjacent empty or legal occupied cell |
-| `friendlyStackTransfer` | optional non-adjacent move from one controlled stack to another controlled stack |
+| `friendlyStackTransfer` | configurable, default-enabled transfer of one checker to a controlled stack; the source may be controlled or may hold a friendly checker beneath an opponent-controlled top |
 
 This explicit action language keeps legality, serialization, and AI move ordering aligned around the same semantic vocabulary.
 

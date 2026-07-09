@@ -379,30 +379,22 @@ So:
 
 ## 19. Special stack-to-stack transfer
 
-There is a special move from one of your stacks to another.
+There is a special friendly transfer between stacks. This rule is enabled by default, but it can be disabled in the match settings.
 
-A player may move **exactly one top checker** from one controlled stack to another controlled stack.
+A player may transfer **exactly one of their checkers** to another stack they control. The source and destination do **not** need to be adjacent.
 
-Based on your clarified rules, this special transfer:
+The source may be:
 
-* works with stacks generally
-* moves only **one checker**
-* must respect the maximum stack height of **3**
+* a stack controlled by the player, in which case its top checker is transferred
+* a stack controlled by the opponent that has at least one of the player's checkers buried beneath the opponent's top checker
 
-The part that is fully clear from your clarifications is this:
+When transferring from under an opponent's checker, only the player's highest buried checker is removed. The opponent's top checker and every lower checker remain in their original order.
 
-* moving one top checker from your stack onto an **adjacent** occupied active cell is definitely legal
-* moving one top checker from your stack onto an **adjacent enemy stack** is legal and may capture it
-* earlier clarifications also indicated a special friendly stack-to-stack move that is **not necessarily adjacent**
+The destination must:
 
-Because that non-adjacent friendly transfer was described earlier but not redefined in the final wording, the safest precise interpretation is:
-
-**Canonical practical rule for implementation**
-
-* adjacent top-checker transfer to an occupied active cell is always legal
-* non-adjacent transfer between two of your own stacks should be treated as an optional advanced rule unless you decide to lock it formally
-
-This is the only place where the stack rules are still slightly less rigid than the rest.
+* already be a stack controlled by the player
+* contain no frozen checker
+* remain at height **3** or less after the transfer
 
 ---
 
@@ -415,7 +407,7 @@ The following are illegal:
 * climbing onto a frozen checker
 * placing any checker onto a frozen checker
 * creating a stack higher than 3
-* moving a checker that is not on top of its stack
+* moving a checker that is not on top of its stack, except for the one-checker friendly transfer from beneath an opponent's top checker
 * moving a frozen checker
 
 ---

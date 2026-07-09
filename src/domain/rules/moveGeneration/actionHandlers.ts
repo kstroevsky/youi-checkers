@@ -2,6 +2,7 @@ import {
   addCheckers,
   cloneBoardStructure,
   ensureMutableCell,
+  getCell,
   getCellHeight,
   getController,
   getTopChecker,
@@ -107,7 +108,11 @@ function getFriendlyTransferTargets(
   player: Player,
   config: RuleConfig,
 ): Coord[] {
-  if (!config.allowNonAdjacentFriendlyStackTransfer || !isControlledStack(board, source, player)) {
+  if (
+    !config.allowNonAdjacentFriendlyStackTransfer ||
+    (!isControlledStack(board, source, player) &&
+      !hasBuriedFriendlyTransferChecker(board, source, player))
+  ) {
     return [];
   }
 
@@ -130,6 +135,35 @@ function getFriendlyTransferTargets(
   return targets;
 }
 
+function findBuriedFriendlyTransferCheckerIndex(
+  board: EngineState['board'],
+  source: Coord,
+  player: Player,
+): number {
+  const { checkers } = getCell(board, source);
+  const topChecker = checkers.at(-1);
+
+  if (!topChecker || topChecker.owner === player) {
+    return -1;
+  }
+
+  for (let index = checkers.length - 2; index >= 0; index -= 1) {
+    if (checkers[index].owner === player) {
+      return index;
+    }
+  }
+
+  return -1;
+}
+
+function hasBuriedFriendlyTransferChecker(
+  board: EngineState['board'],
+  source: Coord,
+  player: Player,
+): boolean {
+  return findBuriedFriendlyTransferCheckerIndex(board, source, player) !== -1;
+}
+
 function moveCheckers(
   board: EngineState['board'],
   source: Coord,
@@ -140,6 +174,30 @@ function moveCheckers(
   ensureMutableCell(board, source, clonedCoords);
   ensureMutableCell(board, target, clonedCoords);
   addCheckers(board, target, removeTopCheckers(board, source, movingCount));
+
+  return {
+    board,
+    pendingJump: null,
+  };
+}
+
+function moveFriendlyTransferChecker(
+  board: EngineState['board'],
+  source: Coord,
+  target: Coord,
+  player: Player,
+  clonedCoords: Set<Coord>,
+): AppliedActionState {
+  ensureMutableCell(board, source, clonedCoords);
+  ensureMutableCell(board, target, clonedCoords);
+
+  const buriedIndex = findBuriedFriendlyTransferCheckerIndex(board, source, player);
+  const checkers =
+    buriedIndex === -1
+      ? removeTopCheckers(board, source, 1)
+      : getCell(board, source).checkers.splice(buriedIndex, 1);
+
+  addCheckers(board, target, checkers);
 
   return {
     board,
@@ -320,7 +378,13 @@ const actionHandlers = {
       }
 
       const board = cloneBoardStructure(state.board);
-      return moveCheckers(board, action.source, action.target, 1, new Set<Coord>());
+      return moveFriendlyTransferChecker(
+        board,
+        action.source,
+        action.target,
+        state.currentPlayer,
+        new Set<Coord>(),
+      );
     },
   } satisfies ActionHandler,
 } satisfies Record<ActionKind, ActionHandler>;
@@ -338,8 +402,12 @@ export function getGeneratedActionsForCell(
 ): TurnAction[] {
   const topChecker = getTopChecker(state.board, coord);
 
-  if (!topChecker || topChecker.owner !== state.currentPlayer) {
+  if (!topChecker) {
     return [];
+  }
+
+  if (topChecker.owner !== state.currentPlayer) {
+    return actionHandlers.friendlyStackTransfer.getActions(state, coord, config);
   }
 
   if (topChecker.frozen) {

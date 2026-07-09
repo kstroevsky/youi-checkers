@@ -562,6 +562,42 @@ describe('game engine action application', () => {
     });
   });
 
+  it('transfers one buried friendly checker from under an opponent checker', () => {
+    const state = gameStateWithBoard(
+      boardWithPieces({
+        A1: [
+          checker('white', false, 'buried-bottom'),
+          checker('white', false, 'buried-top'),
+          checker('black', false, 'opponent-cap'),
+        ],
+        F6: [
+          checker('white', false, 'target-bottom'),
+          checker('white', false, 'target-top'),
+        ],
+      }),
+    );
+    const action = {
+      type: 'friendlyStackTransfer',
+      source: 'A1',
+      target: 'F6',
+    } as const;
+
+    expect(getLegalActionsForCell(state, 'A1', withConfig())).toContainEqual(action);
+    expect(validateAction(state, action, withConfig())).toEqual({ valid: true });
+
+    const nextState = applyAction(state, action, withConfig());
+
+    expect(nextState.board.A1.checkers.map((entry) => entry.id)).toEqual([
+      'buried-bottom',
+      'opponent-cap',
+    ]);
+    expect(nextState.board.F6.checkers.map((entry) => entry.id)).toEqual([
+      'target-bottom',
+      'target-top',
+      'buried-top',
+    ]);
+  });
+
   it('preserves untouched board cell references after legal moves', () => {
     const initialState = createInitialState();
     const climbedState = applyAction(

@@ -68,11 +68,11 @@ The rules revolve around six recurring ideas:
 - jumping any frozen single thaws it;
 - victory is either complete own-home single conversion or six height-`3` stacks on the front home row.
 
-Optional rule toggles are explicit in `RuleConfig` rather than hidden in the UI.
+Configurable rule toggles are explicit in `RuleConfig` rather than hidden in the UI.
 
-The current optional toggles are:
+The current toggles are:
 
-- non-adjacent friendly stack transfer;
+- non-adjacent friendly stack transfer, enabled by default and able to extract one highest buried friendly checker from beneath an opponent-controlled top checker;
 - threefold repetition as a terminal trigger with tiebreak resolution;
 - informational score summaries independent of terminal truth.
 

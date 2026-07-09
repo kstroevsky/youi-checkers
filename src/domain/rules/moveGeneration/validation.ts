@@ -167,14 +167,22 @@ export function validateAction(
     case 'climbOne':
     case 'moveSingleToEmpty':
     case 'splitOneFromStack':
-    case 'splitTwoFromStack':
-    case 'friendlyStackTransfer': {
+    case 'splitTwoFromStack': {
       const sourceValidation = validateCommonSource(state, action.source, state.currentPlayer);
 
       if (!sourceValidation.valid) {
         return sourceValidation;
       }
 
+      const legalAction = getLegalActionsForCell(state, action.source, resolvedConfig).find((candidate) =>
+        actionsEqual(candidate, action),
+      );
+
+      return legalAction
+        ? { valid: true }
+        : { valid: false, reason: `Illegal ${action.type} from ${action.source} to ${action.target}.` };
+    }
+    case 'friendlyStackTransfer': {
       const legalAction = getLegalActionsForCell(state, action.source, resolvedConfig).find((candidate) =>
         actionsEqual(candidate, action),
       );
