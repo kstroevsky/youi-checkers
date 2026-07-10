@@ -1,8 +1,32 @@
 import react from '@vitejs/plugin-react';
 import { defineConfig } from 'vitest/config';
 import { VitePWA } from 'vite-plugin-pwa';
+import { execFileSync } from 'node:child_process';
+
+import packageJson from './package.json';
+
+function getRelease(): string {
+  const configuredSha =
+    process.env.GITHUB_SHA ?? process.env.CF_PAGES_COMMIT_SHA;
+  let commit = configuredSha?.slice(0, 7);
+
+  if (!commit) {
+    try {
+      commit = execFileSync('git', ['rev-parse', '--short=7', 'HEAD'], {
+        encoding: 'utf8',
+      }).trim();
+    } catch {
+      commit = 'unknown';
+    }
+  }
+
+  return `${packageJson.version}+${commit}`;
+}
 
 export default defineConfig({
+  define: {
+    __APP_RELEASE__: JSON.stringify(getRelease()),
+  },
   plugins: [
     react(),
     VitePWA({
