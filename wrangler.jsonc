@@ -1,0 +1,37 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "youi",
+  "main": "./worker/index.ts",
+  "compatibility_date": "2026-07-09",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "./dist",
+    "binding": "ASSETS",
+    "not_found_handling": "single-page-application",
+    "run_worker_first": ["/api/*"],
+  },
+  "d1_databases": [
+    {
+      "binding": "TELEMETRY_DB",
+      "database_name": "youi-telemetry",
+      "database_id": "37930953-3c8a-4633-81e9-9423da120bee",
+      "migrations_dir": "./migrations",
+    },
+  ],
+  "ratelimits": [
+    {
+      "name": "TELEMETRY_RATE_LIMITER",
+      "namespace_id": "900101",
+      "simple": {
+        "limit": 30,
+        "period": 60,
+      },
+    },
+  ],
+  "triggers": {
+    "crons": ["17 3 * * *"],
+  },
+  "observability": {
+    "enabled": true,
+  },
+}

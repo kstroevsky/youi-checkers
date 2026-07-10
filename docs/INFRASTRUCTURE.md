@@ -6,9 +6,9 @@ No permission is granted to use, copy, modify, merge, publish, distribute, subli
 
 ---
 
-This document covers the browser runtime infrastructure around YOUI rather than the game logic itself: Progressive Web App configuration, lazy model delivery, and the scripts that emit performance and AI-behavior reports.
+This document covers the browser runtime infrastructure around YOUI rather than the game logic itself: Progressive Web App configuration, anonymous diagnostics, lazy model delivery, and the scripts that emit performance and AI-behavior reports.
 
-The key design constraint is local-first execution. The application must remain playable, searchable, and inspectable without a backend service.
+The key design constraint is local-first execution. The application remains playable without a backend service; the Cloudflare Worker only receives optional, bounded diagnostics.
 
 ```mermaid
 flowchart LR
@@ -18,7 +18,32 @@ flowchart LR
   Route -- "other static assets" --> Static["Precaching / runtime fetch"]
   CacheFirst --> Cache["CacheStorage"]
   Static --> Network["Vite preview / static host"]
+  App -. "batched diagnostics" .-> Telemetry["Worker API / D1"]
 ```
+
+## Cloudflare Worker And Diagnostics
+
+[`wrangler.jsonc`](../wrangler.jsonc) extends the existing `youi` static-assets Worker without moving the PWA to another platform. Static files bypass Worker code, while `/api/*` is routed through [`worker/index.ts`](../worker/index.ts). The `/api/telemetry/batches` endpoint accepts same-origin JSON batches up to 32 KiB and stores them in the `youi-telemetry` D1 database.
+
+The browser collector is initialized through a small pre-React proxy and loads its observers asynchronously. It records aggregate Web Vitals, long tasks, foreground timer drift, startup and interaction timings, AI search diagnostics, sanitized errors, and exposed device/load capabilities. Exact GPU probing runs in a dedicated browser worker so weak devices do not pay that cost on the game thread.
+
+Diagnostics are bounded by:
+
+- a 64-event in-memory context ring and at most 20 severe incidents;
+- client-side payload compaction below the Worker limit;
+- at most 10 pending IndexedDB batches or 256 KiB;
+- 30-day D1 retention enforced by the daily scheduled handler.
+
+The Settings toggle uses `youi/diagnostics-enabled/v1`, independently from saved/imported games. Disabling it stops collection and deletes the `youi-telemetry` IndexedDB database. Batches do not contain board coordinates, board state, imported text, replays, raw stacks, IP addresses, WebRTC candidates, or a persistent browser identifier.
+
+Database schema changes live in [`migrations/`](../migrations/). Local and remote operations use:
+
+- `pnpm cf:d1:migrate:local`;
+- `pnpm cf:dev`;
+- `pnpm cf:preview`;
+- `pnpm cf:deploy`.
+
+The Worker also uses Cloudflare's native rate-limit binding with a high per-source ceiling (30 batches per minute). The source key is used only by the rate-limit service during enforcement; it is not written into D1.
 
 ## PWA Configuration
 
@@ -85,6 +110,7 @@ The harness covers more than one cold-load number. The browser side measures:
 - compact-layout tab switching on the mobile viewport profile;
 - fresh-match AI reply timing after human or computer opening ownership is configured;
 - imported late-game hard-AI replies from serialized sessions.
+- telemetry-attributed long tasks, requests during interactions, pending queue size, and startup heap delta.
 
 The imported-session fixtures are deterministic and come from [`scripts/lateGamePerfFixtures.ts`](../scripts/lateGamePerfFixtures.ts). The current labels are `opening`, `turn50`, `turn100`, and `turn200`.
 
@@ -199,6 +225,10 @@ The repository exposes the infrastructure/report commands through `package.json`
 - `npm run ai:stage-variety`
 - `npm run ai:threat`
 - `npm run ai:variety`
+- `pnpm cf:d1:migrate:local`
+- `pnpm cf:dev`
+- `pnpm cf:preview`
+- `pnpm cf:deploy`
 - `npm run ai:crossplay:compare`
 - `npm run ai:loop-benchmark:compare`
 - `npm run ai:position-buckets:compare`

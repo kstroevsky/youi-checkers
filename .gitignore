@@ -7,3 +7,7 @@ node_modules
 .codex-artifactss
 analysis
 .pnpm-store/
+.wrangler/
+.dev.vars*
+.env*.local
+.codegraph
