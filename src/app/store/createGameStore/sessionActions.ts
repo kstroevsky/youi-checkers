@@ -38,6 +38,7 @@ export function createSessionActions({
   resetAiState,
   set,
   syncComputerTurn,
+  submitOnlineCommand,
   telemetry,
 }: PublicActionsOptions): Pick<
   GameStoreState,
@@ -75,6 +76,12 @@ export function createSessionActions({
   return {
     chooseNextSeriesColor: (color) => {
       const state = get();
+
+      if (state.onlineMatch) {
+        submitOnlineCommand({ type: 'chooseNextColor', color });
+        return;
+      }
+
       const chooser = state.seriesState?.colorChooser;
 
       if (!state.seriesState || !chooser) {
@@ -108,6 +115,10 @@ export function createSessionActions({
     importSessionFromBuffer: () => {
       const state = get();
 
+      if (state.onlineMatch) {
+        return;
+      }
+
       try {
         const session = deserializeSession(state.importBuffer);
         const nextHistoryHydrationStatus = beginFreshFullSession();
@@ -122,6 +133,7 @@ export function createSessionActions({
     },
     refreshExportBuffer: () => {
       const state = get();
+      if (state.onlineMatch) return;
       set({
         exportBuffer: serializeSession(buildSessionFromSlices(state), {
           pretty: true,
@@ -131,6 +143,10 @@ export function createSessionActions({
     restart: () => {
       disposeAiWorker();
       const state = get();
+
+      if (state.onlineMatch) {
+        return;
+      }
 
       if (state.seriesState && state.seriesState.phase !== 'playing') {
         return;
@@ -164,6 +180,10 @@ export function createSessionActions({
     setGameFormat: (format) => {
       disposeAiWorker();
       const state = get();
+
+      if (state.onlineMatch) {
+        return;
+      }
 
       if (format === state.matchSettings.gameFormat) {
         return;
@@ -284,11 +304,17 @@ export function createSessionActions({
     },
     setPreference: (partial) => {
       const state = get();
-      const nextHistoryHydrationStatus = consumeStartupHydrationOnMutation();
       const preferences = {
         ...state.preferences,
         ...partial,
       };
+
+      if (state.onlineMatch) {
+        set({ preferences });
+        return;
+      }
+
+      const nextHistoryHydrationStatus = consumeStartupHydrationOnMutation();
       const nextData = {
         ruleConfig: state.ruleConfig,
         preferences,
@@ -315,6 +341,10 @@ export function createSessionActions({
     setRuleConfig: (partial) => {
       disposeAiWorker();
       const state = get();
+
+      if (state.onlineMatch) {
+        return;
+      }
       const nextHistoryHydrationStatus = consumeStartupHydrationOnMutation();
       const ruleConfig = withRuleDefaults({
         ...state.ruleConfig,
@@ -400,6 +430,7 @@ export function createSessionActions({
     startNewGame: (matchSettings = get().setupMatchSettings) => {
       disposeAiWorker();
       const state = get();
+      if (state.onlineMatch) return;
       const nextHistoryHydrationStatus = beginFreshFullSession();
       const normalizedMatchSettings = {
         ...matchSettings,
@@ -464,6 +495,11 @@ export function createSessionActions({
     startNextSeriesGame: () => {
       disposeAiWorker();
       const state = get();
+
+      if (state.onlineMatch) {
+        submitOnlineCommand({ type: 'startNextGame' });
+        return;
+      }
 
       if (!state.seriesState) {
         return;

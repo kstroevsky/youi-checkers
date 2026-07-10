@@ -40,6 +40,7 @@ import type {
   SessionSlices,
 } from '@/app/store/createGameStore/types';
 import type { TelemetrySink } from '@/shared/telemetry/contracts';
+import type { MatchCommand } from '@/shared/multiplayer';
 
 type StoreSetter = (
   partial:
@@ -76,6 +77,7 @@ type StoreTransitionsOptions = {
   ) => Pick<GameStoreData, 'aiError' | 'aiStatus' | 'pendingAiRequestId'>;
   set: StoreSetter;
   syncComputerTurn: () => void;
+  submitOnlineCommand: (command: MatchCommand) => boolean;
   telemetry?: TelemetrySink;
   updateSessionMeta: (options?: ApplySessionOptions) => HistoryHydrationStatus;
 };
@@ -92,6 +94,7 @@ export function createStoreTransitions({
   resetAiState,
   set,
   syncComputerTurn,
+  submitOnlineCommand,
   telemetry,
   updateSessionMeta,
 }: StoreTransitionsOptions) {
@@ -119,6 +122,14 @@ export function createStoreTransitions({
     aiDecision: AiSearchResult | null = null,
   ): void {
     const state = get();
+
+    if (state.onlineMatch) {
+      if (!aiDecision) {
+        submitOnlineCommand({ type: 'submitAction', action });
+      }
+      return;
+    }
+
     const nextHistoryHydrationStatus = consumeStartupHydrationOnMutation();
     const finishingSeries =
       state.seriesState?.phase === 'finishing' ? state.seriesState : null;
@@ -284,7 +295,10 @@ export function createStoreTransitions({
       disposeAiWorker();
       const state = get();
 
-      if (state.seriesState && state.seriesState.phase !== 'playing') {
+      if (
+        state.onlineMatch ||
+        (state.seriesState && state.seriesState.phase !== 'playing')
+      ) {
         return false;
       }
 
@@ -311,6 +325,10 @@ export function createStoreTransitions({
       session: SerializableSession,
       options: ApplySessionOptions = {},
     ): void {
+      if (get().onlineMatch) {
+        return;
+      }
+
       disposeAiWorker();
       const historyHydrationStatus = updateSessionMeta(options);
       const runtimeState = createRuntimeState(session);

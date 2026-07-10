@@ -23,6 +23,7 @@ import type {
 
 import type { SessionArchive } from '@/app/store/sessionArchive';
 import type { TelemetrySink } from '@/shared/telemetry/contracts';
+import type { OnlineMatchView } from '@/app/multiplayer/MultiplayerClient';
 
 /** Store-local AI status used by the UI and worker lifecycle. */
 export type AiStatus = 'idle' | 'thinking' | 'error';
@@ -68,6 +69,7 @@ export type GameStoreData = {
   lastAiDecision: AiSearchResult | null;
   pendingAiRequestId: number | null;
   exportBuffer: string;
+  onlineMatch: OnlineMatchView | null;
 };
 
 /** Public store API consumed by the UI layer. */
@@ -76,8 +78,11 @@ export type GameStoreState = GameStoreData & {
   cancelInteraction: () => void;
   chooseNextSeriesColor: (color: Player) => void;
   chooseActionType: (actionType: ActionKind) => void;
+  createOnlineMatch: () => Promise<string | null>;
   goToHistoryCursor: (targetCursor: number) => void;
   importSessionFromBuffer: () => void;
+  joinOnlineMatch: (inviteUrl: string) => Promise<boolean>;
+  leaveOnlineMatch: () => void;
   redo: () => void;
   refreshExportBuffer: () => void;
   retryComputerMove: () => void;

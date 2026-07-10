@@ -1,5 +1,6 @@
 import type { StoreApi } from 'zustand/vanilla';
 
+import { MultiplayerClient } from '@/app/multiplayer/MultiplayerClient';
 import { createAiController } from '@/app/store/createGameStore/aiController';
 import { createDerivationCache } from '@/app/store/createGameStore/derivations';
 import { isComputerTurn } from '@/app/store/createGameStore/match';
@@ -13,6 +14,7 @@ import {
 } from '@/app/store/createGameStore/session';
 import {
   createInitialInteractionState,
+  createSelectionState,
   createSelectionUpdate,
   getJumpFollowUpSelection,
 } from '@/app/store/createGameStore/selection';
@@ -22,6 +24,7 @@ import type {
   InitialPersistenceState,
   StoreOptions,
 } from '@/app/store/createGameStore/types';
+import { participantToMove } from '@/shared/multiplayer';
 
 type StoreSetter = (
   partial:
@@ -65,6 +68,7 @@ export function createGameStoreStateRuntime({
 
   let persistInitialState: (() => void) | null = null;
   let startArchiveHydration: (() => void) | null = null;
+  let bootstrapMultiplayer: (() => void) | null = null;
 
   /**
    * Instantiates the concrete store runtime around one `set/get` pair.
@@ -88,6 +92,76 @@ export function createGameStoreStateRuntime({
       initialPersistence,
       storage,
     });
+    const multiplayerClient = new MultiplayerClient({
+      getCreateOptions: () => {
+        const state = get();
+        return {
+          format: state.setupMatchSettings.gameFormat,
+          rules: state.ruleConfig,
+          targetPoints: state.setupMatchSettings.targetPoints,
+        };
+      },
+      project: (authoritative, projection) => {
+        const current = get();
+        const gameState: GameStoreState['gameState'] = {
+          ...authoritative.engine,
+          history: [],
+        };
+        const seriesState: GameStoreState['seriesState'] = authoritative.series
+          ? { ...authoritative.series, gameOneCheckpoint: null }
+          : null;
+        const matchSettings = {
+          ...current.matchSettings,
+          opponentMode: 'hotSeat' as const,
+          gameFormat: authoritative.format,
+          targetPoints:
+            authoritative.series?.targetPoints ??
+            current.matchSettings.targetPoints,
+        };
+        const canAct =
+          projection.connected &&
+          !projection.pending &&
+          participantToMove(authoritative) === projection.participant;
+        const boardDerivation = getBoardDerivation(
+          gameState,
+          authoritative.rules,
+        );
+        const jumpFollowUp = canAct
+          ? getJumpFollowUpSelection(gameState)
+          : null;
+        const selection = canAct
+          ? createSelectionUpdate(gameState, jumpFollowUp)
+          : createSelectionState(
+              null,
+              null,
+              gameState.status === 'gameOver'
+                ? { type: 'gameOver' }
+                : { type: 'idle' },
+            );
+
+        set({
+          ...boardDerivation,
+          ...selection,
+          ruleConfig: authoritative.rules,
+          matchSettings,
+          seriesState,
+          gameState,
+          turnLog: [],
+          past: [],
+          future: [],
+          historyCursor: 0,
+          selectableCoords: canAct ? boardDerivation.selectableCoords : [],
+          aiBehaviorProfile: null,
+          aiError: null,
+          aiStatus: 'idle',
+          pendingAiRequestId: null,
+          lastAiDecision: null,
+          importError: null,
+        });
+      },
+      setView: (onlineMatch) => set({ onlineMatch }),
+    });
+    bootstrapMultiplayer = () => multiplayerClient.bootstrap();
 
     let transitions: ReturnType<typeof createStoreTransitions> | null = null;
 
@@ -117,6 +191,7 @@ export function createGameStoreStateRuntime({
       set,
       syncComputerTurn: aiController.syncComputerTurn,
       telemetry: options.telemetry,
+      submitOnlineCommand: (command) => multiplayerClient.submit(command),
       updateSessionMeta: persistenceRuntime.updateSessionMeta,
     });
 
@@ -151,6 +226,7 @@ export function createGameStoreStateRuntime({
       random: options.random ?? Math.random,
       resetAiState: aiController.resetAiState,
       set,
+      submitOnlineCommand: (command) => multiplayerClient.submit(command),
       syncComputerTurn: aiController.syncComputerTurn,
       telemetry: options.telemetry,
     });
@@ -176,24 +252,14 @@ export function createGameStoreStateRuntime({
       lastAiDecision: null,
       pendingAiRequestId: null,
       exportBuffer: '',
-      ...createPublicGameStoreActions({
-        applyHistoryStep: transitions.applyHistoryStep,
-        applySession: transitions.applySession,
-        beginFreshFullSession: persistenceRuntime.beginFreshFullSession,
-        commitAction: transitions.commitAction,
-        consumeStartupHydrationOnMutation:
-          persistenceRuntime.consumeStartupHydrationOnMutation,
-        createSessionId: options.createSessionId ?? createSessionId,
-        disposeAiWorker: aiController.disposeAiWorker,
-        get,
-        getBoardDerivation,
-        getCellDerivation,
-        persistCurrentState: transitions.persistCurrentState,
-        random: options.random ?? Math.random,
-        resetAiState: aiController.resetAiState,
-        set,
-        syncComputerTurn: aiController.syncComputerTurn,
-      }),
+      onlineMatch: null,
+      ...publicActions,
+      createOnlineMatch: () => multiplayerClient.create(),
+      joinOnlineMatch: (inviteUrl) => multiplayerClient.join(inviteUrl),
+      leaveOnlineMatch: () => {
+        multiplayerClient.leave();
+        publicActions.startNewGame(get().setupMatchSettings);
+      },
     };
   }
 
@@ -207,6 +273,7 @@ export function createGameStoreStateRuntime({
     queueMicrotask(() => {
       persistInitialState?.();
       startArchiveHydration?.();
+      bootstrapMultiplayer?.();
 
       const state = store.getState();
 

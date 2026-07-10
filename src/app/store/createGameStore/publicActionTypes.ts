@@ -1,6 +1,7 @@
 import type { SerializableSession } from '@/shared/types/session';
 import type { TelemetrySink } from '@/shared/telemetry/contracts';
 import type { Coord, TurnAction } from '@/domain';
+import type { MatchCommand } from '@/shared/multiplayer';
 
 import type {
   BoardDerivation,
@@ -63,5 +64,6 @@ export type PublicActionsOptions = {
   >;
   set: StoreSetter;
   syncComputerTurn: () => void;
+  submitOnlineCommand: (command: MatchCommand) => boolean;
   telemetry?: TelemetrySink;
 };
