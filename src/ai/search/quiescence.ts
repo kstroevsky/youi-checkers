@@ -1,4 +1,4 @@
-import type { EngineState, TurnAction } from '@/domain';
+import type { EngineState } from '@/domain';
 import { evaluateState } from '@/ai/evaluation';
 import { orderMoves, type OrderedAction } from '@/ai/moveOrdering';
 import { getCachedLegalActions, getStatePerfBundle } from '@/ai/perf';

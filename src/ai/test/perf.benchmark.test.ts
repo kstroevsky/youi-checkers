@@ -141,11 +141,11 @@ describe('numeric-action-id refactor: before vs after', () => {
     }
 
     bench('OLD  record[stringKey]', ITERS, () => {
-      for (const key of stringKeys) recordPriors[key];
+      for (const key of stringKeys) void recordPriors[key];
     });
 
     bench('NEW  float32Array[numericId]', ITERS, () => {
-      for (const id of numericIds) arrayPriors[id];
+      for (const id of numericIds) void arrayPriors[id];
     });
   });
 
@@ -203,7 +203,7 @@ describe('numeric-action-id refactor: before vs after', () => {
         const k = stringKeys[i]!;
         histStr.get(k);
         contStr.get(`${prevStringKey}->${k}`);
-        polStr[k];
+        void polStr[k];
       }
     });
 
@@ -212,7 +212,7 @@ describe('numeric-action-id refactor: before vs after', () => {
         const id = numericIds[i]!;
         histNum.get(id);
         contNum.get(prevNumericId * AI_MODEL_ACTION_COUNT + id);
-        polNum[id];
+        void polNum[id];
       }
     });
   });

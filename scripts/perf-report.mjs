@@ -218,9 +218,13 @@ async function collectChunkSizes() {
     html.matchAll(/<script[^>]+src="\/assets\/([^"]+\.js)"/g),
     (match) => match[1],
   );
+  const initialJsBytes = jsAssets
+    .filter(({ assetName }) => entryScripts.includes(assetName))
+    .reduce((sum, asset) => sum + asset.bytes, 0);
 
   return {
     entryScripts,
+    initialJsBytes,
     jsAssets: jsAssets.sort((left, right) => right.bytes - left.bytes),
     lazyChunkSmoke: {
       moveInputModal: jsAssets.some(({ assetName }) => assetName.includes('MoveInputModal')),
@@ -277,12 +281,52 @@ async function createMeasuredPage(browser, viewport, cpuRate = 1) {
 
   await page.addInitScript(() => {
     window.__wmblPerf = {
+      heapAtBoot: performance.memory?.usedJSHeapSize ?? null,
       largestContentfulPaintMs: null,
       layoutShifts: [],
       longTasks: [],
+      telemetryRequests: [],
     };
 
     const safeRound = (value) => Math.round(value * 100) / 100;
+    const isTelemetryRequest = (input) => {
+      try {
+        const value =
+          typeof input === 'string'
+            ? input
+            : input instanceof URL
+              ? input.href
+              : input?.url;
+        return (
+          new URL(value, window.location.href).pathname ===
+          '/api/telemetry/batches'
+        );
+      } catch {
+        return false;
+      }
+    };
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = (input, init) => {
+      if (isTelemetryRequest(input)) {
+        window.__wmblPerf.telemetryRequests.push({
+          at: safeRound(performance.now()),
+          delivery: 'fetch',
+        });
+      }
+      return originalFetch(input, init);
+    };
+    const originalBeacon = navigator.sendBeacon?.bind(navigator);
+    if (originalBeacon) {
+      navigator.sendBeacon = (url, data) => {
+        if (isTelemetryRequest(url)) {
+          window.__wmblPerf.telemetryRequests.push({
+            at: safeRound(performance.now()),
+            delivery: 'beacon',
+          });
+        }
+        return originalBeacon(url, data);
+      };
+    }
 
     if ('PerformanceObserver' in window) {
       try {
@@ -356,13 +400,62 @@ async function collectLoadMetrics(page) {
         .map((entry) => [entry.name, Math.round(entry.startTime * 100) / 100]),
     );
     const perfState = window.__wmblPerf ?? {
+      heapAtBoot: null,
       largestContentfulPaintMs: null,
       layoutShifts: [],
       longTasks: [],
+      telemetryRequests: [],
     };
+    const profileMeasure = performance
+      .getEntriesByName('youi-telemetry-device-profile', 'measure')
+      .at(-1);
+    const telemetryLongTasks = profileMeasure
+      ? perfState.longTasks.filter(
+          (entry) =>
+            entry.startTime <
+              profileMeasure.startTime + profileMeasure.duration &&
+            entry.startTime + entry.duration > profileMeasure.startTime,
+        )
+      : [];
+    let telemetryQueue = { bytes: 0, count: 0 };
+
+    try {
+      const databases = await indexedDB.databases();
+      if (databases.some(({ name }) => name === 'youi-telemetry')) {
+        telemetryQueue = await new Promise((resolve) => {
+          const request = indexedDB.open('youi-telemetry');
+          request.onerror = () => resolve({ bytes: 0, count: 0 });
+          request.onsuccess = () => {
+            const database = request.result;
+            const transaction = database.transaction(
+              'pendingBatches',
+              'readonly',
+            );
+            const getAll = transaction.objectStore('pendingBatches').getAll();
+            getAll.onerror = () => {
+              database.close();
+              resolve({ bytes: 0, count: 0 });
+            };
+            getAll.onsuccess = () => {
+              const records = getAll.result;
+              database.close();
+              resolve({
+                bytes: new TextEncoder().encode(JSON.stringify(records))
+                  .byteLength,
+                count: records.length,
+              });
+            };
+          };
+        });
+      }
+    } catch {
+      // IndexedDB database enumeration is optional.
+    }
 
     return {
-      domContentLoadedMs: Math.round((navigationEntry?.domContentLoadedEventEnd ?? 0) * 100) / 100,
+      domContentLoadedMs:
+        Math.round((navigationEntry?.domContentLoadedEventEnd ?? 0) * 100) /
+        100,
       firstContentfulPaintMs: paints['first-contentful-paint'] ?? null,
       firstPaintMs: paints['first-paint'] ?? null,
       largestContentfulPaintMs: perfState.largestContentfulPaintMs,
@@ -374,6 +467,21 @@ async function collectLoadMetrics(page) {
       totalLayoutShift: Math.round(
         perfState.layoutShifts.reduce((sum, entry) => sum + entry.value, 0) * 1000,
       ) / 1000,
+      telemetryHeapDeltaBytes:
+        perfState.heapAtBoot === null ||
+        performance.memory?.usedJSHeapSize === undefined
+          ? null
+          : Math.max(
+              0,
+              performance.memory.usedJSHeapSize - perfState.heapAtBoot,
+            ),
+      telemetryLongTaskCount: telemetryLongTasks.length,
+      telemetryProfileMs: profileMeasure
+        ? Math.round(profileMeasure.duration * 100) / 100
+        : null,
+      telemetryQueueBytes: telemetryQueue.bytes,
+      telemetryQueueCount: telemetryQueue.count,
+      telemetryRequestCount: perfState.telemetryRequests.length,
     };
   });
 }
@@ -384,6 +492,7 @@ async function beginInteraction(page) {
       layoutShiftIndex: window.__wmblPerf.layoutShifts.length,
       longTaskIndex: window.__wmblPerf.longTasks.length,
       startedAt: performance.now(),
+      telemetryRequestIndex: window.__wmblPerf.telemetryRequests.length,
     };
   });
 }
@@ -397,6 +506,9 @@ async function endInteraction(page) {
     const interaction = window.__wmblActiveInteraction;
     const longTasks = window.__wmblPerf.longTasks.slice(interaction.longTaskIndex);
     const layoutShifts = window.__wmblPerf.layoutShifts.slice(interaction.layoutShiftIndex);
+    const telemetryRequests = window.__wmblPerf.telemetryRequests.slice(
+      interaction.telemetryRequestIndex,
+    );
 
     return {
       elapsedMs: Math.round((performance.now() - interaction.startedAt) * 100) / 100,
@@ -407,6 +519,7 @@ async function endInteraction(page) {
       totalLongTaskMs: Math.round(
         longTasks.reduce((sum, entry) => sum + entry.duration, 0) * 100,
       ) / 100,
+      telemetryRequestCount: telemetryRequests.length,
     };
   });
 }
@@ -695,6 +808,42 @@ async function measureViewportScenario(
 
 function buildSummary(report) {
   const mobileProfiles = report.mobileProfiles ?? { '1x': report.mobile };
+  const measuredProfiles = [report.desktop, ...Object.values(mobileProfiles)];
+  const collectMetric = (value, key, results = []) => {
+    if (!value || typeof value !== 'object') {
+      return results;
+    }
+    for (const [entryKey, entryValue] of Object.entries(value)) {
+      if (entryKey === key && typeof entryValue === 'number') {
+        results.push(entryValue);
+      } else if (entryKey !== 'load') {
+        collectMetric(entryValue, key, results);
+      }
+    }
+    return results;
+  };
+  const maximumTelemetryInteractionRequests = Math.max(
+    0,
+    ...measuredProfiles.flatMap((profile) =>
+      collectMetric(profile, 'telemetryRequestCount'),
+    ),
+  );
+  const maximumTelemetryQueueBytes = Math.max(
+    ...measuredProfiles.map((profile) => profile.load.telemetryQueueBytes ?? 0),
+  );
+  const maximumTelemetryQueueCount = Math.max(
+    ...measuredProfiles.map((profile) => profile.load.telemetryQueueCount ?? 0),
+  );
+  const telemetryLongTaskCount = measuredProfiles.reduce(
+    (total, profile) => total + (profile.load.telemetryLongTaskCount ?? 0),
+    0,
+  );
+  const maximumTelemetryHeapDelta = Math.max(
+    0,
+    ...measuredProfiles
+      .map((profile) => profile.load.telemetryHeapDeltaBytes)
+      .filter((value) => typeof value === 'number'),
+  );
   const weakDeviceProfiles = Object.entries(mobileProfiles)
     .filter(([key]) => key !== '1x')
     .sort((left, right) => Number(left[0].replace('x', '')) - Number(right[0].replace('x', '')));
@@ -728,6 +877,43 @@ function buildSummary(report) {
       label: 'Mobile hard AI opening',
       status: classifyLower(report.mobile.ai.black.hard.elapsedMs, 1800, 3200),
       value: `${report.mobile.ai.black.hard.elapsedMs}ms`,
+    },
+    {
+      label: 'Initial JavaScript',
+      status: classifyLower(
+        report.chunkSizes.initialJsBytes ?? Infinity,
+        350_000,
+        400_000,
+      ),
+      value: `${report.chunkSizes.initialJsBytes ?? 'n/a'} bytes`,
+    },
+    {
+      label: 'Telemetry-attributed long tasks',
+      status: telemetryLongTaskCount === 0 ? 'good' : 'bad',
+      value: String(telemetryLongTaskCount),
+    },
+    {
+      label: 'Telemetry requests during interactions',
+      status: maximumTelemetryInteractionRequests === 0 ? 'good' : 'bad',
+      value: String(maximumTelemetryInteractionRequests),
+    },
+    {
+      label: 'Telemetry pending queue',
+      status:
+        maximumTelemetryQueueCount <= 10 &&
+        maximumTelemetryQueueBytes <= 256 * 1024
+          ? 'good'
+          : 'bad',
+      value: `${maximumTelemetryQueueCount} batches / ${maximumTelemetryQueueBytes} bytes`,
+    },
+    {
+      label: 'Telemetry startup heap delta',
+      status: classifyLower(
+        maximumTelemetryHeapDelta,
+        8 * 1024 * 1024,
+        16 * 1024 * 1024,
+      ),
+      value: `${Math.round(maximumTelemetryHeapDelta / 1024)} KiB`,
     },
     {
       label: 'Domain full action scan',
@@ -780,6 +966,7 @@ function buildSummary(report) {
     '## Load',
     `- Desktop: FCP ${report.desktop.load.firstContentfulPaintMs ?? 'n/a'}ms, LCP ${report.desktop.load.largestContentfulPaintMs ?? 'n/a'}ms, load ${report.desktop.load.loadEventMs}ms`,
     `- Mobile: FCP ${report.mobile.load.firstContentfulPaintMs ?? 'n/a'}ms, LCP ${report.mobile.load.largestContentfulPaintMs ?? 'n/a'}ms, load ${report.mobile.load.loadEventMs}ms`,
+    `- Telemetry: ${telemetryLongTaskCount} attributed long tasks, ${maximumTelemetryInteractionRequests} max requests during an interaction, queue max ${maximumTelemetryQueueCount} batches / ${maximumTelemetryQueueBytes} bytes`,
     '',
     '## Render / UI',
     `- Desktop DOM nodes: ${report.desktop.render.initial.elements}, checker nodes: ${report.desktop.render.initial.checkerNodes}`,

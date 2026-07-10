@@ -396,7 +396,7 @@ Representative coverage:
 - [`src/app/store/createGameStore.ai.test.ts`](../src/app/store/createGameStore.ai.test.ts): worker orchestration, stale replies, watchdogs, AI pacing
 - [`src/app/store/createGameStore.persistence.test.ts`](../src/app/store/createGameStore.persistence.test.ts): storage, hydration, stale archive handling
 - [`src/app/store/createGameStore.history.test.ts`](../src/app/store/createGameStore.history.test.ts): undo/redo and cursor behavior
-- [`src/ai/search.behavior.test.ts`](../src/ai/search.behavior.test.ts) and related AI tests: search correctness, timeout fallback, and heuristic behavior
+- [`src/ai/test/search.behavior.test.ts`](../src/ai/test/search.behavior.test.ts) and related AI tests: search correctness, timeout fallback, and heuristic behavior
 
 The point of the tests is not only regression prevention. They are the executable form of the repository's cross-layer contracts.
 

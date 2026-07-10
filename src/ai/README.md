@@ -629,12 +629,12 @@ The key takeaway is that this AI is intentionally hybrid: classical tree search 
 
 Important supporting artifacts:
 
-- [`moveOrdering.test.ts`](./moveOrdering.test.ts)
-- [`search.behavior.test.ts`](./search.behavior.test.ts)
-- [`search.timeout.test.ts`](./search.timeout.test.ts)
-- [`search.soak.test.ts`](./search.soak.test.ts)
-- [`search.variety.test.ts`](./search.variety.test.ts)
-- [`model.test.ts`](./model.test.ts)
+- [`moveOrdering.test.ts`](./test/moveOrdering.test.ts)
+- [`search.behavior.test.ts`](./test/search.behavior.test.ts)
+- [`search.timeout.test.ts`](./test/search.timeout.test.ts)
+- [`search.soak.test.ts`](./test/search.soak.test.ts)
+- [`search.variety.test.ts`](./test/search.variety.test.ts)
+- [`model.test.ts`](./test/model.test.ts)
 - [`test/metrics.ts`](./test/metrics.ts)
 
 These tests and tools validate:
@@ -779,8 +779,8 @@ The repository is not a direct reproduction of any single paper. The table below
 ## References
 
 - [Knuth and Moore 1975](https://charlesames.net/references/DonaldKnuth/alpha-beta.html)
-- [Korf 1985](https://doi.org/10.1016/0004-3702(85)90084-0)
-- [Campbell and Marsland 1983](https://doi.org/10.1016/0004-3702(83)90037-5)
+- [Korf 1985](https://doi.org/10.1016/0004-3702%2885%2990084-0)
+- [Campbell and Marsland 1983](https://doi.org/10.1016/0004-3702%2883%2990037-5)
 - [Harris 1975](https://www.ijcai.org/Proceedings/75-1/Papers/059.pdf)
 - [Schaeffer 1989](https://doi.org/10.1109/34.42847)
 - [Silver et al. 2017](https://www.nature.com/articles/nature24270)

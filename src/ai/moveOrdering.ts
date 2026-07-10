@@ -1,7 +1,5 @@
 import {
   advanceEngineState,
-  getScoreSummary,
-  hashPosition,
   type EngineState,
   type Player,
   type RuleConfig,
@@ -121,11 +119,6 @@ function throwIfMoveOrderingTimedOut(deadline?: number, now?: () => number): voi
   }
 
   throwIfTimedOut(now, deadline);
-}
-
-/** Repetition pressure is evaluated on the post-move state so drawish lines sink in ordering. */
-function getRepeatedPositionCount(state: EngineState): number {
-  return state.positionCounts[hashPosition(state)] ?? 0;
 }
 
 function getRepeatedPositionCountByKey(state: EngineState, positionKey: string): number {

@@ -9,7 +9,7 @@
  * Called automatically at the end of `npm run perf:report`.
  */
 
-/* global console, process */
+/* global console */
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
@@ -312,14 +312,6 @@ function buildHtml(report) {
         const v = s[metric];
         return v !== undefined && v !== null ? v : null;
       }),
-    }));
-  }
-
-  function aiAggSeries(metric) {
-    return ['easy', 'medium', 'hard'].map((d) => ({
-      label: d,
-      color: C[d],
-      values: [ai[d]?.[metric] ?? null],
     }));
   }
 

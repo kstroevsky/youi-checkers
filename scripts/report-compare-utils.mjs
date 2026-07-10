@@ -1,5 +1,6 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
+import process from 'node:process';
 
 export function flattenNumericLeaves(value, prefix = '') {
   if (typeof value === 'number' && Number.isFinite(value)) {
