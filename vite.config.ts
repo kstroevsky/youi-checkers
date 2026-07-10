@@ -93,6 +93,12 @@ export default defineConfig({
     format: 'es',
   },
   test: {
+    alias: {
+      'cloudflare:workers': new URL(
+        './src/test/cloudflareWorkers.ts',
+        import.meta.url,
+      ).pathname,
+    },
     environment: 'jsdom',
     setupFiles: './src/test/setup.ts',
     css: true,

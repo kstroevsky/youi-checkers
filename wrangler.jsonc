@@ -18,12 +18,34 @@
       "migrations_dir": "./migrations",
     },
   ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "MATCH_ROOMS",
+        "class_name": "MatchRoom",
+      },
+    ],
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["MatchRoom"],
+    },
+  ],
   "ratelimits": [
     {
       "name": "TELEMETRY_RATE_LIMITER",
       "namespace_id": "900101",
       "simple": {
         "limit": 30,
+        "period": 60,
+      },
+    },
+    {
+      "name": "MATCH_RATE_LIMITER",
+      "namespace_id": "900102",
+      "simple": {
+        "limit": 60,
         "period": 60,
       },
     },

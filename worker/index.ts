@@ -3,8 +3,13 @@ import {
   runTelemetryRetention,
   type TelemetryWorkerEnv,
 } from './telemetry';
+import { MatchRoom } from './matchRoom';
+import {
+  handleMultiplayerRequest,
+  type MultiplayerWorkerEnv,
+} from './multiplayer';
 
-export type Env = TelemetryWorkerEnv & {
+export type Env = TelemetryWorkerEnv & MultiplayerWorkerEnv & {
   ASSETS: {
     fetch: (request: Request) => Promise<Response>;
   };
@@ -24,6 +29,12 @@ const worker = {
 
     if (url.pathname === '/api/telemetry/batches') {
       return handleTelemetryRequest(request, env);
+    }
+
+    const multiplayerResponse = await handleMultiplayerRequest(request, env);
+
+    if (multiplayerResponse) {
+      return multiplayerResponse;
     }
 
     if (url.pathname.startsWith('/api/')) {
@@ -49,4 +60,5 @@ const worker = {
   },
 };
 
+export { MatchRoom };
 export default worker;
