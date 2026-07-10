@@ -4,6 +4,7 @@ import { createRoot } from 'react-dom/client';
 import { App } from '@/app/App';
 import { registerPwa } from '@/app/pwa/registerPwa';
 import { GameStoreProvider } from '@/app/providers/GameStoreProvider';
+import { startTelemetry, telemetry } from '@/shared/telemetry/bootstrap';
 import '@/styles/base.scss';
 
 const container = document.getElementById('root');
@@ -13,10 +14,11 @@ if (!container) {
 }
 
 registerPwa();
+startTelemetry();
 
 createRoot(container).render(
   <StrictMode>
-    <GameStoreProvider>
+    <GameStoreProvider storeOptions={{ telemetry }}>
       <App />
     </GameStoreProvider>
   </StrictMode>,

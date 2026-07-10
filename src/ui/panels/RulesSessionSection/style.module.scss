@@ -34,3 +34,10 @@
   flex: 1 1 auto;
   color: tokens.$color-panel-text;
 }
+
+.diagnosticsHint {
+  margin: -2px 0 0;
+  color: rgba(tokens.$color-panel-text, 0.76);
+  font-size: 0.8rem;
+  line-height: 1.35;
+}

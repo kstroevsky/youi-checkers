@@ -38,6 +38,7 @@ export function createSessionActions({
   resetAiState,
   set,
   syncComputerTurn,
+  telemetry,
 }: PublicActionsOptions): Pick<
   GameStoreState,
   | 'chooseNextSeriesColor'
@@ -404,6 +405,20 @@ export function createSessionActions({
         ...matchSettings,
         targetPoints: Math.max(1, Math.trunc(matchSettings.targetPoints)),
       };
+      telemetry?.setMatchContext(
+        normalizedMatchSettings.opponentMode,
+        normalizedMatchSettings.opponentMode === 'computer'
+          ? normalizedMatchSettings.aiDifficulty
+          : 'none',
+      );
+      telemetry?.context('match_started', {
+        difficulty:
+          normalizedMatchSettings.opponentMode === 'computer'
+            ? normalizedMatchSettings.aiDifficulty
+            : 'none',
+        format: normalizedMatchSettings.gameFormat,
+        mode: normalizedMatchSettings.opponentMode,
+      });
       const nextRuleConfig = getRuleConfigForNewMatch(
         state.ruleConfig,
         normalizedMatchSettings,

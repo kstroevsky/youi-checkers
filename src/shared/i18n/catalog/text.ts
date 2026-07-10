@@ -80,6 +80,9 @@ export const TEXT = {
     retryComputerMove: 'Retry computer move',
     computerMoveFailed: 'Computer move failed.',
     passDeviceOverlay: 'Pass-device overlay',
+    anonymousDiagnostics: 'Anonymous diagnostics',
+    diagnosticsDescription:
+      'Sends performance and exposed hardware-capability data, including browser, device model, graphics adapter, memory, screen, and network buckets. It never includes game positions, imported text, IP addresses, or a persistent ID.',
     pwaOfflineReady: 'Offline mode is ready after this first load.',
     pwaUpdateReady:
       'A newer version is ready. Update when your current turn is safe to reload.',
@@ -196,6 +199,9 @@ export const TEXT = {
     retryComputerMove: 'Повторить ход компьютера',
     computerMoveFailed: 'Компьютер не смог сделать ход.',
     passDeviceOverlay: 'Экран передачи устройства',
+    anonymousDiagnostics: 'Анонимная диагностика',
+    diagnosticsDescription:
+      'Отправляет данные о производительности и доступных возможностях устройства: браузер, модель устройства, графический адаптер, память, экран и сеть. Не отправляет позиции игры, импортированный текст, IP-адреса или постоянный идентификатор.',
     pwaOfflineReady: 'Оффлайн-режим готов после этой первой загрузки.',
     pwaUpdateReady:
       'Готова новая версия. Обновите приложение, когда текущий ход можно безопасно прервать.',
@@ -312,6 +318,9 @@ export const TEXT = {
     retryComputerMove: "Повторити хід комп'ютера",
     computerMoveFailed: "Комп'ютер не зміг зробити хід.",
     passDeviceOverlay: 'Екран передачі пристрою',
+    anonymousDiagnostics: 'Анонімна діагностика',
+    diagnosticsDescription:
+      'Надсилає дані про продуктивність і доступні можливості пристрою: браузер, модель пристрою, графічний адаптер, пам’ять, екран і мережу. Не надсилає позиції гри, імпортований текст, IP-адреси чи постійний ідентифікатор.',
     pwaOfflineReady: 'Офлайн-режим готовий після цього першого завантаження.',
     pwaUpdateReady:
       'Готова нова версія. Оновіть застосунок, коли поточний хід можна безпечно перервати.',

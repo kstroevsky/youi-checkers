@@ -11,6 +11,7 @@ import type {
   MatchSettings,
   SerializableSession,
 } from '@/shared/types/session';
+import { DIAGNOSTICS_STORAGE_KEY } from '@/shared/telemetry/preferenceStore';
 import {
   boardWithPieces,
   checker,
@@ -246,6 +247,22 @@ describe('App', () => {
     expect(
       screen.getByRole('heading', { name: 'Экспорт / импорт' }),
     ).toBeInTheDocument();
+  });
+
+  it('stores the anonymous diagnostics opt-out outside the game session', async () => {
+    const user = userEvent.setup();
+    renderApp();
+
+    await user.click(screen.getByRole('tab', { name: 'Настройки' }));
+    const diagnostics = await screen.findByRole('checkbox', {
+      name: 'Анонимная диагностика',
+    });
+
+    expect(diagnostics).toBeChecked();
+    await user.click(diagnostics);
+
+    expect(diagnostics).not.toBeChecked();
+    expect(window.localStorage.getItem(DIAGNOSTICS_STORAGE_KEY)).toBe('false');
   });
 
   it('shows match setup on the game tab instead of inside settings', async () => {

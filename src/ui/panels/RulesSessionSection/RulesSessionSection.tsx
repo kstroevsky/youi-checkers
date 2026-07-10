@@ -3,6 +3,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { RULE_TOGGLE_DESCRIPTORS } from '@/domain';
 import { useGameStore } from '@/app/providers/GameStoreProvider';
 import { text } from '@/shared/i18n/catalog';
+import { useDiagnosticsPreference } from '@/shared/telemetry/useDiagnosticsPreference';
 import { Panel } from '@/ui/primitives/Panel';
 import { GlossaryTooltip } from '@/ui/tooltips/GlossaryTooltip';
 
@@ -13,6 +14,7 @@ function checkboxId(section: string, name: string): string {
 }
 
 export function RulesSessionSection() {
+  const diagnostics = useDiagnosticsPreference();
   const {
     language,
     preferences,
@@ -69,6 +71,30 @@ export function RulesSessionSection() {
           </label>
           <GlossaryTooltip language={language} termId="passDeviceOverlay" />
         </div>
+        <div className={styles.row}>
+          <label
+            htmlFor={checkboxId('session', 'diagnostics')}
+            className={styles.label}
+          >
+            <input
+              id={checkboxId('session', 'diagnostics')}
+              type="checkbox"
+              checked={diagnostics.enabled}
+              aria-describedby={checkboxId(
+                'session',
+                'diagnostics-description',
+              )}
+              onChange={(event) => diagnostics.setEnabled(event.target.checked)}
+            />
+            <span>{text(language, 'anonymousDiagnostics')}</span>
+          </label>
+        </div>
+        <p
+          id={checkboxId('session', 'diagnostics-description')}
+          className={styles.diagnosticsHint}
+        >
+          {text(language, 'diagnosticsDescription')}
+        </p>
       </div>
     </Panel>
   );

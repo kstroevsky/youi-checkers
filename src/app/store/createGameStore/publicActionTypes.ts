@@ -1,4 +1,5 @@
 import type { SerializableSession } from '@/shared/types/session';
+import type { TelemetrySink } from '@/shared/telemetry/contracts';
 import type { Coord, TurnAction } from '@/domain';
 
 import type {
@@ -62,4 +63,5 @@ export type PublicActionsOptions = {
   >;
   set: StoreSetter;
   syncComputerTurn: () => void;
+  telemetry?: TelemetrySink;
 };

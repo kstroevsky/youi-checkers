@@ -22,6 +22,7 @@ import type {
 } from '@/shared/types/session';
 
 import type { SessionArchive } from '@/app/store/sessionArchive';
+import type { TelemetrySink } from '@/shared/telemetry/contracts';
 
 /** Store-local AI status used by the UI and worker lifecycle. */
 export type AiStatus = 'idle' | 'thinking' | 'error';
@@ -102,6 +103,7 @@ export type StoreOptions = {
   initialSession?: SerializableSession;
   random?: () => number;
   storage?: Storage;
+  telemetry?: TelemetrySink;
 };
 
 /** Session fields persisted after every structural state transition. */

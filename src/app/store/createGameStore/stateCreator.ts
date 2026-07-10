@@ -76,6 +76,12 @@ export function createGameStoreStateRuntime({
     set: StoreSetter,
     get: () => GameStoreState,
   ): GameStoreState {
+    options.telemetry?.setMatchContext(
+      initialRuntimeState.matchSettings.opponentMode,
+      initialRuntimeState.matchSettings.opponentMode === 'computer'
+        ? initialRuntimeState.matchSettings.aiDifficulty
+        : 'none',
+    );
     const persistenceRuntime = createPersistenceRuntime({
       archive: archive ?? null,
       createSessionId: options.createSessionId,
@@ -110,6 +116,7 @@ export function createGameStoreStateRuntime({
       resetAiState: aiController.resetAiState,
       set,
       syncComputerTurn: aiController.syncComputerTurn,
+      telemetry: options.telemetry,
       updateSessionMeta: persistenceRuntime.updateSessionMeta,
     });
 
@@ -127,6 +134,26 @@ export function createGameStoreStateRuntime({
         },
       });
     };
+
+    const publicActions = createPublicGameStoreActions({
+      applyHistoryStep: transitions.applyHistoryStep,
+      applySession: transitions.applySession,
+      beginFreshFullSession: persistenceRuntime.beginFreshFullSession,
+      commitAction: transitions.commitAction,
+      consumeStartupHydrationOnMutation:
+        persistenceRuntime.consumeStartupHydrationOnMutation,
+      createSessionId: options.createSessionId ?? createSessionId,
+      disposeAiWorker: aiController.disposeAiWorker,
+      get,
+      getBoardDerivation,
+      getCellDerivation,
+      persistCurrentState: transitions.persistCurrentState,
+      random: options.random ?? Math.random,
+      resetAiState: aiController.resetAiState,
+      set,
+      syncComputerTurn: aiController.syncComputerTurn,
+      telemetry: options.telemetry,
+    });
 
     return {
       ...initialRuntimeState,

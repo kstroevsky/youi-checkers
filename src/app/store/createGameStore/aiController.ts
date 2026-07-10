@@ -127,6 +127,13 @@ export function createAiController({
     }
 
     lastAiTimedOut = true;
+    options.telemetry?.increment('ai_watchdog_timeouts');
+    options.telemetry?.incident('ai_watchdog_timeout', {
+      severity: 'error',
+      tags: {
+        retry: aiAutoRetryCount,
+      },
+    });
     disposeAiWorker();
 
     if (aiAutoRetryCount < AI_AUTO_RETRY_LIMIT) {
@@ -221,6 +228,12 @@ export function createAiController({
       aiWorkerIsWarm = true;
 
       if (message.type === 'error') {
+        options.telemetry?.incident('ai_worker_error', {
+          severity: 'error',
+          tags: {
+            phase: 'message',
+          },
+        });
         set({
           aiError: message.message,
           aiStatus: 'error',
@@ -232,6 +245,32 @@ export function createAiController({
       lastAiElapsedMs = message.result.elapsedMs;
       lastAiTimedOut = message.result.timedOut;
       aiAutoRetryCount = 0;
+      options.telemetry?.measure('ai_elapsed_ms', message.result.elapsedMs);
+      options.telemetry?.increment(
+        'ai_evaluated_nodes',
+        message.result.evaluatedNodes,
+      );
+      options.telemetry?.context('ai_completed', {
+        completedDepth: message.result.completedDepth,
+        fallback: message.result.fallbackKind,
+        timedOut: message.result.timedOut,
+      });
+      if (
+        message.result.timedOut ||
+        message.result.elapsedMs >
+          AI_DIFFICULTY_PRESETS[latest.matchSettings.aiDifficulty]
+            .timeBudgetMs *
+            AI_SLOW_DEVICE_THRESHOLD
+      ) {
+        options.telemetry?.incident('ai_slow', {
+          durationMs: message.result.elapsedMs,
+          severity: message.result.timedOut ? 'error' : 'warning',
+          tags: {
+            difficulty: latest.matchSettings.aiDifficulty,
+            timedOut: message.result.timedOut,
+          },
+        });
+      }
 
       if (!message.result.action) {
         set({
@@ -249,6 +288,12 @@ export function createAiController({
     aiWorker.onerror = (event) => {
       clearAiWatchdog();
       aiWorkerIsWarm = true;
+      options.telemetry?.incident('ai_worker_error', {
+        severity: 'error',
+        tags: {
+          phase: 'runtime',
+        },
+      });
       set({
         aiError: event.message || 'Computer move failed.',
         aiStatus: 'error',
@@ -302,6 +347,16 @@ export function createAiController({
       aiError: null,
       aiStatus: 'thinking',
       pendingAiRequestId: requestId,
+    });
+    options.telemetry?.setMatchContext(
+      state.matchSettings.opponentMode,
+      state.matchSettings.aiDifficulty,
+    );
+    options.telemetry?.context('ai_started', {
+      budgetMs:
+        AI_DIFFICULTY_PRESETS[state.matchSettings.aiDifficulty].timeBudgetMs,
+      difficulty: state.matchSettings.aiDifficulty,
+      warm: aiWorkerIsWarm,
     });
     scheduleAiWatchdog(requestId, state.matchSettings);
     worker.postMessage({

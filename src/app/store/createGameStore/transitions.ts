@@ -39,6 +39,7 @@ import type {
   HistoryHydrationStatus,
   SessionSlices,
 } from '@/app/store/createGameStore/types';
+import type { TelemetrySink } from '@/shared/telemetry/contracts';
 
 type StoreSetter = (
   partial:
@@ -75,6 +76,7 @@ type StoreTransitionsOptions = {
   ) => Pick<GameStoreData, 'aiError' | 'aiStatus' | 'pendingAiRequestId'>;
   set: StoreSetter;
   syncComputerTurn: () => void;
+  telemetry?: TelemetrySink;
   updateSessionMeta: (options?: ApplySessionOptions) => HistoryHydrationStatus;
 };
 
@@ -90,6 +92,7 @@ export function createStoreTransitions({
   resetAiState,
   set,
   syncComputerTurn,
+  telemetry,
   updateSessionMeta,
 }: StoreTransitionsOptions) {
   /**
@@ -131,6 +134,11 @@ export function createStoreTransitions({
           }
         : {},
     );
+    telemetry?.increment('moves_committed');
+    telemetry?.context('move_committed', {
+      actor: aiDecision ? 'computer' : 'human',
+      kind: action.type,
+    });
     let nextGameState = transition.state;
     let nextSeriesState = state.seriesState;
     let nextMatchSettings = state.matchSettings;
@@ -239,6 +247,9 @@ export function createStoreTransitions({
       lastAiDecision: aiDecision ?? state.lastAiDecision,
     });
     persistCurrentState(nextData);
+    if (nextGameState.status === 'gameOver') {
+      telemetry?.flushGameComplete();
+    }
     if (
       aiDecision &&
       nextGameState.status === 'active' &&
