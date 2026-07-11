@@ -57,6 +57,7 @@ export function TurnSummaryStrip({ compact = false }: TurnSummaryStripProps) {
     language,
     matchSettings,
     moveNumber,
+    onlineMatch,
     selectedCell,
     seriesState,
     victory,
@@ -72,6 +73,7 @@ export function TurnSummaryStrip({ compact = false }: TurnSummaryStripProps) {
       language: state.preferences.language,
       matchSettings: state.matchSettings,
       moveNumber: state.gameState.moveNumber,
+      onlineMatch: state.onlineMatch,
       selectedCell: state.selectedCell,
       seriesState: state.seriesState,
       victory: state.gameState.victory,
@@ -87,14 +89,38 @@ export function TurnSummaryStrip({ compact = false }: TurnSummaryStripProps) {
   const isComputerTurn =
     matchSettings.opponentMode === 'computer' &&
     currentPlayer !== matchSettings.humanPlayer;
+  const onlinePlayerColor = onlineMatch?.participant
+    ? (seriesState?.colors[onlineMatch.participant] ??
+      (onlineMatch.participant === 'first' ? 'white' : 'black'))
+    : null;
+  const isOnlineTurn = onlinePlayerColor === currentPlayer;
   const interactionCopy =
-    isComputerTurn && aiStatus === 'error'
-      ? text(language, 'computerMoveFailed')
-      : isComputerTurn
-        ? text(language, 'computerThinking')
-        : describeInteraction(language, interaction);
-  const matchModeCopy =
-    matchSettings.opponentMode === 'computer'
+    onlineMatch && onlineMatch.status !== 'connected'
+      ? text(
+          language,
+          onlineMatch.status === 'waiting'
+            ? 'onlineWaiting'
+            : onlineMatch.status === 'reconnecting'
+              ? 'onlineReconnecting'
+              : onlineMatch.status === 'error'
+                ? 'onlineConnectionError'
+                : 'onlineConnecting',
+        )
+      : onlineMatch && !isOnlineTurn
+        ? text(language, 'onlineOpponentTurn')
+        : isComputerTurn && aiStatus === 'error'
+          ? text(language, 'computerMoveFailed')
+          : isComputerTurn
+            ? text(language, 'computerThinking')
+            : describeInteraction(language, interaction);
+  const matchModeCopy = onlineMatch
+    ? `${text(language, 'onlinePlay')} • ${text(
+        language,
+        onlineMatch.participant === 'second'
+          ? 'onlineSecondSeat'
+          : 'onlineFirstSeat',
+      )}`
+    : matchSettings.opponentMode === 'computer'
       ? `${text(language, 'computerOpponent')} • ${text(language, 'playAs')} ${playerLabel(language, matchSettings.humanPlayer)} • ${getDifficultyLabel(language, matchSettings.aiDifficulty)}`
       : text(language, 'hotSeat');
 
@@ -129,17 +155,25 @@ export function TurnSummaryStrip({ compact = false }: TurnSummaryStripProps) {
             <strong>{text(language, 'matchModeLabel')}</strong>
             <span>{matchModeCopy}</span>
           </div>
-          <div className={styles.formatAction}>
-            {matchSettings.gameFormat === 'single' ? (
-              <Button variant="ghost" onClick={() => onSetGameFormat('series')}>
-                {text(language, 'switchToMulti')}
-              </Button>
-            ) : seriesState?.gameNumber === 1 ? (
-              <Button variant="ghost" onClick={() => onSetGameFormat('single')}>
-                {text(language, 'switchToSingle')}
-              </Button>
-            ) : null}
-          </div>
+          {!onlineMatch ? (
+            <div className={styles.formatAction}>
+              {matchSettings.gameFormat === 'single' ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => onSetGameFormat('series')}
+                >
+                  {text(language, 'switchToMulti')}
+                </Button>
+              ) : seriesState?.gameNumber === 1 ? (
+                <Button
+                  variant="ghost"
+                  onClick={() => onSetGameFormat('single')}
+                >
+                  {text(language, 'switchToSingle')}
+                </Button>
+              ) : null}
+            </div>
+          ) : null}
         </div>
         <p className={styles.textRowInline}>
           <strong>{text(language, 'statusLabel')}:</strong>{' '}

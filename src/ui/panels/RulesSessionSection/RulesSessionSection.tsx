@@ -18,6 +18,7 @@ export function RulesSessionSection() {
   const {
     language,
     preferences,
+    onlineMatch,
     ruleConfig,
     onSetPreference,
     onSetRuleConfig,
@@ -25,6 +26,7 @@ export function RulesSessionSection() {
     useShallow((state) => ({
       language: state.preferences.language,
       preferences: state.preferences,
+      onlineMatch: state.onlineMatch,
       ruleConfig: state.ruleConfig,
       onSetPreference: state.setPreference,
       onSetRuleConfig: state.setRuleConfig,
@@ -47,16 +49,30 @@ export function RulesSessionSection() {
                   id={inputId}
                   type="checkbox"
                   checked={descriptor.isEnabled(ruleConfig)}
-                  onChange={(event) => onSetRuleConfig(descriptor.getPatch(event.target.checked))}
+                  disabled={Boolean(onlineMatch)}
+                  onChange={(event) =>
+                    onSetRuleConfig(descriptor.getPatch(event.target.checked))
+                  }
                 />
                 <span>{text(language, descriptor.labelKey)}</span>
               </label>
-              <GlossaryTooltip language={language} termId={descriptor.glossaryTermId} />
+              <GlossaryTooltip
+                language={language}
+                termId={descriptor.glossaryTermId}
+              />
             </div>
           );
         })}
+        {onlineMatch ? (
+          <p className={styles.diagnosticsHint}>
+            {text(language, 'onlineSettingsLocked')}
+          </p>
+        ) : null}
         <div className={styles.row}>
-          <label htmlFor={checkboxId('session', 'overlay')} className={styles.label}>
+          <label
+            htmlFor={checkboxId('session', 'overlay')}
+            className={styles.label}
+          >
             <input
               id={checkboxId('session', 'overlay')}
               type="checkbox"

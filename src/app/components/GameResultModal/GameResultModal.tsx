@@ -68,6 +68,7 @@ export function GameResultModal() {
     historyCursor,
     language,
     matchSettings,
+    onlineMatch,
     seriesState,
     status,
     victory,
@@ -78,6 +79,7 @@ export function GameResultModal() {
       historyCursor: state.historyCursor,
       language: state.preferences.language,
       matchSettings: state.matchSettings,
+      onlineMatch: state.onlineMatch,
       seriesState: state.seriesState,
       status: state.gameState.status,
       victory: state.gameState.victory,
@@ -135,6 +137,11 @@ export function GameResultModal() {
     isMatchOver && seriesState
       ? Math.abs(seriesState.points.first - seriesState.points.second)
       : null;
+  const canChooseNextColor =
+    !onlineMatch ||
+    (seriesState?.colorChooser === onlineMatch.participant &&
+      !onlineMatch.pendingCommand &&
+      onlineMatch.status === 'connected');
 
   return (
     <div
@@ -174,6 +181,7 @@ export function GameResultModal() {
               {(['white', 'black'] as const).map((color: Player) => (
                 <Button
                   key={color}
+                  disabled={!canChooseNextColor}
                   onClick={() => onChooseNextSeriesColor(color)}
                 >
                   {playerLabel(language, color)}
@@ -186,7 +194,11 @@ export function GameResultModal() {
           {isBetweenGames ? (
             <Button
               autoFocus={!seriesState.colorChooser}
-              disabled={seriesState.colorChooser !== null}
+              disabled={
+                seriesState.colorChooser !== null ||
+                Boolean(onlineMatch?.pendingCommand) ||
+                (onlineMatch !== null && onlineMatch.status !== 'connected')
+              }
               onClick={onStartNextSeriesGame}
             >
               {text(language, 'startNextGame')}

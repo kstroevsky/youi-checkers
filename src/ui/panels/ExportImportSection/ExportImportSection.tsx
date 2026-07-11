@@ -14,6 +14,7 @@ export function ExportImportSection() {
     importBuffer,
     importError,
     language,
+    onlineMatch,
     onImportBufferChange,
     onImportSession,
     onRefreshExport,
@@ -23,6 +24,7 @@ export function ExportImportSection() {
       importBuffer: state.importBuffer,
       importError: state.importError,
       language: state.preferences.language,
+      onlineMatch: state.onlineMatch,
       onImportBufferChange: state.setImportBuffer,
       onImportSession: state.importSessionFromBuffer,
       onRefreshExport: state.refreshExportBuffer,
@@ -35,7 +37,7 @@ export function ExportImportSection() {
         <h2>{text(language, 'exportImport')}</h2>
       </div>
       <div className={styles.actions}>
-        <Button variant="ghost" onClick={() => startTransition(() => onRefreshExport())}>
+        <Button disabled={Boolean(onlineMatch)} variant="ghost" onClick={() => startTransition(() => onRefreshExport())}>
           {text(language, 'refreshExport')}
         </Button>
       </div>
@@ -49,12 +51,13 @@ export function ExportImportSection() {
       <textarea
         id="import-session"
         className={styles.textarea}
+        disabled={Boolean(onlineMatch)}
         value={importBuffer}
         onChange={(event) => onImportBufferChange(event.target.value)}
       />
       {importError ? <p className={styles.error}>{text(language, 'importFailed')}</p> : null}
       <div className={styles.actions}>
-        <Button onClick={onImportSession}>{text(language, 'importSession')}</Button>
+        <Button disabled={Boolean(onlineMatch)} onClick={onImportSession}>{text(language, 'importSession')}</Button>
       </div>
     </Panel>
   );

@@ -33,6 +33,7 @@ export function HistorySection() {
     historyHydrationStatus,
     historyLocked,
     language,
+    onlineMatch,
     onGoToHistoryCursor,
     onRedo,
     onUndo,
@@ -48,8 +49,10 @@ export function HistorySection() {
       historyCursor: state.historyCursor,
       historyHydrationStatus: state.historyHydrationStatus,
       historyLocked:
-        state.seriesState !== null && state.seriesState.phase !== 'playing',
+        Boolean(state.onlineMatch) ||
+        (state.seriesState !== null && state.seriesState.phase !== 'playing'),
       language: state.preferences.language,
+      onlineMatch: state.onlineMatch,
       onGoToHistoryCursor: state.goToHistoryCursor,
       onRedo: state.redo,
       onUndo: state.undo,
@@ -70,7 +73,7 @@ export function HistorySection() {
     ? text(language, 'historyCopied')
     : text(language, 'historyCopy');
 
-  const showMatchSetup = !compactLayout;
+  const showMatchSetup = !compactLayout && !onlineMatch;
   const historyCopyPayload = deferredTurnLog
     .map(
       (record, index) => `${index + 1}. ${formatTurnRecord(language, record)}`,
@@ -185,6 +188,11 @@ export function HistorySection() {
           );
         })}
       </ol>
+      {onlineMatch ? (
+        <p className={styles.statusNote}>
+          {text(language, 'onlineHistoryDisabled')}
+        </p>
+      ) : null}
       {showMatchSetup ? (
         <div className={styles.footer}>
           <MatchSetupPanel compact embedded />

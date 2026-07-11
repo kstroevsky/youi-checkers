@@ -1,5 +1,6 @@
 import { GameControlPanel } from '@/ui/panels/GameControlPanel';
 import { MoveInputPanel } from '@/ui/panels/MoveInputPanel';
+import { OnlineMatchPanel } from '@/ui/panels/OnlineMatchPanel';
 import { SeriesScoreboard } from '@/ui/panels/SeriesScoreboard';
 import { TurnSummaryStrip } from '@/ui/panels/StatusSection';
 import { Panel } from '@/ui/primitives/Panel';
@@ -19,6 +20,7 @@ export function GameTab() {
       role="tabpanel"
       data-layout={isCompactLayout ? 'compact' : 'desktop'}
     >
+      <OnlineMatchPanel />
       {isCompactLayout ? (
         <div className={styles.compactShell}>
           <SeriesScoreboard />

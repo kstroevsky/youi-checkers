@@ -36,17 +36,24 @@ export function MatchSetupPanel({
   const fieldId = useId();
   const {
     language,
+    onlineMatch,
     setupMatchSettings,
     onSetSetupMatchSettings,
     onStartNewGame,
   } = useGameStore(
     useShallow((state) => ({
       language: state.preferences.language,
+      onlineMatch: state.onlineMatch,
       setupMatchSettings: state.setupMatchSettings,
       onSetSetupMatchSettings: state.setSetupMatchSettings,
       onStartNewGame: state.startNewGame,
     })),
   );
+
+  if (onlineMatch) {
+    return null;
+  }
+
   const computerMatch = setupMatchSettings.opponentMode === 'computer';
   const seriesMatch = setupMatchSettings.gameFormat === 'series';
   const targetFieldId = `${fieldId}-target`;
