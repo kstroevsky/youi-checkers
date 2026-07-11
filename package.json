@@ -26,6 +26,7 @@
     "cf:preview": "pnpm build && wrangler versions upload",
     "docs:check-links": "node scripts/check-markdown-links.mjs",
     "e2e:multi": "node --import tsx scripts/multi-game.e2e.ts",
+    "e2e:multiplayer": "tsx scripts/multiplayer.e2e.ts",
     "preview": "vite preview",
     "perf:charts": "node scripts/perf-charts.mjs",
     "perf:compare": "node scripts/compare-perf-reports.mjs",

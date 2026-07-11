@@ -8,7 +8,7 @@ No permission is granted to use, copy, modify, merge, publish, distribute, subli
 
 This document covers the browser runtime infrastructure around YOUI rather than the game logic itself: Progressive Web App configuration, anonymous diagnostics, lazy model delivery, and the scripts that emit performance and AI-behavior reports.
 
-The key design constraint is local-first execution. The application remains playable without a backend service; the Cloudflare Worker only receives optional, bounded diagnostics.
+The key design constraint is local-first execution. The application remains playable without a backend service; the Cloudflare Worker receives optional bounded diagnostics and hosts invite-only rooms only when online play is selected.
 
 ```mermaid
 flowchart LR
@@ -44,6 +44,30 @@ Database schema changes live in [`migrations/`](../migrations/). Local and remot
 - `pnpm cf:deploy`.
 
 The Worker also uses Cloudflare's native rate-limit binding with a high per-source ceiling (30 batches per minute). The source key is used only by the rate-limit service during enforcement; it is not written into D1.
+
+## Multiplayer Infrastructure
+
+Online play adds one SQLite-backed Durable Object class, `MatchRoom`, to the same Worker deployment. There is no separate matchmaking service, account database, relay fleet, cache, or message broker.
+
+Routes:
+
+- `POST /api/matches` creates a room and returns two independent 256-bit capabilities;
+- `POST /api/matches/:id/session` consumes one capability and sets a path-scoped `HttpOnly; SameSite=Strict; Secure` cookie in HTTPS deployments;
+- `GET /api/matches/:id/socket` authenticates that cookie and upgrades through the room.
+
+The room uses hibernatable WebSockets with native ping/pong auto-response, so idle sockets do not require application heartbeats. SQLite updates the current state and idempotent command record in one synchronous transaction. Unjoined rooms expire after 24 hours; active and completed rooms expire 30 days after their last accepted activity. A single Durable Object alarm performs cleanup.
+
+Connection recovery is bounded and state-aware. The server replays at most 32 compact commands for a small gap and otherwise returns a history-free snapshot. Browser checkpoints are written every 16 accepted revisions, when the page becomes hidden, and at match completion; failures or quota pressure in that optional cache never affect live play.
+
+The optional direct fast path uses Cloudflare's public `stun:stun.cloudflare.com:3478` endpoint and deliberately has no TURN credentials in v1. NATs that cannot establish a direct path continue over the already-open room WebSocket without a user-visible failure. TURN can therefore be added later from measured connection telemetry rather than becoming mandatory infrastructure now.
+
+The multiplayer rate-limit binding is independent from telemetry and allows 60 create/session requests per source per minute. WebSocket command rate is naturally serialized per room, messages are capped at 64 KiB, signaling is capped at 16 KiB, and sockets above 64 KiB buffered output are closed with a retryable status so reconnect can resume from the last committed revision.
+
+Local verification:
+
+- `pnpm exec wrangler deploy --dry-run` validates bindings and bundles the Worker;
+- `pnpm cf:dev` runs the full Worker locally;
+- `pnpm test:run worker/multiplayer.test.ts src/shared/multiplayer` exercises route security, rule parity, and payload bounds.
 
 ## PWA Configuration
 

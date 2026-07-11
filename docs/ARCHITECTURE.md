@@ -32,6 +32,38 @@ sequenceDiagram
 
 The UI never defines legality and the domain never touches browser APIs directly. The store is the coordination layer between them.
 
+## Authoritative Online Matches
+
+Online play reuses the same unidirectional rule path with one additional arbitration boundary:
+
+```mermaid
+sequenceDiagram
+  participant A as Player A browser
+  participant Room as MatchRoom Durable Object
+  participant B as Player B browser
+  A->>A: applyMatchCommand() prediction
+  A->>Room: command + base revision + before/after hashes
+  Room->>Room: applyMatchCommand() + SQLite transaction
+  Room-->>A: compact committed command
+  Room-->>B: compact committed command
+  B->>B: applyMatchCommand() + hash verification
+```
+
+[`src/shared/multiplayer/`](../src/shared/multiplayer/) is the rule-quality boundary. Both the browser and [`MatchRoom`](../worker/matchRoom.ts) call the same history-free reducer over `EngineState`; the Worker does not carry a second implementation of move legality, passes, victory, draws, or points-match finishing. SHA-256 over canonical JSON is an audit and synchronization hash. It does not replace the engine's faster position hash used for repetition and search.
+
+Normal moves send one command and broadcast one command. They never send a board snapshot. The authoritative room stores:
+
+- one overwritten `match_state` row;
+- one compact, append-only command row per accepted revision;
+- exact repetition counts inline until 128 KiB, then in 16 deterministic SQLite shards;
+- capability and session digests, never raw invite or session secrets.
+
+The client controller in [`MultiplayerClient.ts`](../src/app/multiplayer/MultiplayerClient.ts) is intentionally non-reactive. Zustand receives only low-frequency connection metadata and immutable game projections. A single in-flight local command prevents unbounded optimistic queues. Reconnect sends the last revision and hash: the room returns nothing when already synchronized, at most 32 commands for a small gap, or a snapshot for a larger/mismatched gap.
+
+WebRTC is an optional latency optimization, not a correctness dependency. It uses STUN-only ICE and an unreliable unordered data channel to show a peer's independently verified proposal early. The proposal automatically rolls back if the canonical WebSocket commit does not arrive. WebSocket/SQLite remains authoritative on every network and browser. Save-data/2G/weak-device gates skip WebRTC entirely, and a 64 KiB buffered-amount ceiling protects both transports from queue growth.
+
+Online sessions intentionally disable undo, restart, import, history navigation, format changes, and rule changes. This is a product-level consistency rule rather than an engine limitation: local calculation quality stays unchanged, while both players see one immutable command sequence.
+
 ### Human move flow
 
 ```mermaid

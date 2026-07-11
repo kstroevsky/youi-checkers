@@ -1,4 +1,4 @@
-/* global AbortSignal, PerformanceObserver, console, document, fetch, getComputedStyle, performance, requestAnimationFrame, setTimeout, window */
+/* global AbortSignal, PerformanceObserver, TextEncoder, URL, console, document, fetch, getComputedStyle, indexedDB, navigator, performance, requestAnimationFrame, setTimeout, window */
 
 import { mkdir, readdir, readFile, stat, writeFile } from 'node:fs/promises';
 import { once } from 'node:events';
@@ -392,7 +392,7 @@ async function collectDomMetrics(page) {
 }
 
 async function collectLoadMetrics(page) {
-  return page.evaluate(() => {
+  return page.evaluate(async () => {
     const navigationEntry = performance.getEntriesByType('navigation')[0];
     const paints = Object.fromEntries(
       performance

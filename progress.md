@@ -424,3 +424,54 @@ Verification 2026-03-25 (Refactor perf recovery):
     - `getLegalActionsForCell total`: `0.32ms -> 0.28ms` (`-12.5%`)
 - Remaining note:
   - some browser-side UI timings still move by a few percent run-to-run (`openMoveDialog` is the main example), but the refactor-driven engine regressions are no longer present in the final perf output
+
+Update 2026-07-08 (Match UI cleanup):
+
+- Simplified match setup so single-game setup no longer shows a `Game format` selector or disabled `Points to win` input.
+- Replaced the old setup format radio group with a compact match toggle; `Points to win` appears only when the match toggle is enabled, and the checked state reads `Match enabled`.
+- Moved live single/match switching into a dedicated mode card in the turn summary instead of mixing it into loose metadata rows.
+- Updated App/GameTab unit coverage and the multi-game e2e setup flow for the new controls.
+
+Verification 2026-07-08 (Match UI cleanup):
+
+- `npm run test:run -- src/shared/i18n/catalog.test.ts src/app/App.test.tsx src/ui/tabs/GameTab/GameTab.test.tsx`
+- `npm run build`
+- `npx eslint scripts/multi-game.e2e.ts src/app/App.test.tsx src/ui/tabs/GameTab/GameTab.test.tsx src/ui/panels/MatchSetupPanel/MatchSetupPanel.tsx src/ui/panels/StatusSection/TurnSummaryStrip.tsx src/shared/i18n/catalog/text.ts`
+- `npm run e2e:multi`
+- Screenshots reviewed at `/tmp/youi-multi-game-e2e/{desktop,tablet,mobile}.png`.
+
+Update 2026-07-08 (Single match-enable control):
+
+- Removed the duplicate match enable toggle from `MatchSetupPanel`; the only enable/disable match control is now the live mode card in the turn summary.
+- Synced `setupMatchSettings.gameFormat` when the live mode switch changes so the new-game setup follows the one visible switch.
+- Kept `Points to win` hidden in single mode and visible only after match mode is enabled.
+
+Verification 2026-07-08 (Single match-enable control):
+
+- `npm run test:run -- src/app/store/createGameStore.series.test.ts src/shared/i18n/catalog.test.ts src/app/App.test.tsx src/ui/tabs/GameTab/GameTab.test.tsx`
+- `npm run build`
+- `npx eslint scripts/multi-game.e2e.ts src/app/App.test.tsx src/ui/tabs/GameTab/GameTab.test.tsx src/app/store/createGameStore.series.test.ts src/app/store/createGameStore/sessionActions.ts src/ui/panels/MatchSetupPanel/MatchSetupPanel.tsx src/ui/panels/StatusSection/TurnSummaryStrip.tsx src/shared/i18n/catalog/text.ts`
+- `npm run e2e:multi`
+- Default mobile browser check: `{ enableButtons: 1, enableCheckboxes: 0, targetInputs: 0 }`.
+
+Update 2026-07-10 (authoritative multiplayer implementation):
+
+- Added a shared history-free multiplayer reducer and canonical SHA-256 state hashing under `src/shared/multiplayer/`; parity tests run the same commands through the existing domain engine.
+- Added one SQLite-backed `MatchRoom` Durable Object per match with one-time 256-bit capabilities, scoped HttpOnly session cookies, atomic state/command writes, idempotent command ids, hibernatable WebSockets, bounded reconnect replay, expiry alarms, and one-way repetition-count sharding.
+- Added the browser `MultiplayerClient` with optimistic local projection, one-command backpressure, independent hash validation, reconnect/checkpoint recovery, and an optional performance-gated STUN-only WebRTC proposal path. WebSocket remains canonical.
+- Added online create/join/invite/leave UI and locked undo, restart, import/export mutation, format changes, and rule changes while an online match is active.
+- Added payload-efficiency regression tests, route security tests, online store safety tests, architecture/infrastructure documentation, and ADR 0001.
+- Verified real local Worker flow through Wrangler: create room, consume capability, receive a scoped cookie, reject capability reuse, upgrade the authenticated socket, and receive `ready` plus a history-free snapshot.
+
+Verification 2026-07-10 (authoritative multiplayer):
+
+- `pnpm test:run` — 43 files, 267 passing tests, one intentional skip.
+- `pnpm build` and `pnpm lint`.
+- `pnpm exec wrangler deploy --dry-run` — `MatchRoom`, D1, both rate limiters, and static assets bundled successfully.
+- Real local Wrangler smoke: match creation, one-time capability exchange, scoped cookie, capability-reuse rejection, WebSocket upgrade, `ready`, and snapshot.
+- `pnpm e2e:multiplayer` — two isolated browser contexts created and joined a room, negotiated the optional direct path, committed `A1 -> B2`, converged at revision 1, and switched legal input to Player 2 with no console errors.
+- Inspected desktop/mobile screenshots under `output/playwright/multiplayer/`, including connected and post-move states.
+
+Production rollout TODO:
+
+- Deploy the `v1` SQLite Durable Object migration and monitor direct-path success before deciding whether authenticated TURN is justified.
