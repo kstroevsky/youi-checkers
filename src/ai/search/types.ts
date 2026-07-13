@@ -10,7 +10,6 @@ import type {
 } from '@/ai/types';
 import type { Player, RuleConfig, TurnAction } from '@/domain';
 import type { AiBehaviorProfile } from '@/shared/types/session';
-import type { TranspositionTable } from '@/ai/search/transpositionTable';
 
 export type BoundFlag = 'exact' | 'lower' | 'upper';
 
@@ -97,5 +96,5 @@ export type SearchContext = {
   quiescenceDepthLimit: number;
   rootSelfUndoPositionKey: string | null;
   ruleConfig: RuleConfig;
-  table: TranspositionTable;
+  table: Map<string, TranspositionEntry>;
 };

@@ -46,6 +46,7 @@ import type {
   RootRankedAction,
   SearchContext,
   SearchStack,
+  TranspositionEntry,
 } from '@/ai/search/types';
 
 /**
@@ -337,7 +338,7 @@ export function chooseComputerAction({
     quiescenceDepthLimit: preset.maxDepth + MAX_QUIESCENCE_DEPTH,
     rootSelfUndoPositionKey,
     ruleConfig,
-    table: new Map(),
+    table: new Map<string, TranspositionEntry>(),
   };
 
   /**

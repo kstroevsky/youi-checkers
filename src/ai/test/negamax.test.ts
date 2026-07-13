@@ -8,8 +8,8 @@ import {
 } from '@/ai/participation';
 import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
 import { negamax } from '@/ai/search/negamax';
+import { makeSearchTableKey, makeTableKey } from '@/ai/search/shared';
 import type { SearchContext, SearchStack } from '@/ai/search/types';
-import { storeTranspositionEntry } from '@/ai/search/transpositionTable';
 import { createInitialState } from '@/domain';
 import { withConfig } from '@/test/factories';
 
@@ -65,24 +65,12 @@ describe('negamax terminal handling', () => {
       victory: { type: 'homeField' as const, winner: 'white' as const },
     };
     const searchContext = context();
-    const participationState = {} as ParticipationState;
-    storeTranspositionEntry(
-      searchContext.table,
-      state,
-      {
-        currentDepth: 0,
-        participationState,
-        previousActionId: null,
-        previousOwnAction: null,
-        previousOwnPositionKey: null,
-      },
-      {
-        bestAction: null,
-        depth: 99,
-        flag: 'exact',
-        score: -123,
-      },
-    );
+    searchContext.table.set(makeTableKey(state), {
+      bestAction: null,
+      depth: 99,
+      flag: 'exact',
+      score: -123,
+    });
     const stack: SearchStack = { entries: [], depth: 0 };
 
     expect(
@@ -94,7 +82,7 @@ describe('negamax terminal handling', () => {
         0,
         stack,
         null,
-        participationState,
+        {} as ParticipationState,
         searchContext,
       ),
     ).toBe(1_000_000);
@@ -103,34 +91,42 @@ describe('negamax terminal handling', () => {
 });
 
 describe('transposition-table key isolation', () => {
-  it('does not reuse an exact score when repetition counts differ', () => {
+  it('does not share a score key when repetition counts differ', () => {
     const state = createInitialState(withConfig());
-    const repeatedState = {
-      ...state,
-      positionCounts: { ...state.positionCounts, repeated: 2 },
-    };
-    const searchContext = context();
     const participationState = buildParticipationState(
       state,
-      searchContext.preset.participationWindow,
+      AI_DIFFICULTY_PRESETS.hard.participationWindow,
     );
-    storeTranspositionEntry(
-      searchContext.table,
-      repeatedState,
-      {
-        currentDepth: 0,
-        participationState,
-        previousActionId: null,
-        previousOwnAction: null,
-        previousOwnPositionKey: null,
+    const repeatedState = {
+      ...state,
+      positionCounts: {
+        ...state.positionCounts,
+        [makeTableKey(state)]:
+          (state.positionCounts[makeTableKey(state)] ?? 0) + 1,
       },
-      {
-        bestAction: null,
-        depth: 99,
-        flag: 'exact',
-        score: 123_456,
-      },
+    };
+    const keyContext = {
+      currentDepth: 1,
+      participationState,
+      previousActionId: null,
+      previousOwnAction: null,
+      previousOwnPositionKey: null,
+    };
+
+    expect(makeSearchTableKey(state, keyContext)).not.toBe(
+      makeSearchTableKey(repeatedState, keyContext),
     );
+  });
+
+  it('does not consume a structural move-hint entry as an exact score', () => {
+    const state = createInitialState(withConfig());
+    const searchContext = context();
+    searchContext.table.set(makeTableKey(state), {
+      bestAction: null,
+      depth: 99,
+      flag: 'exact',
+      score: 123_456,
+    });
 
     const score = negamax(
       state,
@@ -140,7 +136,7 @@ describe('transposition-table key isolation', () => {
       0,
       { entries: [], depth: 0 },
       null,
-      participationState,
+      buildParticipationState(state, searchContext.preset.participationWindow),
       searchContext,
     );
 
@@ -155,23 +151,19 @@ describe('transposition-table key isolation', () => {
       state,
       searchContext.preset.participationWindow,
     );
-    storeTranspositionEntry(
-      searchContext.table,
-      state,
-      {
-        currentDepth: 0,
-        participationState,
-        previousActionId: null,
-        previousOwnAction: null,
-        previousOwnPositionKey: null,
-      },
-      {
-        bestAction: null,
-        depth: 1,
-        flag: 'exact',
-        score: 7_654,
-      },
-    );
+    const scoreKey = makeSearchTableKey(state, {
+      currentDepth: 0,
+      participationState,
+      previousActionId: null,
+      previousOwnAction: null,
+      previousOwnPositionKey: null,
+    });
+    searchContext.table.set(scoreKey, {
+      bestAction: null,
+      depth: 1,
+      flag: 'exact',
+      score: 7_654,
+    });
 
     expect(
       negamax(
