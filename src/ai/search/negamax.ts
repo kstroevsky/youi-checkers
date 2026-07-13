@@ -1,6 +1,5 @@
 import { evaluateState } from '@/ai/evaluation';
 import { orderMoves } from '@/ai/moveOrdering';
-import { actionId } from '@/ai/search/shared';
 import type { ParticipationState } from '@/ai/participation';
 import type { EngineState, TurnAction } from '@/domain';
 
@@ -12,7 +11,12 @@ import {
   rememberCutoffMove,
   TRANSPOSITION_LIMIT,
 } from '@/ai/search/heuristics';
-import { makeTableKey, throwIfTimedOut } from '@/ai/search/shared';
+import {
+  actionId,
+  makeSearchTableKey,
+  makeTableKey,
+  throwIfTimedOut,
+} from '@/ai/search/shared';
 import type { BoundFlag, SearchContext, SearchStack } from '@/ai/search/types';
 import { quiescence } from '@/ai/search/quiescence';
 
@@ -44,8 +48,25 @@ export function negamax(
 
   const originalAlpha = alpha;
   const originalBeta = beta;
-  const tableKey = makeTableKey(state);
+  const previousOwnAction = getPreviousOwnActionFromLine(
+    state.currentPlayer,
+    stack,
+    context,
+  );
+  const previousOwnPositionKey = getPreviousOwnPositionKeyFromLine(
+    state.currentPlayer,
+    stack,
+    context,
+  );
+  const tableKey = makeSearchTableKey(state, {
+    currentDepth,
+    participationState,
+    previousActionId,
+    previousOwnAction,
+    previousOwnPositionKey,
+  });
   const cached = context.table.get(tableKey);
+  const hintedAction = context.moveHints.get(makeTableKey(state)) ?? null;
 
   if (cached && cached.depth >= depth) {
     context.diagnostics.transpositionHits += 1;
@@ -86,11 +107,7 @@ export function negamax(
     {
       behaviorProfile: context.behaviorProfile,
       deadline: context.deadline,
-      grandparentPositionKey: getPreviousOwnPositionKeyFromLine(
-        state.currentPlayer,
-        stack,
-        context,
-      ),
+      grandparentPositionKey: previousOwnPositionKey,
       historyScores: context.historyScores,
       killerIds: context.killerMovesByDepth.get(currentDepth) ?? [],
       now: context.now,
@@ -104,14 +121,14 @@ export function negamax(
       pvMoveId: context.pvMoveByDepth.get(currentDepth) ?? null,
       repetitionPenalty: context.preset.repetitionPenalty,
       riskMode: context.riskMode,
-      samePlayerPreviousAction: getPreviousOwnActionFromLine(
-        state.currentPlayer,
-        stack,
-        context,
-      ),
+      samePlayerPreviousAction: previousOwnAction,
       selfUndoPenalty: context.preset.selfUndoPenalty,
       continuationScores: context.continuationScores,
-      ttMoveId: cached?.bestAction ? actionId(cached.bestAction) : null,
+      ttMoveId: cached?.bestAction
+        ? actionId(cached.bestAction)
+        : hintedAction
+          ? actionId(hintedAction)
+          : null,
     },
   );
 
@@ -266,6 +283,15 @@ export function negamax(
   });
 
   if (bestAction) {
+    if (context.moveHints.size >= TRANSPOSITION_LIMIT) {
+      const oldestHintKey = context.moveHints.keys().next().value;
+
+      if (oldestHintKey) {
+        context.moveHints.delete(oldestHintKey);
+      }
+    }
+
+    context.moveHints.set(makeTableKey(state), bestAction);
     context.pvMoveByDepth.set(currentDepth, actionId(bestAction));
   }
 

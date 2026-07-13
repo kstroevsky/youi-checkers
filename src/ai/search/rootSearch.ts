@@ -323,6 +323,7 @@ export function chooseComputerAction({
     evaluatedNodes: 0,
     historyScores: new Int32Array(AI_MODEL_ACTION_COUNT),
     killerMovesByDepth: new Map<number, number[]>(),
+    moveHints: new Map<string, TurnAction>(),
     now,
     perfCache,
     policyPriors,
@@ -355,7 +356,7 @@ export function chooseComputerAction({
       pvMoveId,
       continuationScores: context.continuationScores,
       ttMoveId: (() => {
-        const a = context.table.get(rootPositionKey)?.bestAction ?? null;
+        const a = context.moveHints.get(rootPositionKey) ?? null;
         return a ? actionId(a) : null;
       })(),
     });
@@ -368,7 +369,7 @@ export function chooseComputerAction({
       previousActionId: null,
       continuationScores: context.continuationScores,
       ttMoveId: (() => {
-        const a = context.table.get(rootPositionKey)?.bestAction ?? null;
+        const a = context.moveHints.get(rootPositionKey) ?? null;
         return a ? actionId(a) : null;
       })(),
     });

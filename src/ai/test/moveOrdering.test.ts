@@ -33,7 +33,9 @@ describe('move ordering precomputation', () => {
     );
     const legalActions = getLegalActions(state, config);
     const rootPreviousOwnAction = getRootPreviousOwnAction(state);
-    const previousActionId = rootPreviousOwnAction ? actionId(rootPreviousOwnAction) : null;
+    const previousActionId = rootPreviousOwnAction
+      ? actionId(rootPreviousOwnAction)
+      : null;
     const policyPriors: Float32Array | null = legalActions.length
       ? (() => {
           const arr = new Float32Array(AI_MODEL_ACTION_COUNT);
@@ -60,9 +62,10 @@ describe('move ordering precomputation', () => {
               ]),
           )
         : new Map<number, number>();
-    const killerIds = legalActions.length > 2
-      ? [actionId(legalActions[2])]
-      : legalActions.slice(0, 1).map(actionId);
+    const killerIds =
+      legalActions.length > 2
+        ? [actionId(legalActions[2])]
+        : legalActions.slice(0, 1).map(actionId);
     const pvMoveId = legalActions[1] != null ? actionId(legalActions[1]) : null;
     const ttMoveId = legalActions[0] != null ? actionId(legalActions[0]) : null;
     const orderingOptions = {
@@ -72,7 +75,10 @@ describe('move ordering precomputation', () => {
       historyScores,
       includeAllQuietMoves: true,
       killerIds,
-      participationState: buildParticipationState(state, preset.participationWindow),
+      participationState: buildParticipationState(
+        state,
+        preset.participationWindow,
+      ),
       policyPriors,
       policyPriorWeight: preset.policyPriorWeight,
       previousActionId,
@@ -98,7 +104,11 @@ describe('move ordering precomputation', () => {
       preset,
       orderingOptions,
     );
-    const rescored = orderPrecomputedMoves(precomputed, preset, orderingOptions);
+    const rescored = orderPrecomputedMoves(
+      precomputed,
+      preset,
+      orderingOptions,
+    );
 
     expect(
       rescored.map((entry) => ({
@@ -131,5 +141,56 @@ describe('move ordering precomputation', () => {
         tags: entry.tags,
       })),
     );
+  });
+
+  it('keeps quiet-move admission stable when dynamic search hints change', () => {
+    const config = withConfig();
+    const preset = {
+      ...AI_DIFFICULTY_PRESETS.hard,
+      quietMoveLimit: 1,
+    };
+    const state = createInitialState(config);
+    const precomputed = precomputeOrderedActions(
+      state,
+      state.currentPlayer,
+      config,
+      preset,
+      {
+        participationState: buildParticipationState(
+          state,
+          preset.participationWindow,
+        ),
+      },
+    );
+    const quiet = precomputed
+      .filter((entry) => !entry.isTactical && entry.actionId >= 0)
+      .sort(
+        (left, right) =>
+          right.staticScore - left.staticScore ||
+          left.actionId - right.actionId,
+      );
+
+    expect(quiet.length).toBeGreaterThan(1);
+    const staticallyAdmitted = quiet[0];
+    const dynamicallyBoosted = quiet.at(-1);
+    expect(staticallyAdmitted).toBeDefined();
+    expect(dynamicallyBoosted).toBeDefined();
+    if (!staticallyAdmitted || !dynamicallyBoosted) return;
+
+    const baseline = orderPrecomputedMoves(precomputed, preset);
+    const withTranspositionHint = orderPrecomputedMoves(precomputed, preset, {
+      ttMoveId: dynamicallyBoosted.actionId,
+    });
+    const baselineQuiet = baseline.filter((entry) => !entry.isTactical);
+    const hintedQuiet = withTranspositionHint.filter(
+      (entry) => !entry.isTactical,
+    );
+
+    expect(baselineQuiet.map((entry) => actionKey(entry.action))).toEqual([
+      actionKey(staticallyAdmitted.action),
+    ]);
+    expect(hintedQuiet.map((entry) => actionKey(entry.action))).toEqual([
+      actionKey(staticallyAdmitted.action),
+    ]);
   });
 });

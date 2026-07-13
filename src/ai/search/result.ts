@@ -1,4 +1,8 @@
-import { advanceEngineState, type EngineState, type TurnAction } from '@/domain';
+import {
+  advanceEngineState,
+  type EngineState,
+  type TurnAction,
+} from '@/domain';
 import type {
   AiDifficultyPreset,
   AiRiskMode,
@@ -9,7 +13,10 @@ import type {
 import type { AiBehaviorProfileId } from '@/shared/types/session';
 
 import { getBehaviorActionBias, getBehaviorGeometryBias } from '@/ai/behavior';
-import { getRiskCandidateAdjustment, hasCertifiedRiskProgress } from '@/ai/risk';
+import {
+  getRiskCandidateAdjustment,
+  hasCertifiedRiskProgress,
+} from '@/ai/risk';
 import { toRootCandidate } from '@/ai/search/heuristics';
 import { actionId, makeTableKey } from '@/ai/search/shared';
 import type { RootRankedAction, SearchContext } from '@/ai/search/types';
@@ -36,7 +43,10 @@ export function createSearchDiagnostics(): AiSearchDiagnostics {
 }
 
 /** Creates a minimal result used when no legal move exists. */
-export function createEmptyResult(action: TurnAction | null, score: number): AiSearchResult {
+export function createEmptyResult(
+  action: TurnAction | null,
+  score: number,
+): AiSearchResult {
   return {
     action,
     behaviorProfileId: null,
@@ -82,7 +92,9 @@ export function createEmptyResult(action: TurnAction | null, score: number): AiS
 }
 
 /** Keeps ranked root actions in stable descending order. */
-export function sortRankedActions(ranked: RootRankedAction[]): RootRankedAction[] {
+export function sortRankedActions(
+  ranked: RootRankedAction[],
+): RootRankedAction[] {
   ranked.sort((left, right) => {
     if (right.score !== left.score) {
       return right.score - left.score;
@@ -111,13 +123,17 @@ export function buildPrincipalVariation(
 
   while (currentAction && variation.length < completedDepth) {
     variation.push(currentAction);
-    currentState = advanceEngineState(currentState, currentAction, context.ruleConfig);
+    currentState = advanceEngineState(
+      currentState,
+      currentAction,
+      context.ruleConfig,
+    );
 
     if (currentState.status === 'gameOver') {
       break;
     }
 
-    currentAction = context.table.get(makeTableKey(currentState))?.bestAction ?? null;
+    currentAction = context.moveHints.get(makeTableKey(currentState)) ?? null;
   }
 
   return variation;
@@ -151,7 +167,9 @@ export function selectCandidateAction(
     Math.max(60, Math.abs(best.score) * preset.varietyThreshold) +
     (riskMode === 'normal' ? 0 : Math.round(4_000 * preset.riskBandWidening)) +
     bandBoost;
-  const nearEqual = ranked.filter((entry) => Math.abs(best.score - entry.score) <= tolerance);
+  const nearEqual = ranked.filter(
+    (entry) => Math.abs(best.score - entry.score) <= tolerance,
+  );
   const rerankEligibleCandidates = nearEqual
     .filter(
       (entry) =>
@@ -164,26 +182,28 @@ export function selectCandidateAction(
   const riskCertifiedCandidates =
     riskMode === 'normal'
       ? rerankEligibleCandidates
-      : rerankEligibleCandidates.filter((entry) =>
-          entry.drawTrapRisk < 0.72 &&
-          hasCertifiedRiskProgress({
-            drawTrapRisk: entry.drawTrapRisk,
-            emptyCellsDelta: entry.emptyCellsDelta,
-            freezeSwingBonus: entry.freezeSwingBonus,
-            homeFieldDelta: entry.homeFieldDelta,
-            isForced: entry.isForced,
-            isManualUnfreeze: entry.action.type === 'manualUnfreeze',
-            isRepetition: entry.isRepetition,
-            isSelfUndo: entry.isSelfUndo,
-            isTactical: entry.isTactical,
-            mobilityDelta: entry.mobilityDelta,
-            repeatedPositionCount: entry.repeatedPositionCount,
-            sixStackDelta: entry.sixStackDelta,
-            tags: entry.tags,
-            tiebreakEdgeKind: entry.tiebreakEdgeKind,
-          }),
+      : rerankEligibleCandidates.filter(
+          (entry) =>
+            entry.drawTrapRisk < 0.72 &&
+            hasCertifiedRiskProgress({
+              drawTrapRisk: entry.drawTrapRisk,
+              emptyCellsDelta: entry.emptyCellsDelta,
+              freezeSwingBonus: entry.freezeSwingBonus,
+              homeFieldDelta: entry.homeFieldDelta,
+              isForced: entry.isForced,
+              isManualUnfreeze: entry.action.type === 'manualUnfreeze',
+              isRepetition: entry.isRepetition,
+              isSelfUndo: entry.isSelfUndo,
+              isTactical: entry.isTactical,
+              mobilityDelta: entry.mobilityDelta,
+              repeatedPositionCount: entry.repeatedPositionCount,
+              sixStackDelta: entry.sixStackDelta,
+              tags: entry.tags,
+              tiebreakEdgeKind: entry.tiebreakEdgeKind,
+            }),
         );
-  const rerankCandidates = riskMode === 'normal' ? rerankEligibleCandidates : riskCertifiedCandidates;
+  const rerankCandidates =
+    riskMode === 'normal' ? rerankEligibleCandidates : riskCertifiedCandidates;
 
   if (!rerankEligibleCandidates.length) {
     return best;
@@ -209,9 +229,10 @@ export function selectCandidateAction(
     }
   }
 
-  const candidatePool = familyFirstPass.length > 1
-    ? familyFirstPass
-    : rerankCandidates.slice(0, preset.varietyTopCount);
+  const candidatePool =
+    familyFirstPass.length > 1
+      ? familyFirstPass
+      : rerankCandidates.slice(0, preset.varietyTopCount);
 
   if (candidatePool.length === 1) {
     return candidatePool[0];
@@ -220,11 +241,7 @@ export function selectCandidateAction(
   const coveredTags = new Set<AiRootCandidate['tags'][number]>();
   const coveredFamilies = new Set<string>();
   const scoreCompression =
-    bandBoost <= 0
-      ? 1
-      : riskMode === 'normal'
-        ? 0.2
-        : 0.1;
+    bandBoost <= 0 ? 1 : riskMode === 'normal' ? 0.2 : 0.1;
   const weighted = candidatePool.map((entry, index) => {
     const riskBonus =
       riskMode === 'normal'
@@ -257,13 +274,17 @@ export function selectCandidateAction(
               entry.drawTrapRisk *
               (entry.tiebreakEdgeKind === 'behind' ? 1 : 0.35),
           );
-    const diversityBonus = entry.tags.some((tag) => !coveredTags.has(tag)) ? 40 : 0;
+    const diversityBonus = entry.tags.some((tag) => !coveredTags.has(tag))
+      ? 40
+      : 0;
     const familyBonus = coveredFamilies.has(entry.sourceFamily) ? 0 : 55;
     const personaTagBonus =
       riskMode === 'normal'
         ? Math.round(
-            getBehaviorActionBias(options.behaviorProfileId ?? null, entry.tags) *
-              Math.max(0.25, preset.familyVarietyWeight / 120),
+            getBehaviorActionBias(
+              options.behaviorProfileId ?? null,
+              entry.tags,
+            ) * Math.max(0.25, preset.familyVarietyWeight / 120),
           )
         : 0;
     const seededGeometryBonus =
@@ -273,11 +294,11 @@ export function selectCandidateAction(
               options.behaviorProfileId ?? null,
               entry.action,
               options.behaviorSeed ?? null,
-            ) *
-              Math.max(1.5, preset.familyVarietyWeight / 10),
+            ) * Math.max(1.5, preset.familyVarietyWeight / 10),
           )
         : 0;
-    const compressedScore = best.score + (entry.score - best.score) * scoreCompression;
+    const compressedScore =
+      best.score + (entry.score - best.score) * scoreCompression;
 
     coveredFamilies.add(entry.sourceFamily);
     entry.tags.forEach((tag) => coveredTags.add(tag));
@@ -298,17 +319,25 @@ export function selectCandidateAction(
     return {
       adjustedScore,
       entry,
-      weight: Math.exp((adjustedScore - best.score) / Math.max(0.01, preset.varietyTemperature * 400)),
+      weight: Math.exp(
+        (adjustedScore - best.score) /
+          Math.max(0.01, preset.varietyTemperature * 400),
+      ),
     };
   });
 
   if (bandBoost > 0) {
     return weighted.reduce((currentBest, candidate) =>
-      candidate.adjustedScore > currentBest.adjustedScore ? candidate : currentBest,
+      candidate.adjustedScore > currentBest.adjustedScore
+        ? candidate
+        : currentBest,
     ).entry;
   }
 
-  const totalWeight = weighted.reduce((sum, candidate) => sum + candidate.weight, 0);
+  const totalWeight = weighted.reduce(
+    (sum, candidate) => sum + candidate.weight,
+    0,
+  );
   let threshold = random() * totalWeight;
 
   for (const candidate of weighted) {

@@ -79,6 +79,8 @@ export type SearchContext = {
   /** Fixed-size typed array; index is the numeric action ID (0..AI_MODEL_ACTION_COUNT-1). */
   historyScores: Int32Array;
   killerMovesByDepth: Map<number, number[]>;
+  /** Best-action hints keyed only by structural position; never used as score bounds. */
+  moveHints: Map<string, TurnAction>;
   now: () => number;
   perfCache: SearchPerfCache;
   preset: AiDifficultyPreset;
