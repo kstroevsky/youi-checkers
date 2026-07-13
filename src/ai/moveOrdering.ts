@@ -84,7 +84,7 @@ export type OrderedAction = {
   winsImmediately: boolean;
 };
 
-export type PrecomputedOrderedAction = Omit<OrderedAction, 'score'> & {
+export type PrecomputedOrderedAction = OrderedAction & {
   staticScore: number;
 };
 
@@ -673,6 +673,7 @@ export function precomputeOrderedActions(
       repeatedPositionCount,
       repeatsSourceFamily: participationProfile.repeatsSourceFamily,
       repeatsSourceRegion: participationProfile.repeatsSourceRegion,
+      score: staticScore,
       sourceFamily: participationProfile.sourceFamily,
       sourceRegion: participationProfile.sourceRegion,
       sixStackDelta,
@@ -711,25 +712,25 @@ export function orderPrecomputedMoves(
     | 'ttMoveId'
   > = {},
 ): OrderedAction[] {
-  const ordered = precomputedActions.map<OrderedAction>((entry) => {
+  for (const entry of precomputedActions) {
     throwIfMoveOrderingTimedOut(deadline, now);
+    entry.score =
+      entry.staticScore +
+      getDynamicScore(entry, {
+        continuationScores,
+        historyScores,
+        killerIds,
+        previousActionId,
+        pvMoveId,
+        ttMoveId,
+      });
+  }
 
-    return {
-      ...entry,
-      score:
-        entry.staticScore +
-        getDynamicScore(entry, {
-          continuationScores,
-          historyScores,
-          killerIds,
-          previousActionId,
-          pvMoveId,
-          ttMoveId,
-        }),
-    };
-  });
-
-  return finalizeOrderedActions(ordered, preset, includeAllQuietMoves);
+  return finalizeOrderedActions(
+    precomputedActions,
+    preset,
+    includeAllQuietMoves,
+  );
 }
 
 /** Orders moves for alpha-beta search and prunes quiet moves by preset breadth. */
