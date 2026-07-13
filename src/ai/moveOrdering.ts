@@ -439,6 +439,10 @@ export function precomputeOrderedActions(
     preset,
     riskMode,
   });
+  const baseAnalysis = getPerfAnalysis(basePerfBundle, state);
+  const behaviorProfileId = behaviorProfile?.id ?? null;
+  const behaviorSeed = behaviorProfile?.seed ?? null;
+  const useOpeningGeometryBias = state.moveNumber <= 6;
   const baseProgress = computeRiskSignals
     ? getPerfProgressSnapshot(basePerfBundle, state)
     : null;
@@ -453,6 +457,7 @@ export function precomputeOrderedActions(
 
     const nextState = advanceGeneratedEngineState(state, action, ruleConfig);
     const nextPerfBundle = getStatePerfBundle(nextState, ruleConfig, perfCache);
+    const nextAnalysis = getPerfAnalysis(nextPerfBundle, nextState);
     const nextPositionKey = nextPerfBundle.positionKey;
     const winsImmediately =
       nextState.status === 'gameOver' &&
@@ -490,8 +495,8 @@ export function precomputeOrderedActions(
       action,
       nextState,
       actor,
-      getPerfAnalysis(basePerfBundle, state),
-      getPerfAnalysis(nextPerfBundle, nextState),
+      baseAnalysis,
+      nextAnalysis,
     );
     const staticPromise =
       evaluateStructureState(nextState, actor, ruleConfig, {
@@ -558,8 +563,8 @@ export function precomputeOrderedActions(
         isTactical,
         winsImmediately,
       },
-      getPerfAnalysis(basePerfBundle, state),
-      getPerfAnalysis(nextPerfBundle, nextState),
+      baseAnalysis,
+      nextAnalysis,
     );
     const noveltyPenalty = getNoveltyPenalty(
       strategicProfile.tags,
@@ -594,15 +599,15 @@ export function precomputeOrderedActions(
     staticScore += clampScore(participationProfile.participationDelta, 4_000);
     staticScore += strategicProfile.policyBias;
     staticScore += getBehaviorActionBias(
-      behaviorProfile?.id ?? null,
+      behaviorProfileId,
       strategicProfile.tags,
     );
-    if (state.moveNumber <= 6) {
+    if (useOpeningGeometryBias) {
       staticScore += Math.round(
         getBehaviorGeometryBias(
-          behaviorProfile?.id ?? null,
+          behaviorProfileId,
           action,
-          behaviorProfile?.seed ?? null,
+          behaviorSeed,
         ) * 6,
       );
     }
