@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 
 import { zobristHash } from '@/ai/search/zobristHash';
 import { createInitialBoard } from '@/domain/generators/createInitialState';
-import { cloneBoardStructure } from '@/domain/model/board';
+import { cloneBoardStructure, createEmptyBoard } from '@/domain/model/board';
 import { allCoords } from '@/domain/model/coordinates';
 import type { ZobristHashInput } from '@/ai/search/zobristHash';
 
@@ -10,7 +10,9 @@ import type { ZobristHashInput } from '@/ai/search/zobristHash';
 // Helpers
 // ---------------------------------------------------------------------------
 
-function initialState(overrides: Partial<ZobristHashInput> = {}): ZobristHashInput {
+function initialState(
+  overrides: Partial<ZobristHashInput> = {},
+): ZobristHashInput {
   return {
     board: createInitialBoard(),
     currentPlayer: 'white',
@@ -62,7 +64,10 @@ describe('zobristHash — board sensitivity', () => {
     const boardUnfrozen = createInitialBoard();
     const boardFrozen = createInitialBoard();
     // Mutate only the independent copy
-    boardFrozen[coord].checkers[0] = { ...boardFrozen[coord].checkers[0], frozen: true };
+    boardFrozen[coord].checkers[0] = {
+      ...boardFrozen[coord].checkers[0],
+      frozen: true,
+    };
 
     const base = zobristHash(initialState({ board: boardUnfrozen }));
     const modified = zobristHash(initialState({ board: boardFrozen }));
@@ -113,12 +118,20 @@ describe('zobristHash — pendingJump sensitivity', () => {
   it('differs for different pendingJump sources', () => {
     const jumpA = zobristHash(
       initialState({
-        pendingJump: { source: 'A1', jumpedCheckerIds: [], firstJumpedOwner: undefined },
+        pendingJump: {
+          source: 'A1',
+          jumpedCheckerIds: [],
+          firstJumpedOwner: undefined,
+        },
       }),
     );
     const jumpB = zobristHash(
       initialState({
-        pendingJump: { source: 'B1', jumpedCheckerIds: [], firstJumpedOwner: undefined },
+        pendingJump: {
+          source: 'B1',
+          jumpedCheckerIds: [],
+          firstJumpedOwner: undefined,
+        },
       }),
     );
     expect(jumpA).not.toBe(jumpB);
@@ -140,13 +153,28 @@ describe('zobristHash — pendingJump sensitivity', () => {
     const base = { source: 'C3' as const, firstJumpedOwner: 'white' as const };
 
     const hashABC = zobristHash(
-      initialState({ pendingJump: { ...base, jumpedCheckerIds: ['white-01', 'white-02', 'white-03'] } }),
+      initialState({
+        pendingJump: {
+          ...base,
+          jumpedCheckerIds: ['white-01', 'white-02', 'white-03'],
+        },
+      }),
     );
     const hashCAB = zobristHash(
-      initialState({ pendingJump: { ...base, jumpedCheckerIds: ['white-03', 'white-01', 'white-02'] } }),
+      initialState({
+        pendingJump: {
+          ...base,
+          jumpedCheckerIds: ['white-03', 'white-01', 'white-02'],
+        },
+      }),
     );
     const hashBCA = zobristHash(
-      initialState({ pendingJump: { ...base, jumpedCheckerIds: ['white-02', 'white-03', 'white-01'] } }),
+      initialState({
+        pendingJump: {
+          ...base,
+          jumpedCheckerIds: ['white-02', 'white-03', 'white-01'],
+        },
+      }),
     );
 
     expect(hashABC).toBe(hashCAB);
@@ -154,7 +182,9 @@ describe('zobristHash — pendingJump sensitivity', () => {
 
     // Sanity: different id sets do differ
     const hashAB = zobristHash(
-      initialState({ pendingJump: { ...base, jumpedCheckerIds: ids.slice(0, 2) } }),
+      initialState({
+        pendingJump: { ...base, jumpedCheckerIds: ids.slice(0, 2) },
+      }),
     );
     expect(hashABC).not.toBe(hashAB);
   });
@@ -162,12 +192,72 @@ describe('zobristHash — pendingJump sensitivity', () => {
   it('differs when jumpedCheckerIds differ', () => {
     const base = { source: 'C3' as const, firstJumpedOwner: 'white' as const };
     const hash1 = zobristHash(
-      initialState({ pendingJump: { ...base, jumpedCheckerIds: ['white-01'] } }),
+      initialState({
+        pendingJump: { ...base, jumpedCheckerIds: ['white-01'] },
+      }),
     );
     const hash2 = zobristHash(
-      initialState({ pendingJump: { ...base, jumpedCheckerIds: ['white-02'] } }),
+      initialState({
+        pendingJump: { ...base, jumpedCheckerIds: ['white-02'] },
+      }),
     );
     expect(hash1).not.toBe(hash2);
+  });
+
+  it('tracks where an already-jumped checker is located', () => {
+    const boardA = createEmptyBoard();
+    boardA.C3 = {
+      checkers: [{ id: 'white-01', owner: 'white', frozen: false }],
+    };
+    boardA.D3 = {
+      checkers: [{ id: 'black-01', owner: 'black', frozen: false }],
+    };
+    boardA.C4 = {
+      checkers: [{ id: 'black-02', owner: 'black', frozen: false }],
+    };
+
+    const boardB = createEmptyBoard();
+    boardB.C3 = {
+      checkers: [{ id: 'white-01', owner: 'white', frozen: false }],
+    };
+    boardB.D3 = {
+      checkers: [{ id: 'black-02', owner: 'black', frozen: false }],
+    };
+    boardB.C4 = {
+      checkers: [{ id: 'black-01', owner: 'black', frozen: false }],
+    };
+
+    const pendingJump = {
+      source: 'C3' as const,
+      jumpedCheckerIds: ['black-01'],
+      firstJumpedOwner: 'black' as const,
+    };
+
+    expect(zobristHash(initialState({ board: boardA, pendingJump }))).not.toBe(
+      zobristHash(initialState({ board: boardB, pendingJump })),
+    );
+  });
+
+  it('keeps checker ids interchangeable outside a pending jump', () => {
+    const boardA = createEmptyBoard();
+    boardA.D3 = {
+      checkers: [{ id: 'black-01', owner: 'black', frozen: false }],
+    };
+    boardA.C4 = {
+      checkers: [{ id: 'black-02', owner: 'black', frozen: false }],
+    };
+
+    const boardB = createEmptyBoard();
+    boardB.D3 = {
+      checkers: [{ id: 'black-02', owner: 'black', frozen: false }],
+    };
+    boardB.C4 = {
+      checkers: [{ id: 'black-01', owner: 'black', frozen: false }],
+    };
+
+    expect(zobristHash(initialState({ board: boardA }))).toBe(
+      zobristHash(initialState({ board: boardB })),
+    );
   });
 });
 
@@ -179,16 +269,22 @@ describe('zobristHash — guards', () => {
   it('hashes non-standard checker ids (e.g. test-factory 3-digit) consistently', () => {
     const base = { source: 'C3' as const, firstJumpedOwner: 'white' as const };
     const hashA = zobristHash(
-      initialState({ pendingJump: { ...base, jumpedCheckerIds: ['black-089'] } }),
+      initialState({
+        pendingJump: { ...base, jumpedCheckerIds: ['black-089'] },
+      }),
     );
     const hashB = zobristHash(
-      initialState({ pendingJump: { ...base, jumpedCheckerIds: ['black-089'] } }),
+      initialState({
+        pendingJump: { ...base, jumpedCheckerIds: ['black-089'] },
+      }),
     );
     // Same id → same hash
     expect(hashA).toBe(hashB);
     // Different non-standard id → different hash
     const hashC = zobristHash(
-      initialState({ pendingJump: { ...base, jumpedCheckerIds: ['black-090'] } }),
+      initialState({
+        pendingJump: { ...base, jumpedCheckerIds: ['black-090'] },
+      }),
     );
     expect(hashA).not.toBe(hashC);
   });
@@ -216,7 +312,15 @@ describe('zobristHash — uniqueness', () => {
   it('produces distinct hashes for every cell as pendingJump source', () => {
     const coords = allCoords(); // 36 coords
     const hashes = coords.map((source) =>
-      zobristHash(initialState({ pendingJump: { source, jumpedCheckerIds: [], firstJumpedOwner: undefined } })),
+      zobristHash(
+        initialState({
+          pendingJump: {
+            source,
+            jumpedCheckerIds: [],
+            firstJumpedOwner: undefined,
+          },
+        }),
+      ),
     );
     const unique = new Set(hashes);
     expect(unique.size).toBe(coords.length);
@@ -225,9 +329,15 @@ describe('zobristHash — uniqueness', () => {
   it('produces distinct hashes for each square occupied by one isolated checker', () => {
     // Place a single white checker at each of the 36 cells in turn
     const coords = allCoords();
-    const baseChecker = { id: 'white-01', owner: 'white' as const, frozen: false };
+    const baseChecker = {
+      id: 'white-01',
+      owner: 'white' as const,
+      frozen: false,
+    };
     const hashes = coords.map((coord) => {
-      const board = Object.fromEntries(coords.map((c) => [c, { checkers: [] }])) as unknown as ReturnType<typeof createInitialBoard>;
+      const board = Object.fromEntries(
+        coords.map((c) => [c, { checkers: [] }]),
+      ) as unknown as ReturnType<typeof createInitialBoard>;
       board[coord] = { checkers: [{ ...baseChecker }] };
       return zobristHash(initialState({ board }));
     });

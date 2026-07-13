@@ -10,6 +10,7 @@ export {
 } from '@/domain/model/ruleConfig';
 export {
   advanceEngineState,
+  advanceGeneratedEngineState,
   advanceFinishingEngineState,
   applyAction,
 } from '@/domain/reducers/gameReducer';
@@ -34,6 +35,7 @@ export {
   getLegalActions,
   getLegalActionsForCell,
   getLegalTargetsForCell,
+  hasLegalAction,
   validateAction,
 } from '@/domain/rules/moveGeneration';
 export type { TargetMap } from '@/domain/rules/moveGeneration';

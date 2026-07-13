@@ -7,6 +7,7 @@ import type {
 } from '@/domain/model/types';
 
 import {
+  runGeneratedEngineCommand,
   runEngineCommand,
   runGameCommand,
 } from '@/domain/reducers/engineTransition';
@@ -20,6 +21,19 @@ export function advanceEngineState(
   return runEngineCommand(state, { type: 'submitAction', action }, config, {
     emitEvents: false,
   }).state;
+}
+
+/** Fast search transition for an action generated from the same state and rules. */
+export function advanceGeneratedEngineState(
+  state: EngineState,
+  action: TurnAction,
+  config: Partial<RuleConfig> = {},
+): EngineState {
+  return runGeneratedEngineCommand(
+    state,
+    { type: 'submitAction', action },
+    config,
+  ).state;
 }
 
 /** Same-player transition used while the loser completes a finished series game. */

@@ -44,7 +44,7 @@ function makeSplitmix32(seed: number): () => number {
   return (): number => {
     s = (s + 0x9e3779b9) | 0;
     let z = s;
-    
+
     z = Math.imul(z ^ (z >>> 16), 0x85ebca6b | 0);
     z = Math.imul(z ^ (z >>> 13), 0xc2b2ae35 | 0);
 
@@ -65,6 +65,7 @@ function makeSplitmix32(seed: number): () => number {
 //   [432]        player-to-move is 'black'
 //   [433 .. 468] pendingJump source coord (36 entries, indexed by coord index)
 //   [469 .. 470] pendingJump firstJumpedOwner (469 = white, 470 = black)
+//   [471 .. 578] pendingJump already-jumped placement by board stack slot
 //
 // CHECKER_H1 / CHECKER_H2 (separate 36-entry tables, generated with same streams):
 //   [0 .. 17]    white checker ids  (white-01 → 0, white-18 → 17)
@@ -76,10 +77,11 @@ function makeSplitmix32(seed: number): () => number {
 // rng1 / rng2 are consumed during initialization and not reused afterwards.
 // ---------------------------------------------------------------------------
 
-const TABLE_SIZE = 471;
+const TABLE_SIZE = 579;
 const PLAYER_OFFSET = 432;
 const PENDING_SOURCE_OFFSET = 433;
 const PENDING_OWNER_OFFSET = 469;
+const PENDING_JUMPED_SLOT_OFFSET = 471;
 
 /** Number of distinct checker ids in one game: 18 white (01–18) + 18 black (01–18). */
 const MAX_CHECKER_ID = 36;
@@ -153,7 +155,7 @@ function hashCheckerIdFallback(id: string): readonly [number, number] {
   z1 = Math.imul(z1 ^ (z1 >>> 13), 0xc2b2ae35 | 0);
   const h1 = (z1 ^ (z1 >>> 16)) >>> 0;
 
-  let z2 = (seed ^ 0xdeadbeef) + 0x6c62272e | 0; // different constant
+  let z2 = ((seed ^ 0xdeadbeef) + 0x6c62272e) | 0; // different constant
   z2 = Math.imul(z2 ^ (z2 >>> 16), 0x85ebca6b | 0);
   z2 = Math.imul(z2 ^ (z2 >>> 13), 0xc2b2ae35 | 0);
   const h2 = (z2 ^ (z2 >>> 16)) >>> 0;
@@ -217,6 +219,10 @@ export type ZobristHashInput = Pick<EngineState, 'board' | 'currentPlayer'> & {
 export function zobristHash(state: ZobristHashInput): string {
   let h1 = 0;
   let h2 = 0;
+  const pendingJump = state.pendingJump;
+  const jumpedCheckerIdSet = pendingJump?.jumpedCheckerIds.length
+    ? new Set(pendingJump.jumpedCheckerIds)
+    : null;
 
   // --- Board: iterate every cell, every checker in the stack ---
   for (let ci = 0; ci < 36; ci++) {
@@ -234,6 +240,12 @@ export function zobristHash(state: ZobristHashInput): string {
 
       h1 ^= TABLE_H1[idx] as number;
       h2 ^= TABLE_H2[idx] as number;
+
+      if (jumpedCheckerIdSet?.has(ck.id)) {
+        const jumpedSlotIndex = PENDING_JUMPED_SLOT_OFFSET + ci * 3 + sp;
+        h1 ^= TABLE_H1[jumpedSlotIndex] as number;
+        h2 ^= TABLE_H2[jumpedSlotIndex] as number;
+      }
     }
   }
 
@@ -244,13 +256,15 @@ export function zobristHash(state: ZobristHashInput): string {
   }
 
   // --- Pending jump ---
-  const pj = state.pendingJump;
+  const pj = pendingJump;
   if (pj) {
     // Source coordinate
     const si = COORD_TO_IDX[pj.source as string];
 
     if (si === undefined) {
-      throw new Error(`zobristHash: unknown pending-jump source coord "${pj.source}"`);
+      throw new Error(
+        `zobristHash: unknown pending-jump source coord "${pj.source}"`,
+      );
     }
 
     h1 ^= TABLE_H1[PENDING_SOURCE_OFFSET + si] as number;
@@ -290,7 +304,9 @@ export function zobristHash(state: ZobristHashInput): string {
     } else if (pj.visitedStateKeys?.length) {
       // Oldest legacy format: arbitrary strings → FNV-1a (unreachable in new games).
       if (process.env.NODE_ENV !== 'production') {
-        console.warn('zobristHash: falling back to FNV-1a for legacy visitedStateKeys trail');
+        console.warn(
+          'zobristHash: falling back to FNV-1a for legacy visitedStateKeys trail',
+        );
       }
 
       for (const key of pj.visitedStateKeys) {

@@ -1,17 +1,19 @@
 import type { InferenceSession, Tensor } from 'onnxruntime-web';
 import type * as Ort from 'onnxruntime-web';
 
-import { AI_MODEL_ACTION_COUNT, buildMaskedActionPriors } from '@/ai/model/actionSpace';
+import {
+  AI_MODEL_ACTION_COUNT,
+  buildMaskedActionPriors,
+} from '@/ai/model/actionSpace';
 import { encodeStateForModel } from '@/ai/model/encoding';
 import type { AiModelGuidance } from '@/ai/types';
 import { getLegalActions, type EngineState, type RuleConfig } from '@/domain';
 
 const DEFAULT_MODEL_URL = '/models/ai-policy-value.onnx';
-const MODEL_PROBE_RANGE = 'bytes=0-63';
 const MODEL_PROBE_BYTES = 64;
 const HTML_PREFIXES = ['<!doctype', '<html'];
 
-let modelAssetAvailablePromise: Promise<boolean> | null = null;
+let modelBytesPromise: Promise<Uint8Array | null> | null = null;
 let ortModulePromise: Promise<typeof Ort> | null = null;
 let sessionPromise: Promise<InferenceSession | null> | null = null;
 
@@ -27,7 +29,9 @@ function getOutputTensor(
   }
 
   const keys = Object.keys(outputs);
-  return keys.length > fallbackIndex ? outputs[keys[fallbackIndex]] ?? null : null;
+  return keys.length > fallbackIndex
+    ? (outputs[keys[fallbackIndex]] ?? null)
+    : null;
 }
 
 function isNumericTensorData(
@@ -37,7 +41,9 @@ function isNumericTensorData(
 }
 
 function toNumberArray(value: Exclude<Tensor['data'], string[]>): number[] {
-  return Array.from(value as ArrayLike<number | bigint>, (entry) => Number(entry));
+  return Array.from(value as ArrayLike<number | bigint>, (entry) =>
+    Number(entry),
+  );
 }
 
 function decodeProbeBytes(bytes: Uint8Array | ArrayBuffer): string {
@@ -50,57 +56,39 @@ function looksLikeHtmlDocument(prefix: string): boolean {
   return HTML_PREFIXES.some((candidate) => prefix.startsWith(candidate));
 }
 
-async function readProbePrefix(response: Response): Promise<string> {
-  const reader = response.body?.getReader();
-
-  if (!reader) {
-    const buffer = await response.arrayBuffer();
-    return decodeProbeBytes(buffer.slice(0, MODEL_PROBE_BYTES));
-  }
-
-  try {
-    const { value } = await reader.read();
-    return decodeProbeBytes((value ?? new Uint8Array()).slice(0, MODEL_PROBE_BYTES));
-  } finally {
-    void reader.cancel().catch(() => undefined);
-  }
-}
-
-async function probeModelAsset(): Promise<boolean> {
-  if (!modelAssetAvailablePromise) {
-    modelAssetAvailablePromise = (async () => {
+async function loadModelBytes(): Promise<Uint8Array | null> {
+  if (!modelBytesPromise) {
+    modelBytesPromise = (async () => {
       try {
-        const probe = await fetch(DEFAULT_MODEL_URL, {
-          headers: {
-            Range: MODEL_PROBE_RANGE,
-          },
-          method: 'GET',
-        });
+        const response = await fetch(DEFAULT_MODEL_URL, { method: 'GET' });
 
-        if (!probe.ok) {
-          return false;
+        // A session must never be created from a cached range probe.
+        if (!response.ok || response.status !== 200) {
+          return null;
         }
 
-        const contentType = probe.headers.get('content-type')?.toLowerCase() ?? '';
+        const contentType =
+          response.headers.get('content-type')?.toLowerCase() ?? '';
 
         if (contentType.startsWith('text/html')) {
-          return false;
+          return null;
         }
 
-        const prefix = await readProbePrefix(probe);
-        return !looksLikeHtmlDocument(prefix);
+        const bytes = new Uint8Array(await response.arrayBuffer());
+        const prefix = decodeProbeBytes(bytes.subarray(0, MODEL_PROBE_BYTES));
+        return looksLikeHtmlDocument(prefix) ? null : bytes;
       } catch {
-        return false;
+        return null;
       }
     })();
   }
 
-  return modelAssetAvailablePromise;
+  return modelBytesPromise;
 }
 
 async function loadOrtModule(): Promise<typeof Ort> {
   if (!ortModulePromise) {
-    ortModulePromise = import('onnxruntime-web');
+    ortModulePromise = import('onnxruntime-web/wasm');
   }
 
   return ortModulePromise;
@@ -110,14 +98,14 @@ async function loadSession(): Promise<InferenceSession | null> {
   if (!sessionPromise) {
     sessionPromise = (async () => {
       try {
-        const modelAssetAvailable = await probeModelAsset();
+        const modelBytes = await loadModelBytes();
 
-        if (!modelAssetAvailable) {
+        if (!modelBytes) {
           return null;
         }
 
         const ort = await loadOrtModule();
-        return await ort.InferenceSession.create(DEFAULT_MODEL_URL, {
+        return await ort.InferenceSession.create(modelBytes, {
           executionProviders: ['wasm'],
           graphOptimizationLevel: 'all',
         });
@@ -144,24 +132,33 @@ export async function getModelGuidance(
     const ort = await loadOrtModule();
     const input = encodeStateForModel(state);
     const feeds = {
-      [session.inputNames[0] ?? 'input']: new ort.Tensor('float32', input, [1, 16, 6, 6]),
+      [session.inputNames[0] ?? 'input']: new ort.Tensor(
+        'float32',
+        input,
+        [1, 16, 6, 6],
+      ),
     };
     const outputs = await session.run(feeds);
-    const policyTensor = getOutputTensor(outputs, ['policy', 'policy_logits'], 0);
+    const policyTensor = getOutputTensor(
+      outputs,
+      ['policy', 'policy_logits'],
+      0,
+    );
     const valueTensor = getOutputTensor(outputs, ['value', 'value_scalar'], 1);
     const legalActions = getLegalActions(state, ruleConfig);
     const policyData =
       policyTensor?.data && isNumericTensorData(policyTensor.data)
-        ? toNumberArray(policyTensor.data)
+        ? policyTensor.data instanceof Float32Array
+          ? policyTensor.data
+          : toNumberArray(policyTensor.data)
         : null;
     const valueData =
       valueTensor?.data && isNumericTensorData(valueTensor.data)
         ? toNumberArray(valueTensor.data)
         : null;
-    const actionPriors =
-      policyData?.length
-        ? buildMaskedActionPriors(legalActions, policyData)
-        : new Float32Array(AI_MODEL_ACTION_COUNT);
+    const actionPriors = policyData?.length
+      ? buildMaskedActionPriors(legalActions, policyData)
+      : new Float32Array(AI_MODEL_ACTION_COUNT);
 
     return {
       actionPriors,
@@ -175,7 +172,7 @@ export async function getModelGuidance(
 }
 
 export function resetModelGuidanceSessionForTests(): void {
-  modelAssetAvailablePromise = null;
+  modelBytesPromise = null;
   ortModulePromise = null;
   sessionPromise = null;
 }

@@ -13,7 +13,10 @@ import { buildTargetMap } from '@/domain/rules/moveGeneration/targetMap';
 import type { TargetMap } from '@/domain/rules/moveGeneration/types';
 
 function getLegalActionsForCellResolved(
-  state: Pick<EngineState, 'board' | 'currentPlayer' | 'pendingJump' | 'status'>,
+  state: Pick<
+    EngineState,
+    'board' | 'currentPlayer' | 'pendingJump' | 'status'
+  >,
   coord: Coord,
   config: RuleConfig,
 ): TurnAction[] {
@@ -32,16 +35,24 @@ function getLegalActionsForCellResolved(
 
 /** Returns legal target coordinates per action kind for one selected cell. */
 export function getLegalTargetsForCell(
-  state: Pick<EngineState, 'board' | 'currentPlayer' | 'pendingJump' | 'status'>,
+  state: Pick<
+    EngineState,
+    'board' | 'currentPlayer' | 'pendingJump' | 'status'
+  >,
   coord: Coord,
   config: Partial<RuleConfig> = {},
 ): TargetMap {
-  return buildTargetMap(getLegalActionsForCellResolved(state, coord, withRuleDefaults(config)));
+  return buildTargetMap(
+    getLegalActionsForCellResolved(state, coord, withRuleDefaults(config)),
+  );
 }
 
 /** Generates all legal actions for the current player from a specific coordinate. */
 export function getLegalActionsForCell(
-  state: Pick<EngineState, 'board' | 'currentPlayer' | 'pendingJump' | 'status'>,
+  state: Pick<
+    EngineState,
+    'board' | 'currentPlayer' | 'pendingJump' | 'status'
+  >,
   coord: Coord,
   config: Partial<RuleConfig> = {},
 ): TurnAction[] {
@@ -50,7 +61,10 @@ export function getLegalActionsForCell(
 
 /** Generates every legal action for the current player across the whole board. */
 export function getLegalActions(
-  state: Pick<EngineState, 'board' | 'currentPlayer' | 'pendingJump' | 'status'>,
+  state: Pick<
+    EngineState,
+    'board' | 'currentPlayer' | 'pendingJump' | 'status'
+  >,
   config: Partial<RuleConfig> = {},
 ): TurnAction[] {
   if (state.status === 'gameOver') {
@@ -71,4 +85,34 @@ export function getLegalActions(
   }
 
   return actions;
+}
+
+/** Returns as soon as one legal action is found, avoiding full-list materialization. */
+export function hasLegalAction(
+  state: Pick<
+    EngineState,
+    'board' | 'currentPlayer' | 'pendingJump' | 'status'
+  >,
+  config: Partial<RuleConfig> = {},
+): boolean {
+  if (state.status === 'gameOver') {
+    return false;
+  }
+
+  const resolvedConfig = withRuleDefaults(config);
+  const forcedCoord = getForcedActionCoord(state);
+
+  if (forcedCoord !== null) {
+    return (
+      getGeneratedActionsForCell(state, forcedCoord, resolvedConfig).length > 0
+    );
+  }
+
+  for (const coord of allCoords()) {
+    if (getGeneratedActionsForCell(state, coord, resolvedConfig).length > 0) {
+      return true;
+    }
+  }
+
+  return false;
 }
