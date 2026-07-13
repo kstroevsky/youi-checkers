@@ -383,41 +383,6 @@ function finalizeOrderedActions(
   return [...tacticalMoves, ...quietMoves];
 }
 
-/**
- * Selects the searched move set from immutable features only.
- *
- * History, killer, PV, continuation, and TT scores evolve during one search.
- * Letting them choose which quiet moves survive trimming makes a node's value
- * depend on traversal order, which in turn makes transposition bounds unsafe.
- */
-function admitPrecomputedActions(
-  precomputedActions: PrecomputedOrderedAction[],
-  preset: AiDifficultyPreset,
-  includeAllQuietMoves: boolean,
-): PrecomputedOrderedAction[] {
-  if (includeAllQuietMoves) {
-    return precomputedActions;
-  }
-
-  const tacticalMoves: PrecomputedOrderedAction[] = [];
-  const quietMoves: PrecomputedOrderedAction[] = [];
-
-  for (const entry of precomputedActions) {
-    if (entry.isTactical) {
-      tacticalMoves.push(entry);
-    } else {
-      quietMoves.push(entry);
-    }
-  }
-
-  quietMoves.sort(
-    (left, right) =>
-      right.staticScore - left.staticScore || left.actionId - right.actionId,
-  );
-
-  return [...tacticalMoves, ...quietMoves.slice(0, preset.quietMoveLimit)];
-}
-
 /** Precomputes the expensive state-derived move features that do not change between root depths. */
 export function precomputeOrderedActions(
   state: EngineState,
@@ -746,12 +711,7 @@ export function orderPrecomputedMoves(
     | 'ttMoveId'
   > = {},
 ): OrderedAction[] {
-  const admittedActions = admitPrecomputedActions(
-    precomputedActions,
-    preset,
-    includeAllQuietMoves,
-  );
-  const ordered = admittedActions.map<OrderedAction>((entry) => {
+  const ordered = precomputedActions.map<OrderedAction>((entry) => {
     throwIfMoveOrderingTimedOut(deadline, now);
 
     return {
@@ -769,7 +729,7 @@ export function orderPrecomputedMoves(
     };
   });
 
-  return finalizeOrderedActions(ordered, preset, true);
+  return finalizeOrderedActions(ordered, preset, includeAllQuietMoves);
 }
 
 /** Orders moves for alpha-beta search and prunes quiet moves by preset breadth. */

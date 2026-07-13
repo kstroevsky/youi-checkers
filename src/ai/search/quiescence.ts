@@ -23,16 +23,8 @@ export function getQuiescenceMoves(
   participationState: ParticipationState,
   context: SearchContext,
 ): OrderedAction[] {
-  const perfBundle = getStatePerfBundle(
-    state,
-    context.ruleConfig,
-    context.perfCache,
-  );
-  const legalActions = getCachedLegalActions(
-    state,
-    context.ruleConfig,
-    perfBundle.positionKey,
-  );
+  const perfBundle = getStatePerfBundle(state, context.ruleConfig, context.perfCache);
+  const legalActions = getCachedLegalActions(state, context.ruleConfig, perfBundle.positionKey);
 
   if (!legalActions.length) {
     return [];
@@ -42,10 +34,7 @@ export function getQuiescenceMoves(
     legalActions.length === 1
       ? legalActions
       : legalActions.filter((action) => {
-          if (
-            action.type === 'jumpSequence' ||
-            action.type === 'manualUnfreeze'
-          ) {
+          if (action.type === 'jumpSequence' || action.type === 'manualUnfreeze') {
             return true;
           }
 
@@ -67,44 +56,38 @@ export function getQuiescenceMoves(
     return [];
   }
 
-  const ttBestAction = context.moveHints.get(makeTableKey(state)) ?? null;
-  const ordered = orderMoves(
-    state,
-    state.currentPlayer,
-    context.ruleConfig,
-    context.preset,
-    {
-      actions: candidateActions,
-      behaviorProfile: context.behaviorProfile,
-      deadline: context.deadline,
-      grandparentPositionKey: getPreviousOwnPositionKeyFromLine(
-        state.currentPlayer,
-        stack,
-        context,
-      ),
-      historyScores: context.historyScores,
-      includeAllQuietMoves: true,
-      killerIds: context.killerMovesByDepth.get(currentDepth) ?? [],
-      now: context.now,
-      diagnostics: context.diagnostics,
-      participationState,
-      perfCache: context.perfCache,
-      policyPriors: null,
-      previousStrategicTags: null,
-      previousActionId,
-      pvMoveId: context.pvMoveByDepth.get(currentDepth) ?? null,
-      repetitionPenalty: context.preset.repetitionPenalty,
-      riskMode: context.riskMode,
-      samePlayerPreviousAction: getPreviousOwnActionFromLine(
-        state.currentPlayer,
-        stack,
-        context,
-      ),
-      selfUndoPenalty: context.preset.selfUndoPenalty,
-      continuationScores: context.continuationScores,
-      ttMoveId: ttBestAction ? actionId(ttBestAction) : null,
-    },
-  );
+  const ttBestAction = context.table.get(makeTableKey(state))?.bestAction ?? null;
+  const ordered = orderMoves(state, state.currentPlayer, context.ruleConfig, context.preset, {
+    actions: candidateActions,
+    behaviorProfile: context.behaviorProfile,
+    deadline: context.deadline,
+    grandparentPositionKey: getPreviousOwnPositionKeyFromLine(
+      state.currentPlayer,
+      stack,
+      context,
+    ),
+    historyScores: context.historyScores,
+    includeAllQuietMoves: true,
+    killerIds: context.killerMovesByDepth.get(currentDepth) ?? [],
+    now: context.now,
+    diagnostics: context.diagnostics,
+    participationState,
+    perfCache: context.perfCache,
+    policyPriors: null,
+    previousStrategicTags: null,
+    previousActionId,
+    pvMoveId: context.pvMoveByDepth.get(currentDepth) ?? null,
+    repetitionPenalty: context.preset.repetitionPenalty,
+    riskMode: context.riskMode,
+    samePlayerPreviousAction: getPreviousOwnActionFromLine(
+      state.currentPlayer,
+      stack,
+      context,
+    ),
+    selfUndoPenalty: context.preset.selfUndoPenalty,
+    continuationScores: context.continuationScores,
+    ttMoveId: ttBestAction ? actionId(ttBestAction) : null,
+  });
 
   if (candidateActions.length === 1) {
     return ordered.slice(0, 1);
