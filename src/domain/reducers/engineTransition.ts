@@ -12,7 +12,7 @@ import type {
 } from '@/domain/model/types';
 import {
   applyValidatedAction,
-  getLegalActions,
+  hasLegalAction,
   validateAction,
 } from '@/domain/rules/moveGeneration';
 import {
@@ -87,24 +87,24 @@ function nextStateSeed(
     status: 'active',
     victory: { type: 'none' },
     pendingJump,
-    positionCounts: { ...state.positionCounts },
+    positionCounts: state.positionCounts,
   };
 }
 
 /** Counts legal actions for a specified player in a hypothetical state. */
-function getLegalActionCount(
+function playerHasLegalAction(
   state: EngineState,
   player: Player,
   config: RuleConfig,
-): number {
-  return getLegalActions(
+): boolean {
+  return hasLegalAction(
     {
       ...state,
       currentPlayer: player,
       pendingJump: null,
     },
     config,
-  ).length;
+  );
 }
 
 function buildEvents(
@@ -177,12 +177,15 @@ function resolveEngineCommand(
   command: EngineCommand,
   config: Partial<RuleConfig> = {},
   options: EngineTransitionOptions = {},
+  actionAlreadyValidated = false,
 ): ResolvedEngineTransition {
   const resolvedConfig = withRuleDefaults(config);
-  const validation = validateAction(state, command.action, resolvedConfig);
+  if (!actionAlreadyValidated) {
+    const validation = validateAction(state, command.action, resolvedConfig);
 
-  if (!validation.valid) {
-    throw new Error(validation.reason);
+    if (!validation.valid) {
+      throw new Error(validation.reason);
+    }
   }
 
   const appliedState = applyValidatedAction(state, command.action);
@@ -228,11 +231,11 @@ function resolveEngineCommand(
     };
   } else if (
     !immediateState.pendingJump &&
-    getLegalActionCount(
+    !playerHasLegalAction(
       immediateState,
       immediateState.currentPlayer,
       resolvedConfig,
-    ) === 0
+    )
   ) {
     if (options.turnMode === 'samePlayer') {
       throw new Error('The finishing player has no legal action.');
@@ -241,9 +244,7 @@ function resolveEngineCommand(
     autoPasses.push(immediateState.currentPlayer);
     const retryPlayer = actor;
 
-    if (
-      getLegalActionCount(immediateState, retryPlayer, resolvedConfig) === 0
-    ) {
+    if (!playerHasLegalAction(immediateState, retryPlayer, resolvedConfig)) {
       autoPasses.push(retryPlayer);
       finalState = {
         ...immediateState,
@@ -314,6 +315,32 @@ export function runEngineCommand(
             result.positionHash,
             result.continuationTargets,
           ),
+    positionHash: result.positionHash,
+    state: result.state,
+  };
+}
+
+/**
+ * Search-only transition for actions produced by getLegalActions for this exact
+ * state/config. Public/user commands must continue through runEngineCommand.
+ */
+export function runGeneratedEngineCommand(
+  state: EngineState,
+  command: EngineCommand,
+  config: Partial<RuleConfig> = {},
+): EngineTransitionResult {
+  const result = resolveEngineCommand(
+    state,
+    command,
+    config,
+    { emitEvents: false },
+    true,
+  );
+
+  return {
+    actor: result.actor,
+    autoPasses: result.autoPasses,
+    events: [],
     positionHash: result.positionHash,
     state: result.state,
   };

@@ -30,6 +30,18 @@ export function negamax(
 ): number {
   throwIfTimedOut(context.now, context.deadline);
 
+  if (state.status === 'gameOver') {
+    context.evaluatedNodes += 1;
+    return evaluateState(state, state.currentPlayer, context.ruleConfig, {
+      behaviorProfile: context.behaviorProfile,
+      diagnostics: context.diagnostics,
+      participationState,
+      perfCache: context.perfCache,
+      preset: context.preset,
+      riskMode: context.riskMode,
+    });
+  }
+
   const originalAlpha = alpha;
   const originalBeta = beta;
   const tableKey = makeTableKey(state);
@@ -53,23 +65,6 @@ export function negamax(
     }
   }
 
-  if (state.status === 'gameOver') {
-    context.evaluatedNodes += 1;
-    return evaluateState(
-      state,
-      state.currentPlayer,
-      context.ruleConfig,
-      {
-        behaviorProfile: context.behaviorProfile,
-        diagnostics: context.diagnostics,
-        participationState,
-        perfCache: context.perfCache,
-        preset: context.preset,
-        riskMode: context.riskMode,
-      },
-    );
-  }
-
   if (depth === 0) {
     return quiescence(
       state,
@@ -83,51 +78,53 @@ export function negamax(
     );
   }
 
-  const orderedMoves = orderMoves(state, state.currentPlayer, context.ruleConfig, context.preset, {
-    behaviorProfile: context.behaviorProfile,
-    deadline: context.deadline,
-    grandparentPositionKey: getPreviousOwnPositionKeyFromLine(
-      state.currentPlayer,
-      stack,
-      context,
-    ),
-    historyScores: context.historyScores,
-    killerIds: context.killerMovesByDepth.get(currentDepth) ?? [],
-    now: context.now,
-    diagnostics: context.diagnostics,
-    participationState,
-    perfCache: context.perfCache,
-    policyPriors: null,
-    previousStrategicTags: currentDepth === 0 ? context.rootPreviousStrategicTags : null,
-    previousActionId,
-    pvMoveId: context.pvMoveByDepth.get(currentDepth) ?? null,
-    repetitionPenalty: context.preset.repetitionPenalty,
-    riskMode: context.riskMode,
-    samePlayerPreviousAction: getPreviousOwnActionFromLine(
-      state.currentPlayer,
-      stack,
-      context,
-    ),
-    selfUndoPenalty: context.preset.selfUndoPenalty,
-    continuationScores: context.continuationScores,
-    ttMoveId: cached?.bestAction ? actionId(cached.bestAction) : null,
-  });
+  const orderedMoves = orderMoves(
+    state,
+    state.currentPlayer,
+    context.ruleConfig,
+    context.preset,
+    {
+      behaviorProfile: context.behaviorProfile,
+      deadline: context.deadline,
+      grandparentPositionKey: getPreviousOwnPositionKeyFromLine(
+        state.currentPlayer,
+        stack,
+        context,
+      ),
+      historyScores: context.historyScores,
+      killerIds: context.killerMovesByDepth.get(currentDepth) ?? [],
+      now: context.now,
+      diagnostics: context.diagnostics,
+      participationState,
+      perfCache: context.perfCache,
+      policyPriors: null,
+      previousStrategicTags:
+        currentDepth === 0 ? context.rootPreviousStrategicTags : null,
+      previousActionId,
+      pvMoveId: context.pvMoveByDepth.get(currentDepth) ?? null,
+      repetitionPenalty: context.preset.repetitionPenalty,
+      riskMode: context.riskMode,
+      samePlayerPreviousAction: getPreviousOwnActionFromLine(
+        state.currentPlayer,
+        stack,
+        context,
+      ),
+      selfUndoPenalty: context.preset.selfUndoPenalty,
+      continuationScores: context.continuationScores,
+      ttMoveId: cached?.bestAction ? actionId(cached.bestAction) : null,
+    },
+  );
 
   if (!orderedMoves.length) {
     context.evaluatedNodes += 1;
-    return evaluateState(
-      state,
-      state.currentPlayer,
-      context.ruleConfig,
-      {
-        behaviorProfile: context.behaviorProfile,
-        diagnostics: context.diagnostics,
-        participationState,
-        perfCache: context.perfCache,
-        preset: context.preset,
-        riskMode: context.riskMode,
-      },
-    );
+    return evaluateState(state, state.currentPlayer, context.ruleConfig, {
+      behaviorProfile: context.behaviorProfile,
+      diagnostics: context.diagnostics,
+      participationState,
+      perfCache: context.perfCache,
+      preset: context.preset,
+      riskMode: context.riskMode,
+    });
   }
 
   let bestAction: TurnAction | null = cached?.bestAction ?? null;
@@ -247,7 +244,11 @@ export function negamax(
   }
 
   const flag: BoundFlag =
-    bestScore <= originalAlpha ? 'upper' : bestScore >= originalBeta ? 'lower' : 'exact';
+    bestScore <= originalAlpha
+      ? 'upper'
+      : bestScore >= originalBeta
+        ? 'lower'
+        : 'exact';
 
   if (context.table.size >= TRANSPOSITION_LIMIT) {
     const oldestKey = context.table.keys().next().value;

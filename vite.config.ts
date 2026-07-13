@@ -35,7 +35,8 @@ export default defineConfig({
       manifest: {
         name: 'YOUI',
         short_name: 'YOUI',
-        description: 'Local-first board game with hot-seat play and optional browser AI.',
+        description:
+          'Local-first board game with hot-seat play and optional browser AI.',
         display: 'standalone',
         theme_color: '#e8dfd2',
         background_color: '#f9f3e8',
@@ -64,15 +65,17 @@ export default defineConfig({
         cleanupOutdatedCaches: true,
         navigateFallback: 'index.html',
         globPatterns: ['**/*.{js,css,html,ico,png,svg,wasm,webmanifest}'],
+        globIgnores: ['**/ort*.js', '**/ort*.wasm'],
         maximumFileSizeToCacheInBytes: 32 * 1024 * 1024,
         runtimeCaching: [
           {
-            urlPattern: ({ url }) => url.pathname === '/models/ai-policy-value.onnx',
+            urlPattern: ({ url }) =>
+              url.pathname === '/models/ai-policy-value.onnx',
             handler: 'CacheFirst',
             options: {
               cacheName: 'youi-ai-model',
               cacheableResponse: {
-                statuses: [200, 206],
+                statuses: [200],
               },
               expiration: {
                 maxEntries: 1,
