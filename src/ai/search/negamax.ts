@@ -11,12 +11,11 @@ import {
   rememberCutoffMove,
   TRANSPOSITION_LIMIT,
 } from '@/ai/search/heuristics';
+import { actionId, makeTableKey, throwIfTimedOut } from '@/ai/search/shared';
 import {
-  actionId,
-  makeSearchTableKey,
-  makeTableKey,
-  throwIfTimedOut,
-} from '@/ai/search/shared';
+  findTranspositionEntry,
+  storeTranspositionEntry,
+} from '@/ai/search/transpositionTable';
 import type { BoundFlag, SearchContext, SearchStack } from '@/ai/search/types';
 import { quiescence } from '@/ai/search/quiescence';
 
@@ -58,14 +57,14 @@ export function negamax(
     stack,
     context,
   );
-  const tableKey = makeSearchTableKey(state, {
+  const semanticContext = {
     currentDepth,
     participationState,
     previousActionId,
     previousOwnAction,
     previousOwnPositionKey,
-  });
-  const cached = context.table.get(tableKey);
+  };
+  const cached = findTranspositionEntry(context.table, state, semanticContext);
   const hintedAction = context.moveHints.get(makeTableKey(state)) ?? null;
 
   if (cached && cached.depth >= depth) {
@@ -275,7 +274,7 @@ export function negamax(
     }
   }
 
-  context.table.set(tableKey, {
+  storeTranspositionEntry(context.table, state, semanticContext, {
     bestAction,
     depth,
     flag,
