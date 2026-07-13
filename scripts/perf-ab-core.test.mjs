@@ -192,12 +192,13 @@ describe('performance A/B experiment contract', () => {
         selectedActions: [],
       },
     });
-    const pairs = Array.from({ length: 4 }, () => ({
+    const pairs = Array.from({ length: 10 }, () => ({
       baseline: makeReport(1_000, 2),
       candidate: makeReport(1_100, 2),
     }));
     const summary = buildExperimentSummary(pairs, {
       bootstrapSamples: 200,
+      minimumDecisionPairs: 10,
       minimumImprovementPercent: 5,
     });
 
@@ -206,5 +207,44 @@ describe('performance A/B experiment contract', () => {
     expect(summary.metrics['ai.hard.avgNodesPerSecond'].verdict).toBe(
       'confirmed-win',
     );
+  });
+
+  it('does not promote an under-sampled noisy browser guardrail to a regression', () => {
+    const makeReport = (nodesPerSecond, longTaskCount) => ({
+      contract: { schemaVersion: 1, workloadId: 'full-app-v1' },
+      guardrails: { fixtures: [] },
+      metrics: {
+        'ai.hard.avgNodesPerSecond': {
+          direction: 'higher',
+          role: 'decision',
+          unit: 'nodes/s',
+          value: nodesPerSecond,
+        },
+        'browser.mobile.longTaskCount': {
+          absoluteTolerance: 1,
+          direction: 'lower',
+          minimumSamples: 10,
+          role: 'guardrail',
+          unit: 'count',
+          value: longTaskCount,
+        },
+      },
+      observations: { quality: [], selectedActions: [] },
+    });
+    const pairs = Array.from({ length: 2 }, () => ({
+      baseline: makeReport(1_000, 0),
+      candidate: makeReport(1_100, 2),
+    }));
+    const summary = buildExperimentSummary(pairs, {
+      bootstrapSamples: 200,
+      minimumDecisionPairs: 10,
+      minimumImprovementPercent: 5,
+    });
+
+    expect(summary.metrics['browser.mobile.longTaskCount']).toMatchObject({
+      passed: null,
+      verdict: 'inconclusive',
+    });
+    expect(summary.overallVerdict).toBe('inconclusive');
   });
 });

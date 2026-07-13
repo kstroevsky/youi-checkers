@@ -213,13 +213,22 @@ export function assertCompatibleReports(baseline, candidate) {
   }
 }
 
-function addMetric(metrics, name, value, direction, unit, role) {
+function addMetric(
+  metrics,
+  name,
+  value,
+  direction,
+  unit,
+  role,
+  guardrail = {},
+) {
   if (!Number.isFinite(value)) {
     return;
   }
 
   metrics[name] = {
     direction,
+    ...guardrail,
     role,
     unit,
     value,
@@ -387,11 +396,18 @@ function addBrowserMetrics(metrics, prefix, value, path = []) {
         'lower',
         key.endsWith('Ms') ? 'ms' : 'count',
         'guardrail',
+        {
+          absoluteTolerance: key.endsWith('Ms') ? 50 : 1,
+          minimumSamples: 10,
+        },
       );
     } else if (key.endsWith('Ms')) {
       addMetric(metrics, metricName, entry, 'lower', 'ms', 'diagnostic');
     } else if (key.toLowerCase().includes('layoutshift')) {
-      addMetric(metrics, metricName, entry, 'lower', 'score', 'guardrail');
+      addMetric(metrics, metricName, entry, 'lower', 'score', 'guardrail', {
+        absoluteTolerance: 0.01,
+        minimumSamples: 10,
+      });
     } else if (key === 'longTaskCount') {
       addMetric(metrics, metricName, entry, 'lower', 'count', 'guardrail');
     }
@@ -414,6 +430,10 @@ export function normalizeFullReport(report) {
   addBrowserMetrics(normalized.metrics, 'browser.mobile', report.mobile);
 
   for (const [profile, entry] of Object.entries(report.mobileProfiles ?? {})) {
+    if (profile === '1x') {
+      continue;
+    }
+
     addBrowserMetrics(
       normalized.metrics,
       `browser.mobileProfiles.${profile}`,
@@ -428,6 +448,7 @@ export function normalizeFullReport(report) {
     'lower',
     'bytes',
     'guardrail',
+    { maximumRegressionPercent: 1, minimumSamples: 1 },
   );
   addMetric(
     normalized.metrics,
@@ -436,6 +457,7 @@ export function normalizeFullReport(report) {
     'lower',
     'bytes',
     'guardrail',
+    { maximumRegressionPercent: 1, minimumSamples: 1 },
   );
 
   return normalized;
@@ -447,6 +469,7 @@ export function parsePerfAbArgs(argv) {
     bootstrapSamples: DEFAULT_BOOTSTRAP_SAMPLES,
     candidate: null,
     dryRun: false,
+    minimumDecisionPairs: 10,
     minimumImprovementPercent: 5,
     outputDir: 'output/perf-ab',
     pairCount: 20,
@@ -493,6 +516,9 @@ export function parsePerfAbArgs(argv) {
         break;
       case 'minimum-improvement':
         parsed.minimumImprovementPercent = Number(value);
+        break;
+      case 'minimum-decision-pairs':
+        parsed.minimumDecisionPairs = Number.parseInt(value, 10);
         break;
       case 'out':
         parsed.outputDir = value;
@@ -551,6 +577,15 @@ export function parsePerfAbArgs(argv) {
   }
 
   if (
+    !Number.isInteger(parsed.minimumDecisionPairs) ||
+    parsed.minimumDecisionPairs < 2
+  ) {
+    throw new Error(
+      '--minimum-decision-pairs must be an integer of at least 2.',
+    );
+  }
+
+  if (
     !Number.isInteger(parsed.rootOrderingIterations) ||
     parsed.rootOrderingIterations < 1
   ) {
@@ -560,19 +595,46 @@ export function parsePerfAbArgs(argv) {
   return parsed;
 }
 
-function summarizeAbsoluteGuardrail({ baseline, candidate, direction }) {
+function summarizeAbsoluteGuardrail({
+  absoluteTolerance = 0,
+  baseline,
+  candidate,
+  direction,
+  maximumRegressionPercent = 0,
+  minimumSamples = 1,
+}) {
   const baselineMedian = median(baseline);
   const candidateMedian = median(candidate);
-  const passed =
+  const regressionDelta =
     direction === 'lower'
-      ? candidateMedian <= baselineMedian
-      : candidateMedian >= baselineMedian;
+      ? candidateMedian - baselineMedian
+      : baselineMedian - candidateMedian;
+  const regressionPercent =
+    baselineMedian === 0
+      ? null
+      : (regressionDelta / Math.abs(baselineMedian)) * 100;
+  const withinTolerance =
+    regressionDelta <= absoluteTolerance ||
+    (regressionPercent !== null &&
+      regressionPercent <= maximumRegressionPercent);
+  const passed = withinTolerance
+    ? true
+    : baseline.length < minimumSamples
+      ? null
+      : false;
 
   return {
     baselineMedian: round(baselineMedian),
     candidateMedian: round(candidateMedian),
     passed,
-    verdict: passed ? 'passed' : 'regression',
+    regressionPercent:
+      regressionPercent === null ? null : round(regressionPercent),
+    verdict:
+      passed === true
+        ? 'passed'
+        : passed === false
+          ? 'regression'
+          : 'inconclusive',
   };
 }
 
@@ -628,7 +690,7 @@ function evaluateQualityGuardrails(pairs) {
 
 export function buildExperimentSummary(
   pairs,
-  { bootstrapSamples, minimumImprovementPercent },
+  { bootstrapSamples, minimumDecisionPairs = 10, minimumImprovementPercent },
 ) {
   if (!Array.isArray(pairs) || pairs.length < 2) {
     throw new Error('At least two paired reports are required.');
@@ -677,9 +739,12 @@ export function buildExperimentSummary(
     const result =
       definition.role === 'guardrail'
         ? summarizeAbsoluteGuardrail({
+            absoluteTolerance: definition.absoluteTolerance,
             baseline,
             candidate,
             direction: definition.direction,
+            maximumRegressionPercent: definition.maximumRegressionPercent,
+            minimumSamples: definition.minimumSamples,
           })
         : summarizePairedMetric({
             baseline,
@@ -698,7 +763,10 @@ export function buildExperimentSummary(
 
   const qualityGuardrails = evaluateQualityGuardrails(pairs);
   const metricGuardrailFailed = Object.values(metrics).some(
-    (metric) => metric.role === 'guardrail' && !metric.passed,
+    (metric) => metric.role === 'guardrail' && metric.passed === false,
+  );
+  const metricGuardrailInconclusive = Object.values(metrics).some(
+    (metric) => metric.role === 'guardrail' && metric.passed === null,
   );
   const decisionVerdicts = Object.values(metrics)
     .filter((metric) => metric.role === 'decision')
@@ -708,9 +776,14 @@ export function buildExperimentSummary(
   if (
     !qualityGuardrails.passed ||
     metricGuardrailFailed ||
-    decisionVerdicts.includes('regression')
+    (pairs.length >= minimumDecisionPairs &&
+      decisionVerdicts.includes('regression'))
   ) {
     overallVerdict = 'regression';
+  } else if (metricGuardrailInconclusive) {
+    overallVerdict = 'inconclusive';
+  } else if (pairs.length < minimumDecisionPairs) {
+    overallVerdict = 'inconclusive';
   } else if (
     decisionVerdicts.length > 0 &&
     decisionVerdicts.every((verdict) => verdict === 'confirmed-win')

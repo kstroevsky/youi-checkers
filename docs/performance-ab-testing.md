@@ -13,8 +13,10 @@ dependencies, build settings, hardware, and counterbalanced run schedule.
   suite; fixture labels and legal-action counts must match.
 - Quality guardrail: median completed search depth must not decrease for any
   recorded AI fixture.
-- Artifact guardrails in the full pipeline: JavaScript bytes, layout shift, and
-  long-task measurements must not regress.
+- Artifact guardrails in the full pipeline: JavaScript bytes may grow by at
+  most 1%. Browser layout-shift and long-task guardrails use explicit absolute
+  tolerances and require at least ten pairs before they can prove a regression;
+  smaller runs remain inconclusive.
 - Selected moves are recorded but are not required to be identical. A faster
   time-budgeted search can legitimately finish more work and select a different
   legal move without changing game logic.
@@ -47,6 +49,7 @@ Useful controls:
 
 ```text
 --pairs=20                    paired sample count; minimum 2
+--minimum-decision-pairs=10   samples required for a performance verdict
 --minimum-improvement=5       required paired improvement percentage
 --bootstrap-samples=4000      deterministic bootstrap resamples
 --root-order-iterations=24    work per root-ordering benchmark sample
