@@ -27,6 +27,8 @@ type PlayerAnalysis = {
   frontRowOwnedTwoStacks: number;
   frozenCriticalSingles: number;
   frozenSingles: number;
+  frontierFileMask: number;
+  frontierWidth: number;
   homeSingles: number;
   jumpLanes: number;
   laneOpenness: number;
@@ -76,6 +78,8 @@ function createPlayerAnalysis(): PlayerAnalysis {
     frontRowOwnedTwoStacks: 0,
     frozenCriticalSingles: 0,
     frozenSingles: 0,
+    frontierFileMask: 0,
+    frontierWidth: 0,
     homeSingles: 0,
     jumpLanes: 0,
     laneOpenness: 0,
@@ -260,6 +264,13 @@ function addCellAnalysis(
 
   if (!isActiveMover(state, coord, topChecker.owner)) {
     return;
+  }
+
+  const frontierFileBit = 1 << (coord.charCodeAt(0) - 65);
+
+  if ((topAnalysis.frontierFileMask & frontierFileBit) === 0) {
+    topAnalysis.frontierFileMask |= frontierFileBit;
+    topAnalysis.frontierWidth += 1;
   }
 
   const openness = countDirectionalOpenness(state, coord, topChecker.owner);

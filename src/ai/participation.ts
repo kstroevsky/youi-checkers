@@ -371,13 +371,15 @@ function getParticipationProfile(
   state: EngineState,
   player: Player,
   playerState: PlayerParticipationState,
+  analysis?: PositionAnalysis,
 ): ParticipationProfile {
   const activeCheckerIds = new Set(playerState.activeCheckerIds);
 
   return {
     activeCheckerCount: activeCheckerIds.size,
     distinctFamilyCount: playerState.distinctFamilies,
-    frontierWidth: getFrontierWidth(state, player),
+    frontierWidth:
+      analysis?.players[player].frontierWidth ?? getFrontierWidth(state, player),
     hotRegionConcentration: getConcentration(playerState.hotRegionCounts),
     hotSourceConcentration: getConcentration(playerState.hotSourceCounts),
     idleReserveMass: getIdleReserveMass(state, player, activeCheckerIds),
@@ -537,11 +539,17 @@ export function getActionParticipationProfileFromAnalysis(
   const playerState = currentParticipationState.players[actor];
   const entry = createParticipationEntry(state, action, actor);
   const nextParticipationState = withPlayerEntry(currentParticipationState, actor, entry);
-  const beforeProfile = getParticipationProfile(state, actor, playerState);
+  const beforeProfile = getParticipationProfile(
+    state,
+    actor,
+    playerState,
+    baseAnalysis,
+  );
   const afterProfile = getParticipationProfile(
     nextState,
     actor,
     nextParticipationState.players[actor],
+    nextAnalysis,
   );
   const beforeScore = getParticipationScoreFromProfile(
     beforeProfile,
