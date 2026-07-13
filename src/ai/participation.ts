@@ -392,15 +392,11 @@ function getParticipationProfile(
  * The objective is not randomness. It is to reward broader, more legible use of
  * available material when the position does not demand narrow tactical reuse.
  */
-function getPlayerParticipationScore(
-  state: EngineState,
-  player: Player,
-  playerState: PlayerParticipationState,
+function getParticipationScoreFromProfile(
+  profile: ParticipationProfile,
   preset: AiDifficultyPreset,
-  phaseScale = getPhaseScale(state),
+  phaseScale: number,
 ): number {
-  const profile = getParticipationProfile(state, player, playerState);
-
   // Same-family streak penalty escalates super-linearly: each additional
   // consecutive reuse of the same piece family is more expensive than the last.
   // This is grounded in diversity-seeking search theory (Browne et al., 2012):
@@ -424,6 +420,20 @@ function getPlayerParticipationScore(
     profile.hotRegionConcentration * preset.familyVarietyWeight * 0.75 * phaseScale -
     familyStreakPenalty -
     regionStreakPenalty
+  );
+}
+
+function getPlayerParticipationScore(
+  state: EngineState,
+  player: Player,
+  playerState: PlayerParticipationState,
+  preset: AiDifficultyPreset,
+  phaseScale = getPhaseScale(state),
+): number {
+  return getParticipationScoreFromProfile(
+    getParticipationProfile(state, player, playerState),
+    preset,
+    phaseScale,
   );
 }
 
@@ -533,17 +543,13 @@ export function getActionParticipationProfileFromAnalysis(
     actor,
     nextParticipationState.players[actor],
   );
-  const beforeScore = getPlayerParticipationScore(
-    state,
-    actor,
-    playerState,
+  const beforeScore = getParticipationScoreFromProfile(
+    beforeProfile,
     preset,
     getPhaseScaleFromAnalysis(baseAnalysis),
   );
-  const afterScore = getPlayerParticipationScore(
-    nextState,
-    actor,
-    nextParticipationState.players[actor],
+  const afterScore = getParticipationScoreFromProfile(
+    afterProfile,
     preset,
     getPhaseScaleFromAnalysis(nextAnalysis),
   );
