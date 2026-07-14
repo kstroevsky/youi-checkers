@@ -95,6 +95,7 @@ export const telemetry = createTelemetryClient({
       : navigator.sendBeacon.bind(navigator),
   beforeFlush: typeof window === 'undefined' ? undefined : captureBrowserLoad,
   deviceProfile: () => deviceProfile,
+  enabled: diagnosticsPreferenceStore.getSnapshot(),
   fetchFn:
     typeof fetch === 'undefined'
       ? async () => new Response(null, { status: 503 })

@@ -29,6 +29,7 @@ type TelemetryClientOptions = {
     sink: Pick<TelemetrySink, 'increment' | 'measure'>,
   ) => Promise<void> | void;
   deviceProfile: () => TelemetryDeviceProfile | null;
+  enabled?: boolean;
   endpoint?: string;
   fetchFn: typeof fetch;
   now?: () => number;
@@ -134,7 +135,7 @@ export function createTelemetryClient(
   const performanceNow =
     options.performanceNow ?? performance.now.bind(performance);
   const sessionId = options.sessionId ?? randomId('session');
-  let enabled = true;
+  let enabled = options.enabled ?? true;
   let startedAt = now();
   let batchSequence = 0;
   let deliveryPromise: Promise<void> | null = null;

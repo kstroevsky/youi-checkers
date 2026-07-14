@@ -43,7 +43,7 @@ export type TelemetryRuntimeContext = {
   downlinkMbps: number | null;
   gpuFamily: string;
   hardwareConcurrency: number;
-  matchMode: 'computer' | 'hotSeat' | 'unknown';
+  matchMode: 'computer' | 'hotSeat' | 'online' | 'unknown';
   maxTouchPoints: number;
   networkClass: string;
   osFamily: string;

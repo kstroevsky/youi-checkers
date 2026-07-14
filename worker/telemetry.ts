@@ -194,7 +194,9 @@ function isContext(value: unknown): value is TelemetryRuntimeContext {
     ) &&
     typeof value.saveData === 'boolean' &&
     ['easy', 'medium', 'hard', 'none'].includes(String(value.aiDifficulty)) &&
-    ['computer', 'hotSeat', 'unknown'].includes(String(value.matchMode))
+    ['computer', 'hotSeat', 'online', 'unknown'].includes(
+      String(value.matchMode),
+    )
   );
 }
 
