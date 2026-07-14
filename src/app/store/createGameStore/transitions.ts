@@ -13,6 +13,7 @@ import {
   isComputerMatch,
   isComputerTurn,
 } from '@/app/store/createGameStore/match';
+import { isAuthoritativeOnlineMatch } from '@/app/store/createGameStore/onlineMatchPolicy';
 import {
   beginSeriesGameResolution,
   chooseNextSeriesColor,
@@ -123,7 +124,7 @@ export function createStoreTransitions({
   ): void {
     const state = get();
 
-    if (state.onlineMatch) {
+    if (isAuthoritativeOnlineMatch(state)) {
       if (!aiDecision) {
         submitOnlineCommand({ type: 'submitAction', action });
       }
@@ -296,7 +297,7 @@ export function createStoreTransitions({
       const state = get();
 
       if (
-        state.onlineMatch ||
+        isAuthoritativeOnlineMatch(state) ||
         (state.seriesState && state.seriesState.phase !== 'playing')
       ) {
         return false;
@@ -325,7 +326,7 @@ export function createStoreTransitions({
       session: SerializableSession,
       options: ApplySessionOptions = {},
     ): void {
-      if (get().onlineMatch) {
+      if (isAuthoritativeOnlineMatch(get())) {
         return;
       }
 

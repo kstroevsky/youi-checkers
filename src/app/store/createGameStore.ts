@@ -42,9 +42,13 @@ export function createGameStore(options: StoreOptions = {}): GameStore {
     options,
     storage,
   });
-  const store = createStore<GameStoreState>(runtime.stateCreator);
+  const store = createStore<GameStoreState>(runtime.stateCreator) as GameStore;
 
-  runtime.runPostCreate(store);
+  store.start = () => runtime.runPostCreate(store);
+  store.dispose = () => runtime.dispose();
+  if (options.autoStart !== false) {
+    store.start();
+  }
 
   return store;
 }

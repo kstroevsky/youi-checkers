@@ -98,11 +98,15 @@ export type GameStoreState = GameStoreData & {
   undo: () => void;
 };
 
-export type GameStore = StoreApi<GameStoreState>;
+export type GameStore = StoreApi<GameStoreState> & {
+  dispose: () => void;
+  start: () => void;
+};
 
 /** Factory options used by tests and the browser runtime. */
 export type StoreOptions = {
   archive?: SessionArchive | null;
+  autoStart?: boolean;
   createAiWorker?: () => AiWorkerLike | null;
   createSessionId?: () => string;
   initialSession?: SerializableSession;

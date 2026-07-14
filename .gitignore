@@ -11,3 +11,4 @@ analysis
 .dev.vars*
 .env*.local
 .codegraph
+output

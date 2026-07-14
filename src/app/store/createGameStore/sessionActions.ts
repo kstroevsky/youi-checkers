@@ -10,6 +10,7 @@ import {
 
 import { createAiBehaviorProfile } from '@/ai/behavior';
 import { getRuleConfigForNewMatch } from '@/app/store/createGameStore/match';
+import { isAuthoritativeOnlineMatch } from '@/app/store/createGameStore/onlineMatchPolicy';
 import {
   beginSeriesGameResolution,
   chooseNextSeriesColor,
@@ -77,7 +78,7 @@ export function createSessionActions({
     chooseNextSeriesColor: (color) => {
       const state = get();
 
-      if (state.onlineMatch) {
+      if (isAuthoritativeOnlineMatch(state)) {
         submitOnlineCommand({ type: 'chooseNextColor', color });
         return;
       }
@@ -115,7 +116,7 @@ export function createSessionActions({
     importSessionFromBuffer: () => {
       const state = get();
 
-      if (state.onlineMatch) {
+      if (isAuthoritativeOnlineMatch(state)) {
         return;
       }
 
@@ -133,7 +134,7 @@ export function createSessionActions({
     },
     refreshExportBuffer: () => {
       const state = get();
-      if (state.onlineMatch) return;
+      if (isAuthoritativeOnlineMatch(state)) return;
       set({
         exportBuffer: serializeSession(buildSessionFromSlices(state), {
           pretty: true,
@@ -144,7 +145,7 @@ export function createSessionActions({
       disposeAiWorker();
       const state = get();
 
-      if (state.onlineMatch) {
+      if (isAuthoritativeOnlineMatch(state)) {
         return;
       }
 
@@ -181,7 +182,7 @@ export function createSessionActions({
       disposeAiWorker();
       const state = get();
 
-      if (state.onlineMatch) {
+      if (isAuthoritativeOnlineMatch(state)) {
         return;
       }
 
@@ -309,7 +310,7 @@ export function createSessionActions({
         ...partial,
       };
 
-      if (state.onlineMatch) {
+      if (isAuthoritativeOnlineMatch(state)) {
         set({ preferences });
         return;
       }
@@ -342,7 +343,7 @@ export function createSessionActions({
       disposeAiWorker();
       const state = get();
 
-      if (state.onlineMatch) {
+      if (isAuthoritativeOnlineMatch(state)) {
         return;
       }
       const nextHistoryHydrationStatus = consumeStartupHydrationOnMutation();
@@ -430,7 +431,7 @@ export function createSessionActions({
     startNewGame: (matchSettings = get().setupMatchSettings) => {
       disposeAiWorker();
       const state = get();
-      if (state.onlineMatch) return;
+      if (isAuthoritativeOnlineMatch(state)) return;
       const nextHistoryHydrationStatus = beginFreshFullSession();
       const normalizedMatchSettings = {
         ...matchSettings,
@@ -496,7 +497,7 @@ export function createSessionActions({
       disposeAiWorker();
       const state = get();
 
-      if (state.onlineMatch) {
+      if (isAuthoritativeOnlineMatch(state)) {
         submitOnlineCommand({ type: 'startNextGame' });
         return;
       }

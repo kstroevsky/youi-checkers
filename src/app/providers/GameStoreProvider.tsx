@@ -3,7 +3,7 @@ import { useStore } from 'zustand';
 import type { StoreApi } from 'zustand';
 
 import { createGameStore } from '@/app/store/createGameStore';
-import type { GameStoreState } from '@/app/store/createGameStore';
+import type { GameStore, GameStoreState } from '@/app/store/createGameStore';
 import type { SerializableSession } from '@/shared/types/session';
 
 type CreateGameStoreOptions = Parameters<typeof createGameStore>[0];
@@ -22,10 +22,15 @@ export function GameStoreProvider({
   initialSession,
   storeOptions,
 }: GameStoreProviderProps) {
-  const storeRef = useRef<StoreApi<GameStoreState> | null>(null);
+  const storeRef = useRef<GameStore | null>(null);
+  const lifecycleGenerationRef = useRef(0);
 
   if (!storeRef.current) {
-    storeRef.current = createGameStore({ ...storeOptions, initialSession });
+    storeRef.current = createGameStore({
+      ...storeOptions,
+      autoStart: false,
+      initialSession,
+    });
   }
 
   useEffect(() => {
@@ -34,6 +39,10 @@ export function GameStoreProvider({
     if (!store || typeof window === 'undefined') {
       return undefined;
     }
+
+    const generation = lifecycleGenerationRef.current + 1;
+    lifecycleGenerationRef.current = generation;
+    store.start();
 
     const automationWindow = window as Window & {
       advanceTime?: (milliseconds: number) => void;
@@ -84,6 +93,11 @@ export function GameStoreProvider({
     return () => {
       delete automationWindow.render_game_to_text;
       delete automationWindow.advanceTime;
+      queueMicrotask(() => {
+        if (lifecycleGenerationRef.current === generation) {
+          store.dispose();
+        }
+      });
     };
   }, []);
 

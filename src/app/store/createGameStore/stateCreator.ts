@@ -69,6 +69,9 @@ export function createGameStoreStateRuntime({
   let persistInitialState: (() => void) | null = null;
   let startArchiveHydration: (() => void) | null = null;
   let bootstrapMultiplayer: (() => void) | null = null;
+  let disposeRuntime: (() => void) | null = null;
+  let started = false;
+  let disposed = false;
 
   /**
    * Instantiates the concrete store runtime around one `set/get` pair.
@@ -159,9 +162,14 @@ export function createGameStoreStateRuntime({
           importError: null,
         });
       },
-      setView: (onlineMatch) => set({ onlineMatch }),
+      setView: (onlineMatch) => {
+        if (onlineMatch) {
+          options.telemetry?.setMatchContext('online', 'none');
+        }
+        set({ onlineMatch });
+      },
     });
-    bootstrapMultiplayer = () => multiplayerClient.bootstrap();
+    bootstrapMultiplayer = () => multiplayerClient.start();
 
     let transitions: ReturnType<typeof createStoreTransitions> | null = null;
 
@@ -177,6 +185,10 @@ export function createGameStoreStateRuntime({
       options,
       set,
     });
+    disposeRuntime = () => {
+      aiController.disposeAiWorker();
+      multiplayerClient.dispose();
+    };
 
     transitions = createStoreTransitions({
       consumeStartupHydrationOnMutation:
@@ -270,7 +282,10 @@ export function createGameStoreStateRuntime({
    * allowing migration sync, archive hydration, and immediate AI turns to start.
    */
   function runPostCreate(store: StoreApi<GameStoreState>): void {
+    if (started || disposed) return;
+    started = true;
     queueMicrotask(() => {
+      if (disposed) return;
       persistInitialState?.();
       startArchiveHydration?.();
       bootstrapMultiplayer?.();
@@ -284,6 +299,11 @@ export function createGameStoreStateRuntime({
   }
 
   return {
+    dispose() {
+      if (disposed) return;
+      disposed = true;
+      disposeRuntime?.();
+    },
     runPostCreate,
     stateCreator,
   };
