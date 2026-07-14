@@ -2,13 +2,13 @@ import { DurableObject } from 'cloudflare:workers';
 
 import {
   MAX_INCREMENTAL_COMMANDS,
-  MULTIPLAYER_PROTOCOL_VERSION,
+  MatchCommandError,
   applyMatchCommand,
   createCapability,
+  decodeClientMessage,
   hashMatchState,
   sha256,
   type AuthoritativeMatchState,
-  type ClientMessage,
   type CommittedMatchCommand,
   type MatchCommandEnvelope,
   type MatchLifecycle,
@@ -87,45 +87,7 @@ function isParticipant(value: unknown): value is MatchParticipant {
   return value === 'first' || value === 'second';
 }
 
-function isRevision(value: unknown): value is number {
-  return Number.isSafeInteger(value) && Number(value) >= 0;
-}
-
-function isHash(value: unknown): value is string {
-  return typeof value === 'string' && /^[A-Za-z0-9_-]{43}$/u.test(value);
-}
-
-function isCommandId(value: unknown): value is string {
-  return (
-    typeof value === 'string' &&
-    value.length >= 8 &&
-    value.length <= 128 &&
-    /^[A-Za-z0-9._:-]+$/u.test(value)
-  );
-}
-
-function isCommandEnvelope(value: unknown): value is MatchCommandEnvelope {
-  if (!isRecord(value) || !isRecord(value.command)) {
-    return false;
-  }
-
-  const commandType = value.command.type;
-  const validCommand =
-    (commandType === 'submitAction' && isRecord(value.command.action)) ||
-    (commandType === 'chooseNextColor' &&
-      (value.command.color === 'white' || value.command.color === 'black')) ||
-    commandType === 'startNextGame';
-
-  return (
-    validCommand &&
-    isRevision(value.baseRevision) &&
-    isCommandId(value.commandId) &&
-    isHash(value.predictedStateHash) &&
-    isHash(value.previousStateHash)
-  );
-}
-
-function parseClientMessage(value: string): ClientMessage | null {
+function parseClientMessage(value: string) {
   let parsed: unknown;
 
   try {
@@ -134,36 +96,7 @@ function parseClientMessage(value: string): ClientMessage | null {
     return null;
   }
 
-  if (!isRecord(parsed)) {
-    return null;
-  }
-
-  if (
-    parsed.type === 'hello' &&
-    parsed.protocol === MULTIPLAYER_PROTOCOL_VERSION &&
-    isRevision(parsed.revision) &&
-    (parsed.stateHash === null || isHash(parsed.stateHash))
-  ) {
-    return parsed as ClientMessage;
-  }
-
-  if (
-    parsed.type === 'resync' &&
-    isRevision(parsed.revision) &&
-    (parsed.stateHash === null || isHash(parsed.stateHash))
-  ) {
-    return parsed as ClientMessage;
-  }
-
-  if (parsed.type === 'submit' && isCommandEnvelope(parsed.envelope)) {
-    return parsed as ClientMessage;
-  }
-
-  if (parsed.type === 'peerSignal' && 'signal' in parsed) {
-    return parsed as ClientMessage;
-  }
-
-  return null;
+  return decodeClientMessage(parsed);
 }
 
 function shardForPosition(positionHash: string): number {
@@ -614,15 +547,10 @@ export class MatchRoom extends DurableObject<Record<string, never>> {
     try {
       result = applyMatchCommand(room.state, actor, envelope.command);
     } catch (error) {
-      const message = error instanceof Error ? error.message : '';
       this.reject(
         socket,
         envelope.commandId,
-        message.includes('not this participant')
-          ? 'notYourTurn'
-          : message.includes('complete')
-            ? 'matchComplete'
-            : 'invalidCommand',
+        error instanceof MatchCommandError ? error.reason : 'invalidCommand',
         room,
       );
       return;
@@ -690,11 +618,16 @@ export class MatchRoom extends DurableObject<Record<string, never>> {
     now: number,
     expiresAt: number,
   ): RepetitionMode {
-    const countsJson = JSON.stringify(state.engine.positionCounts);
+    const countsJson =
+      previous.repetition_mode === 'inline'
+        ? JSON.stringify(state.engine.positionCounts)
+        : null;
     const repetitionMode: RepetitionMode =
       previous.repetition_mode === 'sharded' ||
-      new TextEncoder().encode(countsJson).byteLength >
+      (countsJson !== null &&
+        new TextEncoder().encode(countsJson).byteLength >
         INLINE_REPETITION_LIMIT_BYTES
+      )
         ? 'sharded'
         : 'inline';
     const storedState =
@@ -724,14 +657,21 @@ export class MatchRoom extends DurableObject<Record<string, never>> {
         );
       } else if (repetitionMode === 'sharded' && updatedPositionHash) {
         const shardIndex = shardForPosition(updatedPositionHash);
-        const shard: Record<string, number> = {};
+        const storedShard = this.ctx.storage.sql
+          .exec<ShardRow>(
+            'SELECT counts_json FROM repetition_shards WHERE shard = ?',
+            shardIndex,
+          )
+          .toArray()[0];
+        const shard = storedShard
+          ? (JSON.parse(storedShard.counts_json) as Record<string, number>)
+          : {};
+        const count = state.engine.positionCounts[updatedPositionHash];
 
-        for (const [positionHash, count] of Object.entries(
-          state.engine.positionCounts,
-        )) {
-          if (shardForPosition(positionHash) === shardIndex) {
-            shard[positionHash] = count;
-          }
+        if (count === undefined) {
+          delete shard[updatedPositionHash];
+        } else {
+          shard[updatedPositionHash] = count;
         }
 
         this.ctx.storage.sql.exec(

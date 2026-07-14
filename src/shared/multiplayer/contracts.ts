@@ -86,18 +86,20 @@ export type ServerMessage =
   | {
       type: 'rejected';
       commandId: string;
-      reason:
-        | 'invalidCommand'
-        | 'matchNotReady'
-        | 'notYourTurn'
-        | 'revisionConflict'
-        | 'stateMismatch'
-        | 'matchComplete';
+      reason: MatchCommandRejectionReason;
       revision: number;
       stateHash: string;
     }
   | { type: 'peerSignal'; signal: unknown }
   | { type: 'peerPresence'; connected: boolean };
+
+export type MatchCommandRejectionReason =
+  | 'invalidCommand'
+  | 'matchNotReady'
+  | 'notYourTurn'
+  | 'revisionConflict'
+  | 'stateMismatch'
+  | 'matchComplete';
 
 export type CreateMatchRequest = {
   format: GameFormat;

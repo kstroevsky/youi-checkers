@@ -1,17 +1,19 @@
 import {
   MULTIPLAYER_PROTOCOL_VERSION,
   applyMatchCommand,
+  decodeCreateMatchResponse,
+  decodeCreateSessionResponse,
+  decodePeerProposal,
+  decodeServerMessage,
   hashMatchState,
   type AuthoritativeMatchState,
   type ClientMessage,
   type CommittedMatchCommand,
-  type CreateMatchResponse,
-  type CreateSessionResponse,
   type MatchCommand,
   type MatchCommandEnvelope,
   type MatchLifecycle,
   type MatchParticipant,
-  type ServerMessage,
+  type PeerProposal,
 } from '@/shared/multiplayer';
 
 const CHECKPOINT_EVERY_REVISIONS = 16;
@@ -65,15 +67,6 @@ type StoredCheckpoint = {
   revision: number;
   state: AuthoritativeMatchState;
   stateHash: string;
-};
-
-type PeerProposal = {
-  actor: MatchParticipant;
-  baseRevision: number;
-  command: MatchCommand;
-  commandId: string;
-  predictedStateHash: string;
-  type: 'proposal';
 };
 
 type PeerSignal =
@@ -153,6 +146,7 @@ export class MultiplayerClient {
   private callbacks: MultiplayerCallbacks;
   private channel: RTCDataChannel | null = null;
   private closed = false;
+  private disposed = false;
   private lifecycle: MatchLifecycle = 'waiting';
   private hashingCommand = false;
   private matchId: string | null = null;
@@ -168,17 +162,34 @@ export class MultiplayerClient {
   private speculativePeerCommandId: string | null = null;
   private speculativeTimer: number | null = null;
   private stateHash: string | null = null;
+  private started = false;
   private view: OnlineMatchView | null = null;
+  private readonly onVisibilityChange = () => {
+    if (document.visibilityState === 'hidden') {
+      this.saveCheckpoint();
+    }
+  };
 
   constructor(callbacks: MultiplayerCallbacks) {
     this.callbacks = callbacks;
+  }
+
+  start(): void {
+    if (this.started || this.disposed) return;
+    this.started = true;
+    if (typeof document !== 'undefined') {
+      document.addEventListener('visibilitychange', this.onVisibilityChange);
+    }
+    this.bootstrap();
+  }
+
+  dispose(): void {
+    if (this.disposed) return;
+    this.disposed = true;
+    this.leave();
 
     if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'hidden') {
-          this.saveCheckpoint();
-        }
-      });
+      document.removeEventListener('visibilitychange', this.onVisibilityChange);
     }
   }
 
@@ -219,7 +230,10 @@ export class MultiplayerClient {
         throw new Error(await responseMessage(response));
       }
 
-      const created = (await response.json()) as CreateMatchResponse;
+      const created = decodeCreateMatchResponse(await response.json());
+      if (!created) {
+        throw new Error('Invalid match creation response.');
+      }
       await this.exchangeCapability(created.matchId, created.capability);
       const inviteUrl = new URL(window.location.href);
       inviteUrl.hash = new URLSearchParams({
@@ -399,7 +413,10 @@ export class MultiplayerClient {
       throw new Error(await responseMessage(response));
     }
 
-    const session = (await response.json()) as CreateSessionResponse;
+    const session = decodeCreateSessionResponse(await response.json());
+    if (!session || session.matchId !== matchId) {
+      throw new Error('Invalid match session response.');
+    }
     localStorage.setItem(
       `${checkpointKey(matchId)}.participant`,
       session.participant,
@@ -450,9 +467,11 @@ export class MultiplayerClient {
     });
     socket.addEventListener('message', (event) => {
       if (typeof event.data !== 'string') return;
-      this.messageQueue = this.messageQueue.then(() =>
-        this.handleServerMessage(event.data),
-      );
+      this.messageQueue = this.messageQueue
+        .then(() => this.handleServerMessage(event.data))
+        .catch(() => {
+          this.socket?.close(1008, 'Invalid server message');
+        });
     });
     socket.addEventListener('close', () => {
       if (this.socket !== socket) return;
@@ -464,11 +483,17 @@ export class MultiplayerClient {
   }
 
   private async handleServerMessage(raw: string): Promise<void> {
-    let message: ServerMessage;
+    let parsed: unknown;
 
     try {
-      message = JSON.parse(raw) as ServerMessage;
+      parsed = JSON.parse(raw);
     } catch {
+      this.socket?.close(1008, 'Invalid server message');
+      return;
+    }
+
+    const message = decodeServerMessage(parsed);
+    if (!message) {
       this.socket?.close(1008, 'Invalid server message');
       return;
     }
@@ -754,13 +779,16 @@ export class MultiplayerClient {
   private async acceptPeerProposal(raw: string): Promise<void> {
     if (!this.authoritative || !this.participant || this.pending) return;
 
-    let proposal: PeerProposal;
+    let rawProposal: unknown;
 
     try {
-      proposal = JSON.parse(raw) as PeerProposal;
+      rawProposal = JSON.parse(raw);
     } catch {
       return;
     }
+
+    const proposal = decodePeerProposal(rawProposal);
+    if (!proposal) return;
 
     if (
       proposal.type !== 'proposal' ||

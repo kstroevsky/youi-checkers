@@ -15,6 +15,7 @@ import {
   hashMatchState,
   participantToMove,
 } from './index';
+import type { MatchCommandError } from './index';
 
 function stripHistory(
   state: ReturnType<typeof createInitialState>,
@@ -69,7 +70,11 @@ describe('authoritative multiplayer reducer', () => {
 
     expect(() =>
       applyMatchCommand(state, 'second', { type: 'submitAction', action }),
-    ).toThrow('not this participant’s turn');
+    ).toThrow(
+      expect.objectContaining<Partial<MatchCommandError>>({
+        reason: 'notYourTurn',
+      }),
+    );
   });
 
   it('produces a stable cryptographic hash independent of object key order', async () => {

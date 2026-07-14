@@ -15,8 +15,25 @@ import type {
   AuthoritativeMatchState,
   MatchApplyResult,
   MatchCommand,
+  MatchCommandRejectionReason,
   OnlineSeriesState,
 } from './contracts';
+
+export class MatchCommandError extends Error {
+  readonly reason: Extract<
+    MatchCommandRejectionReason,
+    'invalidCommand' | 'notYourTurn' | 'matchComplete'
+  >;
+
+  constructor(
+    reason: MatchCommandError['reason'],
+    message: string,
+  ) {
+    super(message);
+    this.name = 'MatchCommandError';
+    this.reason = reason;
+  }
+}
 
 function otherParticipant(participant: MatchParticipant): MatchParticipant {
   return participant === 'first' ? 'second' : 'first';
@@ -222,11 +239,14 @@ function applyActionCommand(
     state.series?.phase === 'matchOver' ||
     state.engine.status === 'gameOver'
   ) {
-    throw new Error('The match is complete.');
+    throw new MatchCommandError('matchComplete', 'The match is complete.');
   }
 
   if (participantToMove(state) !== actor) {
-    throw new Error('It is not this participant’s turn.');
+    throw new MatchCommandError(
+      'notYourTurn',
+      'It is not this participant’s turn.',
+    );
   }
 
   const finishing = state.series?.phase === 'finishing';
@@ -291,7 +311,10 @@ function chooseNextColor(
     series.phase !== 'betweenGames' ||
     series.colorChooser !== actor
   ) {
-    throw new Error('This participant cannot choose the next color.');
+    throw new MatchCommandError(
+      'invalidCommand',
+      'This participant cannot choose the next color.',
+    );
   }
 
   return {
@@ -315,11 +338,17 @@ function startNextGame(state: AuthoritativeMatchState): MatchApplyResult {
   const series = state.series;
 
   if (!series || series.phase !== 'betweenGames') {
-    throw new Error('The series is not between games.');
+    throw new MatchCommandError(
+      'invalidCommand',
+      'The series is not between games.',
+    );
   }
 
   if (series.colorChooser) {
-    throw new Error('Choose the next color first.');
+    throw new MatchCommandError(
+      'invalidCommand',
+      'Choose the next color first.',
+    );
   }
 
   const engine = engineStateOnly(createInitialState(state.rules));
@@ -350,12 +379,23 @@ export function applyMatchCommand(
   actor: MatchParticipant,
   command: MatchCommand,
 ): MatchApplyResult {
-  switch (command.type) {
-    case 'submitAction':
-      return applyActionCommand(state, actor, command);
-    case 'chooseNextColor':
-      return chooseNextColor(state, actor, command.color);
-    case 'startNextGame':
-      return startNextGame(state);
+  try {
+    switch (command.type) {
+      case 'submitAction':
+        return applyActionCommand(state, actor, command);
+      case 'chooseNextColor':
+        return chooseNextColor(state, actor, command.color);
+      case 'startNextGame':
+        return startNextGame(state);
+    }
+  } catch (error) {
+    if (error instanceof MatchCommandError) {
+      throw error;
+    }
+
+    throw new MatchCommandError(
+      'invalidCommand',
+      error instanceof Error ? error.message : 'Invalid match command.',
+    );
   }
 }
