@@ -1,5 +1,5 @@
 import {
-  advanceGeneratedEngineState,
+  advanceGeneratedEngineTransition,
   type EngineState,
   type Player,
   type RuleConfig,
@@ -455,8 +455,18 @@ export function precomputeOrderedActions(
   return candidateActions.map<PrecomputedOrderedAction>((action) => {
     throwIfMoveOrderingTimedOut(deadline, now);
 
-    const nextState = advanceGeneratedEngineState(state, action, ruleConfig);
-    const nextPerfBundle = getStatePerfBundle(nextState, ruleConfig, perfCache);
+    const transition = advanceGeneratedEngineTransition(
+      state,
+      action,
+      ruleConfig,
+    );
+    const nextState = transition.state;
+    const nextPerfBundle = getStatePerfBundle(
+      nextState,
+      ruleConfig,
+      perfCache,
+      nextState.status === 'gameOver' ? undefined : transition.positionHash,
+    );
     const nextAnalysis = getPerfAnalysis(nextPerfBundle, nextState);
     const nextPositionKey = nextPerfBundle.positionKey;
     const winsImmediately =
@@ -604,11 +614,7 @@ export function precomputeOrderedActions(
     );
     if (useOpeningGeometryBias) {
       staticScore += Math.round(
-        getBehaviorGeometryBias(
-          behaviorProfileId,
-          action,
-          behaviorSeed,
-        ) * 6,
+        getBehaviorGeometryBias(behaviorProfileId, action, behaviorSeed) * 6,
       );
     }
     staticScore += Math.round(policyPrior * policyPriorWeight);

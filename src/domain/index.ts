@@ -11,6 +11,7 @@ export {
 export {
   advanceEngineState,
   advanceGeneratedEngineState,
+  advanceGeneratedEngineTransition,
   advanceFinishingEngineState,
   applyAction,
 } from '@/domain/reducers/gameReducer';

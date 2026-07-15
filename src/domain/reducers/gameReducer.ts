@@ -24,16 +24,25 @@ export function advanceEngineState(
 }
 
 /** Fast search transition for an action generated from the same state and rules. */
+export function advanceGeneratedEngineTransition(
+  state: EngineState,
+  action: TurnAction,
+  config: Partial<RuleConfig> = {},
+): ReturnType<typeof runGeneratedEngineCommand> {
+  return runGeneratedEngineCommand(
+    state,
+    { type: 'submitAction', action },
+    config,
+  );
+}
+
+/** Fast search state projection when generated-transition metadata is not needed. */
 export function advanceGeneratedEngineState(
   state: EngineState,
   action: TurnAction,
   config: Partial<RuleConfig> = {},
 ): EngineState {
-  return runGeneratedEngineCommand(
-    state,
-    { type: 'submitAction', action },
-    config,
-  ).state;
+  return advanceGeneratedEngineTransition(state, action, config).state;
 }
 
 /** Same-player transition used while the loser completes a finished series game. */

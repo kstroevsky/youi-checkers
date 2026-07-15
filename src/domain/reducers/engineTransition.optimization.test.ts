@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest';
 import {
   advanceEngineState,
   advanceGeneratedEngineState,
+  advanceGeneratedEngineTransition,
   createInitialState,
   getLegalActions,
+  hashPosition,
   hasLegalAction,
 } from '@/domain';
 import { withConfig } from '@/test/factories';
@@ -21,9 +23,22 @@ describe('generated-action engine transition', () => {
       expect(hasLegalAction(state, config)).toBe(actions.length > 0);
 
       for (const action of actions.slice(0, 16)) {
-        expect(advanceGeneratedEngineState(state, action, config)).toEqual(
-          advanceEngineState(state, action, config),
+        const transition = advanceGeneratedEngineTransition(
+          state,
+          action,
+          config,
         );
+        const expectedState = advanceEngineState(state, action, config);
+
+        expect(transition.state).toEqual(expectedState);
+        expect(advanceGeneratedEngineState(state, action, config)).toEqual(
+          expectedState,
+        );
+        expect(transition.events).toEqual([]);
+
+        if (transition.state.status === 'active') {
+          expect(transition.positionHash).toBe(hashPosition(transition.state));
+        }
       }
 
       if (!actions.length) {
