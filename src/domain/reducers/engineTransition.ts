@@ -17,7 +17,8 @@ import {
 } from '@/domain/rules/moveGeneration';
 import {
   checkPlayerVictory,
-  checkVictory,
+  checkRepetitionVictoryByKey,
+  checkVictoryWithPositionHash,
   resolveDrawOutcome,
 } from '@/domain/rules/victory';
 
@@ -213,11 +214,17 @@ function resolveEngineCommand(
     options.drawResolution === 'disabled'
       ? { ...resolvedConfig, drawRule: 'none' as const }
       : resolvedConfig;
-  const evaluateVictory = (candidate: EngineState): Victory =>
+  const evaluateVictory = (
+    candidate: EngineState,
+  ): { positionHash: string | null; victory: Victory } =>
     options.victoryPlayer
-      ? checkPlayerVictory(candidate, options.victoryPlayer)
-      : checkVictory(candidate, victoryConfig);
-  const winAfterMove = evaluateVictory(immediateState);
+      ? {
+          positionHash: null,
+          victory: checkPlayerVictory(candidate, options.victoryPlayer),
+        }
+      : checkVictoryWithPositionHash(candidate, victoryConfig);
+  const immediateVictory = evaluateVictory(immediateState);
+  const winAfterMove = immediateVictory.victory;
   const autoPasses: Player[] = [];
   let finalState = immediateState;
 
@@ -261,7 +268,10 @@ function resolveEngineCommand(
     }
   }
 
-  const positionHash = hashPosition(finalState);
+  const positionHash =
+    finalState === immediateState && immediateVictory.positionHash !== null
+      ? immediateVictory.positionHash
+      : hashPosition(finalState);
   finalState = {
     ...finalState,
     positionCounts: {
@@ -271,7 +281,9 @@ function resolveEngineCommand(
   };
 
   if (finalState.status !== 'gameOver') {
-    const finalVictory = evaluateVictory(finalState);
+    const finalVictory = options.victoryPlayer
+      ? ({ type: 'none' } as const)
+      : checkRepetitionVictoryByKey(finalState, victoryConfig, positionHash);
 
     if (finalVictory.type !== 'none') {
       finalState = {

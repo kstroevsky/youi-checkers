@@ -11,6 +11,11 @@ import {
 } from '@/domain';
 import { withConfig } from '@/test/factories';
 import type { EngineState } from '@/domain';
+import {
+  checkRepetitionVictoryByKey,
+  checkVictory,
+  checkVictoryWithPositionHash,
+} from '@/domain/rules/victory';
 
 describe('generated-action engine transition', () => {
   it('matches the validated transition across a deterministic game prefix', () => {
@@ -64,6 +69,33 @@ describe('generated-action engine transition', () => {
         config,
       ),
     ).toThrow();
+  });
+
+  it('reuses the exact repetition key without changing the draw outcome', () => {
+    const config = withConfig({ drawRule: 'threefold' });
+    const initialState = createInitialState(config);
+    const positionHash = hashPosition(initialState);
+    const state = {
+      ...initialState,
+      positionCounts: {
+        ...initialState.positionCounts,
+        [positionHash]: 3,
+      },
+    };
+    const checked = checkVictoryWithPositionHash(state, config);
+
+    expect(checked.positionHash).toBe(positionHash);
+    expect(checked.victory).toEqual({ type: 'threefoldDraw' });
+    expect(checked.victory).toEqual(checkVictory(state, config));
+    expect(checkRepetitionVictoryByKey(state, config, positionHash)).toEqual(
+      checked.victory,
+    );
+    expect(
+      checkVictoryWithPositionHash(state, withConfig({ drawRule: 'none' })),
+    ).toEqual({
+      positionHash: null,
+      victory: { type: 'none' },
+    });
   });
 
   it('returns false for terminal states without generating actions', () => {

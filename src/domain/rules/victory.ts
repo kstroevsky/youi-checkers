@@ -160,7 +160,16 @@ export function resolveDrawOutcome(
   state: EngineState,
   source: DrawSource,
 ): Victory {
-  const metrics = getDrawTiebreakMetrics(state);
+  return resolveDrawOutcomeByKey(state, source, hashPosition(state));
+}
+
+/** Resolves a draw without hashing again when the repetition key is known. */
+function resolveDrawOutcomeByKey(
+  state: EngineState,
+  source: DrawSource,
+  positionHash: string,
+): Victory {
+  const metrics = getDrawTiebreakMetricsByKey(state, positionHash);
   const whiteCheckers = metrics.ownFieldCheckers.white;
   const blackCheckers = metrics.ownFieldCheckers.black;
 
@@ -204,28 +213,57 @@ export function checkPlayerVictory(
   return { type: 'none' };
 }
 
-/** Evaluates deterministic terminal status for current state under provided rules. */
-export function checkVictory(
+/** Checks only the repetition rule using a caller-supplied canonical key. */
+export function checkRepetitionVictoryByKey(
+  state: EngineState,
+  config: RuleConfig,
+  positionHash: string,
+): Victory {
+  if (
+    config.drawRule === 'threefold' &&
+    (state.positionCounts[positionHash] ?? 0) >= 3
+  ) {
+    return resolveDrawOutcomeByKey(state, 'threefold', positionHash);
+  }
+
+  return { type: 'none' };
+}
+
+/**
+ * Evaluates terminal status and returns the repetition hash it already needed.
+ * Structural wins return no key because their finalized state can change the
+ * current player or pending-jump fields before position counting.
+ */
+export function checkVictoryWithPositionHash(
   state: EngineState,
   config: Partial<RuleConfig> = {},
-): Victory {
+): { positionHash: string | null; victory: Victory } {
   const resolvedConfig = withRuleDefaults(config);
 
   for (const player of ['white', 'black'] as const) {
     const victory = checkPlayerVictory(state, player);
 
     if (victory.type !== 'none') {
-      return victory;
+      return { positionHash: null, victory };
     }
   }
 
   if (resolvedConfig.drawRule === 'threefold') {
     const positionHash = hashPosition(state);
 
-    if ((state.positionCounts[positionHash] ?? 0) >= 3) {
-      return resolveDrawOutcome(state, 'threefold');
-    }
+    return {
+      positionHash,
+      victory: checkRepetitionVictoryByKey(state, resolvedConfig, positionHash),
+    };
   }
 
-  return { type: 'none' };
+  return { positionHash: null, victory: { type: 'none' } };
+}
+
+/** Evaluates deterministic terminal status for current state under provided rules. */
+export function checkVictory(
+  state: EngineState,
+  config: Partial<RuleConfig> = {},
+): Victory {
+  return checkVictoryWithPositionHash(state, config).victory;
 }
