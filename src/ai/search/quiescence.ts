@@ -1,4 +1,8 @@
-import type { EngineState } from '@/domain';
+import {
+  advanceGeneratedEngineState,
+  type EngineState,
+  type TurnAction,
+} from '@/domain';
 import { evaluateState } from '@/ai/evaluation';
 import { orderMoves, type OrderedAction } from '@/ai/moveOrdering';
 import { getCachedLegalActions, getStatePerfBundle } from '@/ai/perf';
@@ -14,6 +18,38 @@ import {
 import { actionId, makeTableKey, throwIfTimedOut } from '@/ai/search/shared';
 import type { SearchContext, SearchStack } from '@/ai/search/types';
 
+/**
+ * Defers full move-order feature extraction until a candidate can survive the
+ * existing quiescence retention predicate.
+ *
+ * Jump sequences always survive. Manual unfreezes still need the full tactical
+ * profile. For every other multi-candidate action the final predicate can only
+ * retain a game-over transition, so building strategy, participation, and
+ * tiebreak profiles for a non-terminal successor is unused work.
+ */
+function getQuiescenceScoringActions(
+  state: EngineState,
+  candidateActions: TurnAction[],
+  context: SearchContext,
+): TurnAction[] {
+  if (candidateActions.length <= 1) {
+    return candidateActions;
+  }
+
+  return candidateActions.filter((action) => {
+    throwIfTimedOut(context.now, context.deadline);
+
+    if (action.type === 'jumpSequence' || action.type === 'manualUnfreeze') {
+      return true;
+    }
+
+    return (
+      advanceGeneratedEngineState(state, action, context.ruleConfig).status ===
+      'gameOver'
+    );
+  });
+}
+
 /** Chooses forcing moves only for the quiescence tail below the main search frontier. */
 export function getQuiescenceMoves(
   state: EngineState,
@@ -23,8 +59,16 @@ export function getQuiescenceMoves(
   participationState: ParticipationState,
   context: SearchContext,
 ): OrderedAction[] {
-  const perfBundle = getStatePerfBundle(state, context.ruleConfig, context.perfCache);
-  const legalActions = getCachedLegalActions(state, context.ruleConfig, perfBundle.positionKey);
+  const perfBundle = getStatePerfBundle(
+    state,
+    context.ruleConfig,
+    context.perfCache,
+  );
+  const legalActions = getCachedLegalActions(
+    state,
+    context.ruleConfig,
+    perfBundle.positionKey,
+  );
 
   if (!legalActions.length) {
     return [];
@@ -34,7 +78,10 @@ export function getQuiescenceMoves(
     legalActions.length === 1
       ? legalActions
       : legalActions.filter((action) => {
-          if (action.type === 'jumpSequence' || action.type === 'manualUnfreeze') {
+          if (
+            action.type === 'jumpSequence' ||
+            action.type === 'manualUnfreeze'
+          ) {
             return true;
           }
 
@@ -56,40 +103,58 @@ export function getQuiescenceMoves(
     return [];
   }
 
-  const ttBestAction = context.table.get(makeTableKey(state))?.bestAction ?? null;
-  const ordered = orderMoves(state, state.currentPlayer, context.ruleConfig, context.preset, {
-    actions: candidateActions,
-    behaviorProfile: context.behaviorProfile,
-    deadline: context.deadline,
-    grandparentPositionKey: getPreviousOwnPositionKeyFromLine(
-      state.currentPlayer,
-      stack,
-      context,
-    ),
-    historyScores: context.historyScores,
-    includeAllQuietMoves: true,
-    killerIds: context.killerMovesByDepth.get(currentDepth) ?? [],
-    now: context.now,
-    diagnostics: context.diagnostics,
-    participationState,
-    perfCache: context.perfCache,
-    policyPriors: null,
-    previousStrategicTags: null,
-    previousActionId,
-    pvMoveId: context.pvMoveByDepth.get(currentDepth) ?? null,
-    repetitionPenalty: context.preset.repetitionPenalty,
-    riskMode: context.riskMode,
-    samePlayerPreviousAction: getPreviousOwnActionFromLine(
-      state.currentPlayer,
-      stack,
-      context,
-    ),
-    selfUndoPenalty: context.preset.selfUndoPenalty,
-    continuationScores: context.continuationScores,
-    ttMoveId: ttBestAction ? actionId(ttBestAction) : null,
-  });
+  const preserveSingleCandidate = candidateActions.length === 1;
+  const scoringActions = getQuiescenceScoringActions(
+    state,
+    candidateActions,
+    context,
+  );
 
-  if (candidateActions.length === 1) {
+  if (!scoringActions.length) {
+    return [];
+  }
+
+  const ttBestAction =
+    context.table.get(makeTableKey(state))?.bestAction ?? null;
+  const ordered = orderMoves(
+    state,
+    state.currentPlayer,
+    context.ruleConfig,
+    context.preset,
+    {
+      actions: scoringActions,
+      behaviorProfile: context.behaviorProfile,
+      deadline: context.deadline,
+      grandparentPositionKey: getPreviousOwnPositionKeyFromLine(
+        state.currentPlayer,
+        stack,
+        context,
+      ),
+      historyScores: context.historyScores,
+      includeAllQuietMoves: true,
+      killerIds: context.killerMovesByDepth.get(currentDepth) ?? [],
+      now: context.now,
+      diagnostics: context.diagnostics,
+      participationState,
+      perfCache: context.perfCache,
+      policyPriors: null,
+      previousStrategicTags: null,
+      previousActionId,
+      pvMoveId: context.pvMoveByDepth.get(currentDepth) ?? null,
+      repetitionPenalty: context.preset.repetitionPenalty,
+      riskMode: context.riskMode,
+      samePlayerPreviousAction: getPreviousOwnActionFromLine(
+        state.currentPlayer,
+        stack,
+        context,
+      ),
+      selfUndoPenalty: context.preset.selfUndoPenalty,
+      continuationScores: context.continuationScores,
+      ttMoveId: ttBestAction ? actionId(ttBestAction) : null,
+    },
+  );
+
+  if (preserveSingleCandidate) {
     return ordered.slice(0, 1);
   }
 
