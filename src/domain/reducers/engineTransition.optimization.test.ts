@@ -17,6 +17,36 @@ import {
   checkVictoryWithPositionHash,
 } from '@/domain/rules/victory';
 
+function getPositionCountKeys(
+  positionCounts: EngineState['positionCounts'],
+): string[] {
+  const keys = new Set<string>();
+  let layer: object | null = positionCounts;
+
+  while (layer !== null && layer !== Object.prototype) {
+    for (const key of Object.keys(layer)) {
+      keys.add(key);
+    }
+
+    layer = Object.getPrototypeOf(layer) as object | null;
+  }
+
+  return [...keys].sort();
+}
+
+function expectPositionCountsToMatch(
+  actual: EngineState['positionCounts'],
+  expected: EngineState['positionCounts'],
+): void {
+  const expectedKeys = Object.keys(expected).sort();
+
+  expect(getPositionCountKeys(actual)).toEqual(expectedKeys);
+
+  for (const key of expectedKeys) {
+    expect(actual[key], key).toBe(expected[key]);
+  }
+}
+
 describe('generated-action engine transition', () => {
   it('matches the validated transition across a deterministic game prefix', () => {
     const config = withConfig({ drawRule: 'threefold' });
@@ -69,6 +99,82 @@ describe('generated-action engine transition', () => {
         config,
       ),
     ).toThrow();
+  });
+
+  it('preserves exact transition semantics with search-only position-count overlays', () => {
+    const config = withConfig({ drawRule: 'threefold' });
+    let copiedState: EngineState = createInitialState(config);
+    let overlayState: EngineState = createInitialState(config);
+
+    for (let ply = 0; ply < 12 && copiedState.status === 'active'; ply += 1) {
+      const actions = getLegalActions(copiedState, config);
+
+      if (!actions.length) {
+        break;
+      }
+
+      const action = actions[Math.floor(actions.length / 2)];
+      const copied = advanceGeneratedEngineTransition(
+        copiedState,
+        action,
+        config,
+      );
+      const overlaid = advanceGeneratedEngineTransition(
+        overlayState,
+        action,
+        config,
+        { positionCountStorage: 'overlay' },
+      );
+      const { positionCounts: copiedCounts, ...copiedRest } = copied.state;
+      const { positionCounts: overlayCounts, ...overlayRest } = overlaid.state;
+
+      expect(overlaid.positionHash).toBe(copied.positionHash);
+      expect(overlayRest).toEqual(copiedRest);
+      expectPositionCountsToMatch(overlayCounts, copiedCounts);
+      expect(Object.getPrototypeOf(overlayCounts)).toBe(
+        overlayState.positionCounts,
+      );
+
+      copiedState = copied.state;
+      overlayState = overlaid.state;
+    }
+  });
+
+  it('resolves an overlaid third occurrence exactly like copied counts', () => {
+    const config = withConfig({ drawRule: 'threefold' });
+    const initialState = createInitialState(config);
+    const action = getLegalActions(initialState, config)[0];
+    const probe = advanceGeneratedEngineTransition(
+      initialState,
+      action,
+      config,
+    );
+    const nearRepetition = {
+      ...initialState,
+      positionCounts: {
+        ...initialState.positionCounts,
+        [probe.positionHash]: 2,
+      },
+    };
+    const copied = advanceGeneratedEngineTransition(
+      nearRepetition,
+      action,
+      config,
+    );
+    const overlaid = advanceGeneratedEngineTransition(
+      nearRepetition,
+      action,
+      config,
+      { positionCountStorage: 'overlay' },
+    );
+
+    expect(overlaid.state.victory).toEqual({ type: 'threefoldDraw' });
+    expect(overlaid.state.victory).toEqual(copied.state.victory);
+    expect(overlaid.state.status).toBe(copied.state.status);
+    expectPositionCountsToMatch(
+      overlaid.state.positionCounts,
+      copied.state.positionCounts,
+    );
   });
 
   it('reuses the exact repetition key without changing the draw outcome', () => {

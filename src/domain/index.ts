@@ -68,3 +68,4 @@ export type {
   EngineTransitionResult,
   GameTransitionResult,
 } from '@/domain/reducers/engineTransition';
+export type { GeneratedEngineTransitionOptions } from '@/domain/reducers/gameReducer';

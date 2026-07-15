@@ -172,6 +172,30 @@ type ResolvedEngineTransition = {
   state: EngineState;
 };
 
+type PositionCountStorage = 'copy' | 'overlay';
+
+/** Adds one immutable repetition count, optionally sharing the unchanged parent table. */
+function incrementPositionCount(
+  positionCounts: EngineState['positionCounts'],
+  positionHash: string,
+  storage: PositionCountStorage,
+): EngineState['positionCounts'] {
+  const count = (positionCounts[positionHash] ?? 0) + 1;
+
+  if (storage === 'copy') {
+    return {
+      ...positionCounts,
+      [positionHash]: count,
+    };
+  }
+
+  const overlay = Object.create(
+    positionCounts,
+  ) as EngineState['positionCounts'];
+  overlay[positionHash] = count;
+  return overlay;
+}
+
 /** Shared engine transition core used by both state-only and eventful command paths. */
 function resolveEngineCommand(
   state: EngineState,
@@ -179,6 +203,7 @@ function resolveEngineCommand(
   config: Partial<RuleConfig> = {},
   options: EngineTransitionOptions = {},
   actionAlreadyValidated = false,
+  positionCountStorage: PositionCountStorage = 'copy',
 ): ResolvedEngineTransition {
   const resolvedConfig = withRuleDefaults(config);
   if (!actionAlreadyValidated) {
@@ -274,10 +299,11 @@ function resolveEngineCommand(
       : hashPosition(finalState);
   finalState = {
     ...finalState,
-    positionCounts: {
-      ...finalState.positionCounts,
-      [positionHash]: (finalState.positionCounts[positionHash] ?? 0) + 1,
-    },
+    positionCounts: incrementPositionCount(
+      finalState.positionCounts,
+      positionHash,
+      positionCountStorage,
+    ),
   };
 
   if (finalState.status !== 'gameOver') {
@@ -340,6 +366,7 @@ export function runGeneratedEngineCommand(
   state: EngineState,
   command: EngineCommand,
   config: Partial<RuleConfig> = {},
+  positionCountStorage: PositionCountStorage = 'copy',
 ): EngineTransitionResult {
   const result = resolveEngineCommand(
     state,
@@ -347,6 +374,7 @@ export function runGeneratedEngineCommand(
     config,
     { emitEvents: false },
     true,
+    positionCountStorage,
   );
 
   return {

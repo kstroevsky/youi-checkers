@@ -459,6 +459,7 @@ export function precomputeOrderedActions(
       state,
       action,
       ruleConfig,
+      { positionCountStorage: 'overlay' },
     );
     const nextState = transition.state;
     const nextPerfBundle = getStatePerfBundle(
