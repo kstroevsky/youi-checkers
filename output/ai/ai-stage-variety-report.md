@@ -1,6 +1,6 @@
 # AI Stage Variety Report
 
-Generated at: 2026-03-28T17:09:09.799Z
+Generated at: 2026-07-15T22:16:20.634Z
 
 This file is a generated report artifact from `npm run ai:stage-variety`.
 
@@ -18,289 +18,471 @@ Imported position move number: 1, replay turn count: 0.
 
 | Difficulty | Avg plies | Decisive | 3fold draws | Repetition | Undo | Stagnation | Displacement | Drama | Tension | Risk active | Late risk | Stagnation risk |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| easy | 33.875 | 0 | 0.375 | 0.057196 | 0.068266 | 0.378788 | 0.072109 | 1.357414 | 0 | 0.060886 | 0 | 0.060886 |
-| medium | 35.3125 | 0 | 0.3125 | 0.056637 | 0.074336 | 0.375258 | 0.072419 | 1.391621 | 0 | 0.040708 | 0 | 0.040708 |
-| hard | 31 | 0 | 0.5 | 0.094758 | 0.114919 | 0.401442 | 0.072581 | 1.554167 | 0 | 0.03629 | 0 | 0.03629 |
+| easy | 40 | 0 | 0 | 0.001563 | 0.070313 | 0.2375 | 0.07322 | 1.721154 | 0 | 0.003125 | 0 | 0.003125 |
+| medium | 40 | 0 | 0 | 0 | 0.045312 | 0.235714 | 0.072873 | 1.740385 | 0 | 0 | 0 | 0 |
+| hard | 40 | 0 | 0 | 0 | 0.042188 | 0.217857 | 0.072266 | 1.794872 | 0 | 0 | 0 | 0 |
 
 ### easy
 
-Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":6,"stalemateDraw":0,"unfinished":10}. Risk-active games: 0.5625. Persona coverage: 1.
+Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 0.0625. Persona coverage: 1.
 
-RiskMode ply shares: {"late":0,"normal":0.939114,"stagnation":0.060886}. Persona ply shares: {"builder":0.289668,"expander":0.319188,"hunter":0.391144}.
+RiskMode ply shares: {"late":0,"normal":0.996875,"stagnation":0.003125}. Persona ply shares: {"builder":0.31875,"expander":0.304688,"hunter":0.376563}.
 
 | Metric | Value | Target | Status |
 | --- | ---: | --- | --- |
 | decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
-| threefoldDrawShare | 0.375 | <= 0.3 (warn 0.55) | warn |
-| repetitionPlyShare | 0.057196 | <= 0.1 (warn 0.2) | good |
-| twoPlyUndoRate | 0.068266 | <= 0.02 (warn 0.08) | warn |
-| stagnationWindowRate | 0.378788 | <= 0.15 (warn 0.3) | bad |
+| threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
+| repetitionPlyShare | 0.001563 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.070313 | <= 0.02 (warn 0.08) | warn |
+| stagnationWindowRate | 0.2375 | <= 0.15 (warn 0.3) | warn |
 | openingEntropy | 1.579434 | >= 1 (warn 0.5) | good |
 | uniqueOpeningLineShare | 0.4375 | >= 0.35 (warn 0.2) | good |
+| meanParticipationDelta | 35.679688 | n/a | n/a |
+| positiveParticipationPlyShare | 0.489063 | n/a | n/a |
 | decompressionSlope | 0.000248 | >= 0.04 (warn 0.02) | bad |
-| mobilityReleaseSlope | 0.01756 | >= 0.05 (warn 0) | warn |
-| meanBoardDisplacement | 0.072109 | >= 0.08 (warn 0.06) | warn |
-| drama | 1.357414 | >= 0.25 (warn 0.18) | good |
+| mobilityReleaseSlope | 0.056994 | >= 0.05 (warn 0) | good |
+| meanBoardDisplacement | 0.07322 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.721154 | >= 0.25 (warn 0.18) | good |
 | tension | 0 | >= 0.45 (warn 0.3) | bad |
 
 ### medium
 
-Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":5,"stalemateDraw":0,"unfinished":11}. Risk-active games: 0.5. Persona coverage: 1.
+Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 0. Persona coverage: 1.
 
-RiskMode ply shares: {"late":0,"normal":0.959292,"stagnation":0.040708}. Persona ply shares: {"builder":0.274336,"expander":0.329204,"hunter":0.39646}.
+RiskMode ply shares: {"late":0,"normal":1,"stagnation":0}. Persona ply shares: {"builder":0.317188,"expander":0.279687,"hunter":0.403125}.
 
 | Metric | Value | Target | Status |
 | --- | ---: | --- | --- |
 | decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
-| threefoldDrawShare | 0.3125 | <= 0.3 (warn 0.55) | warn |
-| repetitionPlyShare | 0.056637 | <= 0.1 (warn 0.2) | good |
-| twoPlyUndoRate | 0.074336 | <= 0.02 (warn 0.08) | warn |
-| stagnationWindowRate | 0.375258 | <= 0.15 (warn 0.3) | bad |
+| threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
+| repetitionPlyShare | 0 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.045312 | <= 0.02 (warn 0.08) | warn |
+| stagnationWindowRate | 0.235714 | <= 0.15 (warn 0.3) | warn |
 | openingEntropy | 1.579434 | >= 1 (warn 0.5) | good |
 | uniqueOpeningLineShare | 0.25 | >= 0.35 (warn 0.2) | warn |
+| meanParticipationDelta | 72.9 | n/a | n/a |
+| positiveParticipationPlyShare | 0.471875 | n/a | n/a |
 | decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
-| mobilityReleaseSlope | 0.019792 | >= 0.05 (warn 0) | warn |
-| meanBoardDisplacement | 0.072419 | >= 0.08 (warn 0.06) | warn |
-| drama | 1.391621 | >= 0.25 (warn 0.18) | good |
+| mobilityReleaseSlope | 0.05997 | >= 0.05 (warn 0) | good |
+| meanBoardDisplacement | 0.072873 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.740385 | >= 0.25 (warn 0.18) | good |
 | tension | 0 | >= 0.45 (warn 0.3) | bad |
 
 ### hard
 
-Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":8,"stalemateDraw":0,"unfinished":8}. Risk-active games: 0.375. Persona coverage: 1.
+Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 0. Persona coverage: 1.
 
-RiskMode ply shares: {"late":0,"normal":0.96371,"stagnation":0.03629}. Persona ply shares: {"builder":0.3125,"expander":0.308468,"hunter":0.379032}.
+RiskMode ply shares: {"late":0,"normal":1,"stagnation":0}. Persona ply shares: {"builder":0.321875,"expander":0.303125,"hunter":0.375}.
 
 | Metric | Value | Target | Status |
 | --- | ---: | --- | --- |
 | decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
-| threefoldDrawShare | 0.5 | <= 0.3 (warn 0.55) | warn |
-| repetitionPlyShare | 0.094758 | <= 0.1 (warn 0.2) | good |
-| twoPlyUndoRate | 0.114919 | <= 0.02 (warn 0.08) | bad |
-| stagnationWindowRate | 0.401442 | <= 0.15 (warn 0.3) | bad |
+| threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
+| repetitionPlyShare | 0 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.042188 | <= 0.02 (warn 0.08) | warn |
+| stagnationWindowRate | 0.217857 | <= 0.15 (warn 0.3) | warn |
 | openingEntropy | 1.579434 | >= 1 (warn 0.5) | good |
 | uniqueOpeningLineShare | 0.3125 | >= 0.35 (warn 0.2) | warn |
+| meanParticipationDelta | 86.917187 | n/a | n/a |
+| positiveParticipationPlyShare | 0.492188 | n/a | n/a |
 | decompressionSlope | 0.000744 | >= 0.04 (warn 0.02) | bad |
-| mobilityReleaseSlope | 0.013095 | >= 0.05 (warn 0) | warn |
-| meanBoardDisplacement | 0.072581 | >= 0.08 (warn 0.06) | warn |
-| drama | 1.554167 | >= 0.25 (warn 0.18) | good |
+| mobilityReleaseSlope | 0.051042 | >= 0.05 (warn 0) | good |
+| meanBoardDisplacement | 0.072266 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.794872 | >= 0.25 (warn 0.18) | good |
 | tension | 0 | >= 0.45 (warn 0.3) | bad |
 
-## turn50
+## midgame20
+
+Imported position move number: 21, replay turn count: 20.
+
+| Difficulty | Avg plies | Decisive | 3fold draws | Repetition | Undo | Stagnation | Displacement | Drama | Tension | Risk active | Late risk | Stagnation risk |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| easy | 40 | 0 | 0 | 0 | 0.098437 | 0.498214 | 0.075955 | 1.144231 | 0 | 0 | 0 | 0 |
+| medium | 40 | 0 | 0 | 0.025 | 0.125 | 0.857143 | 0.079166 | 1.025641 | 0 | 0 | 0 | 0 |
+| hard | 40 | 0 | 0 | 0 | 0.1 | 0.657143 | 0.076389 | 1.128205 | 0 | 0 | 0 | 0 |
+
+### easy
+
+Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 0. Persona coverage: 1.
+
+RiskMode ply shares: {"late":0,"normal":1,"stagnation":0}. Persona ply shares: {"builder":0.315625,"expander":0.3,"hunter":0.384375}.
+
+| Metric | Value | Target | Status |
+| --- | ---: | --- | --- |
+| decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
+| threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
+| repetitionPlyShare | 0 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.098437 | <= 0.02 (warn 0.08) | bad |
+| stagnationWindowRate | 0.498214 | <= 0.15 (warn 0.3) | bad |
+| openingEntropy | 0 | >= 1 (warn 0.5) | bad |
+| uniqueOpeningLineShare | 0.125 | >= 0.35 (warn 0.2) | bad |
+| meanParticipationDelta | 44.398438 | n/a | n/a |
+| positiveParticipationPlyShare | 0.210938 | n/a | n/a |
+| decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
+| mobilityReleaseSlope | -1.367857 | >= 0.05 (warn 0) | bad |
+| meanBoardDisplacement | 0.075955 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.144231 | >= 0.25 (warn 0.18) | good |
+| tension | 0 | >= 0.45 (warn 0.3) | bad |
+
+### medium
+
+Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 0. Persona coverage: 1.
+
+RiskMode ply shares: {"late":0,"normal":1,"stagnation":0}. Persona ply shares: {"builder":0.3125,"expander":0.3125,"hunter":0.375}.
+
+| Metric | Value | Target | Status |
+| --- | ---: | --- | --- |
+| decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
+| threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
+| repetitionPlyShare | 0.025 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.125 | <= 0.02 (warn 0.08) | bad |
+| stagnationWindowRate | 0.857143 | <= 0.15 (warn 0.3) | bad |
+| openingEntropy | 0 | >= 1 (warn 0.5) | bad |
+| uniqueOpeningLineShare | 0.0625 | >= 0.35 (warn 0.2) | bad |
+| meanParticipationDelta | 290.625 | n/a | n/a |
+| positiveParticipationPlyShare | 0.2 | n/a | n/a |
+| decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
+| mobilityReleaseSlope | -1.367857 | >= 0.05 (warn 0) | bad |
+| meanBoardDisplacement | 0.079166 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.025641 | >= 0.25 (warn 0.18) | good |
+| tension | 0 | >= 0.45 (warn 0.3) | bad |
+
+### hard
+
+Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 0. Persona coverage: 1.
+
+RiskMode ply shares: {"late":0,"normal":1,"stagnation":0}. Persona ply shares: {"builder":0.3125,"expander":0.3125,"hunter":0.375}.
+
+| Metric | Value | Target | Status |
+| --- | ---: | --- | --- |
+| decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
+| threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
+| repetitionPlyShare | 0 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.1 | <= 0.02 (warn 0.08) | bad |
+| stagnationWindowRate | 0.657143 | <= 0.15 (warn 0.3) | bad |
+| openingEntropy | 0 | >= 1 (warn 0.5) | bad |
+| uniqueOpeningLineShare | 0.0625 | >= 0.35 (warn 0.2) | bad |
+| meanParticipationDelta | 317.375 | n/a | n/a |
+| positiveParticipationPlyShare | 0.175 | n/a | n/a |
+| decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
+| mobilityReleaseSlope | -1.367857 | >= 0.05 (warn 0) | bad |
+| meanBoardDisplacement | 0.076389 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.128205 | >= 0.25 (warn 0.18) | good |
+| tension | 0 | >= 0.45 (warn 0.3) | bad |
+
+## midgame40
+
+Imported position move number: 41, replay turn count: 40.
+
+| Difficulty | Avg plies | Decisive | 3fold draws | Repetition | Undo | Stagnation | Displacement | Drama | Tension | Risk active | Late risk | Stagnation risk |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| easy | 40 | 0 | 0 | 0.003125 | 0.196875 | 0.628571 | 0.080078 | 1.384615 | 0 | 0.275 | 0.275 | 0 |
+| medium | 40 | 0 | 0 | 0 | 0.171875 | 0.517857 | 0.077647 | 1.544872 | 0 | 0.275 | 0.275 | 0 |
+| hard | 40 | 0 | 0 | 0 | 0.15 | 0.517857 | 0.076823 | 1.576923 | 0 | 0.275 | 0.275 | 0 |
+
+### easy
+
+Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 1. Persona coverage: 1.
+
+RiskMode ply shares: {"late":0.275,"normal":0.725,"stagnation":0}. Persona ply shares: {"builder":0.314063,"expander":0.325,"hunter":0.360938}.
+
+| Metric | Value | Target | Status |
+| --- | ---: | --- | --- |
+| decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
+| threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
+| repetitionPlyShare | 0.003125 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.196875 | <= 0.02 (warn 0.08) | bad |
+| stagnationWindowRate | 0.628571 | <= 0.15 (warn 0.3) | bad |
+| openingEntropy | 0 | >= 1 (warn 0.5) | bad |
+| uniqueOpeningLineShare | 0.125 | >= 0.35 (warn 0.2) | bad |
+| meanParticipationDelta | 73.839062 | n/a | n/a |
+| positiveParticipationPlyShare | 0.348438 | n/a | n/a |
+| decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
+| mobilityReleaseSlope | 0.728571 | >= 0.05 (warn 0) | good |
+| meanBoardDisplacement | 0.080078 | >= 0.08 (warn 0.06) | good |
+| drama | 1.384615 | >= 0.25 (warn 0.18) | good |
+| tension | 0 | >= 0.45 (warn 0.3) | bad |
+
+### medium
+
+Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 1. Persona coverage: 1.
+
+RiskMode ply shares: {"late":0.275,"normal":0.725,"stagnation":0}. Persona ply shares: {"builder":0.3125,"expander":0.320313,"hunter":0.367188}.
+
+| Metric | Value | Target | Status |
+| --- | ---: | --- | --- |
+| decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
+| threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
+| repetitionPlyShare | 0 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.171875 | <= 0.02 (warn 0.08) | bad |
+| stagnationWindowRate | 0.517857 | <= 0.15 (warn 0.3) | bad |
+| openingEntropy | 0 | >= 1 (warn 0.5) | bad |
+| uniqueOpeningLineShare | 0.0625 | >= 0.35 (warn 0.2) | bad |
+| meanParticipationDelta | 163.985938 | n/a | n/a |
+| positiveParticipationPlyShare | 0.420312 | n/a | n/a |
+| decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
+| mobilityReleaseSlope | 0.728571 | >= 0.05 (warn 0) | good |
+| meanBoardDisplacement | 0.077647 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.544872 | >= 0.25 (warn 0.18) | good |
+| tension | 0 | >= 0.45 (warn 0.3) | bad |
+
+### hard
+
+Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 1. Persona coverage: 1.
+
+RiskMode ply shares: {"late":0.275,"normal":0.725,"stagnation":0}. Persona ply shares: {"builder":0.315625,"expander":0.317188,"hunter":0.367188}.
+
+| Metric | Value | Target | Status |
+| --- | ---: | --- | --- |
+| decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
+| threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
+| repetitionPlyShare | 0 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.15 | <= 0.02 (warn 0.08) | bad |
+| stagnationWindowRate | 0.517857 | <= 0.15 (warn 0.3) | bad |
+| openingEntropy | 0 | >= 1 (warn 0.5) | bad |
+| uniqueOpeningLineShare | 0.0625 | >= 0.35 (warn 0.2) | bad |
+| meanParticipationDelta | 193.639062 | n/a | n/a |
+| positiveParticipationPlyShare | 0.4625 | n/a | n/a |
+| decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
+| mobilityReleaseSlope | 0.728571 | >= 0.05 (warn 0) | good |
+| meanBoardDisplacement | 0.076823 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.576923 | >= 0.25 (warn 0.18) | good |
+| tension | 0 | >= 0.45 (warn 0.3) | bad |
+
+## loopPressure50
 
 Imported position move number: 51, replay turn count: 50.
 
 | Difficulty | Avg plies | Decisive | 3fold draws | Repetition | Undo | Stagnation | Displacement | Drama | Tension | Risk active | Late risk | Stagnation risk |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| easy | 40 | 0 | 0 | 0.025 | 0.067187 | 0.503571 | 0.0773 | 0.996795 | 0 | 0.55 | 0.525 | 0.025 |
-| medium | 40 | 0 | 0 | 0.035937 | 0.082812 | 0.394643 | 0.077474 | 1.134615 | 0 | 0.529687 | 0.525 | 0.004687 |
-| hard | 40 | 0 | 0 | 0.025 | 0.067187 | 0.376786 | 0.077951 | 1.028846 | 0 | 0.525 | 0.525 | 0 |
+| easy | 40 | 0 | 0 | 0 | 0.034375 | 0.419643 | 0.078819 | 1.269231 | 0 | 0.525 | 0.525 | 0 |
+| medium | 40 | 0 | 0 | 0 | 0.095312 | 0.417857 | 0.079297 | 1.342949 | 0 | 0.525 | 0.525 | 0 |
+| hard | 40 | 0 | 0 | 0 | 0.134375 | 0.485714 | 0.079427 | 1.365385 | 0 | 0.525 | 0.525 | 0 |
 
 ### easy
 
 Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 1. Persona coverage: 1.
 
-RiskMode ply shares: {"late":0.525,"normal":0.45,"stagnation":0.025}. Persona ply shares: {"builder":0.303125,"expander":0.303125,"hunter":0.39375}.
+RiskMode ply shares: {"late":0.525,"normal":0.475,"stagnation":0}. Persona ply shares: {"builder":0.3125,"expander":0.307812,"hunter":0.379688}.
 
 | Metric | Value | Target | Status |
 | --- | ---: | --- | --- |
 | decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
 | threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
-| repetitionPlyShare | 0.025 | <= 0.1 (warn 0.2) | good |
-| twoPlyUndoRate | 0.067187 | <= 0.02 (warn 0.08) | warn |
-| stagnationWindowRate | 0.503571 | <= 0.15 (warn 0.3) | bad |
+| repetitionPlyShare | 0 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.034375 | <= 0.02 (warn 0.08) | warn |
+| stagnationWindowRate | 0.419643 | <= 0.15 (warn 0.3) | bad |
 | openingEntropy | 0 | >= 1 (warn 0.5) | bad |
 | uniqueOpeningLineShare | 0.0625 | >= 0.35 (warn 0.2) | bad |
-| decompressionSlope | 0.006349 | >= 0.04 (warn 0.02) | bad |
-| mobilityReleaseSlope | -0.021429 | >= 0.05 (warn 0) | bad |
-| meanBoardDisplacement | 0.0773 | >= 0.08 (warn 0.06) | warn |
-| drama | 0.996795 | >= 0.25 (warn 0.18) | good |
+| meanParticipationDelta | 68.26875 | n/a | n/a |
+| positiveParticipationPlyShare | 0.440625 | n/a | n/a |
+| decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
+| mobilityReleaseSlope | 0.155952 | >= 0.05 (warn 0) | good |
+| meanBoardDisplacement | 0.078819 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.269231 | >= 0.25 (warn 0.18) | good |
 | tension | 0 | >= 0.45 (warn 0.3) | bad |
 
 ### medium
 
 Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 1. Persona coverage: 1.
 
-RiskMode ply shares: {"late":0.525,"normal":0.470313,"stagnation":0.004687}. Persona ply shares: {"builder":0.30625,"expander":0.328125,"hunter":0.365625}.
+RiskMode ply shares: {"late":0.525,"normal":0.475,"stagnation":0}. Persona ply shares: {"builder":0.315625,"expander":0.315625,"hunter":0.36875}.
 
 | Metric | Value | Target | Status |
 | --- | ---: | --- | --- |
 | decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
 | threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
-| repetitionPlyShare | 0.035937 | <= 0.1 (warn 0.2) | good |
-| twoPlyUndoRate | 0.082812 | <= 0.02 (warn 0.08) | bad |
-| stagnationWindowRate | 0.394643 | <= 0.15 (warn 0.3) | bad |
+| repetitionPlyShare | 0 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.095312 | <= 0.02 (warn 0.08) | bad |
+| stagnationWindowRate | 0.417857 | <= 0.15 (warn 0.3) | bad |
 | openingEntropy | 0 | >= 1 (warn 0.5) | bad |
 | uniqueOpeningLineShare | 0.0625 | >= 0.35 (warn 0.2) | bad |
-| decompressionSlope | 0.006349 | >= 0.04 (warn 0.02) | bad |
-| mobilityReleaseSlope | -0.021429 | >= 0.05 (warn 0) | bad |
-| meanBoardDisplacement | 0.077474 | >= 0.08 (warn 0.06) | warn |
-| drama | 1.134615 | >= 0.25 (warn 0.18) | good |
+| meanParticipationDelta | 115.095313 | n/a | n/a |
+| positiveParticipationPlyShare | 0.4125 | n/a | n/a |
+| decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
+| mobilityReleaseSlope | 0.155952 | >= 0.05 (warn 0) | good |
+| meanBoardDisplacement | 0.079297 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.342949 | >= 0.25 (warn 0.18) | good |
 | tension | 0 | >= 0.45 (warn 0.3) | bad |
 
 ### hard
 
 Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 1. Persona coverage: 1.
 
-RiskMode ply shares: {"late":0.525,"normal":0.475,"stagnation":0}. Persona ply shares: {"builder":0.307812,"expander":0.314063,"hunter":0.378125}.
+RiskMode ply shares: {"late":0.525,"normal":0.475,"stagnation":0}. Persona ply shares: {"builder":0.315625,"expander":0.315625,"hunter":0.36875}.
 
 | Metric | Value | Target | Status |
 | --- | ---: | --- | --- |
 | decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
 | threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
-| repetitionPlyShare | 0.025 | <= 0.1 (warn 0.2) | good |
-| twoPlyUndoRate | 0.067187 | <= 0.02 (warn 0.08) | warn |
-| stagnationWindowRate | 0.376786 | <= 0.15 (warn 0.3) | bad |
+| repetitionPlyShare | 0 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.134375 | <= 0.02 (warn 0.08) | bad |
+| stagnationWindowRate | 0.485714 | <= 0.15 (warn 0.3) | bad |
 | openingEntropy | 0 | >= 1 (warn 0.5) | bad |
 | uniqueOpeningLineShare | 0.0625 | >= 0.35 (warn 0.2) | bad |
-| decompressionSlope | 0.006349 | >= 0.04 (warn 0.02) | bad |
-| mobilityReleaseSlope | -0.021429 | >= 0.05 (warn 0) | bad |
-| meanBoardDisplacement | 0.077951 | >= 0.08 (warn 0.06) | warn |
-| drama | 1.028846 | >= 0.25 (warn 0.18) | good |
+| meanParticipationDelta | 173.646875 | n/a | n/a |
+| positiveParticipationPlyShare | 0.415625 | n/a | n/a |
+| decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
+| mobilityReleaseSlope | 0.155952 | >= 0.05 (warn 0) | good |
+| meanBoardDisplacement | 0.079427 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.365385 | >= 0.25 (warn 0.18) | good |
 | tension | 0 | >= 0.45 (warn 0.3) | bad |
 
-## turn100
+## loopPressure100
 
 Imported position move number: 101, replay turn count: 100.
 
 | Difficulty | Avg plies | Decisive | 3fold draws | Repetition | Undo | Stagnation | Displacement | Drama | Tension | Risk active | Late risk | Stagnation risk |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| easy | 40 | 0 | 0 | 0 | 0.0625 | 0.321429 | 0.077821 | 1.003205 | 0 | 1 | 1 | 0 |
-| medium | 40 | 0 | 0 | 0 | 0.085938 | 0.335714 | 0.077213 | 0.929487 | 0 | 1 | 1 | 0 |
-| hard | 40 | 0 | 0 | 0.021875 | 0.170313 | 0.3625 | 0.073915 | 1.221154 | 0 | 1 | 1 | 0 |
+| easy | 40 | 0 | 0 | 0 | 0.10625 | 0.378571 | 0.077604 | 1.410256 | 0 | 1 | 1 | 0 |
+| medium | 40 | 0 | 0 | 0 | 0.126562 | 0.408929 | 0.077908 | 1.36859 | 0 | 1 | 1 | 0 |
+| hard | 40 | 0 | 0 | 0 | 0.00625 | 0.253571 | 0.074913 | 1.464744 | 0 | 1 | 1 | 0 |
 
 ### easy
 
 Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 1. Persona coverage: 1.
 
-RiskMode ply shares: {"late":1,"normal":0,"stagnation":0}. Persona ply shares: {"builder":0.3,"expander":0.3,"hunter":0.4}.
+RiskMode ply shares: {"late":1,"normal":0,"stagnation":0}. Persona ply shares: {"builder":0.314063,"expander":0.30625,"hunter":0.379688}.
 
 | Metric | Value | Target | Status |
 | --- | ---: | --- | --- |
 | decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
 | threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
 | repetitionPlyShare | 0 | <= 0.1 (warn 0.2) | good |
-| twoPlyUndoRate | 0.0625 | <= 0.02 (warn 0.08) | warn |
-| stagnationWindowRate | 0.321429 | <= 0.15 (warn 0.3) | bad |
+| twoPlyUndoRate | 0.10625 | <= 0.02 (warn 0.08) | bad |
+| stagnationWindowRate | 0.378571 | <= 0.15 (warn 0.3) | bad |
 | openingEntropy | 0 | >= 1 (warn 0.5) | bad |
-| uniqueOpeningLineShare | 0.125 | >= 0.35 (warn 0.2) | bad |
+| uniqueOpeningLineShare | 0.0625 | >= 0.35 (warn 0.2) | bad |
+| meanParticipationDelta | 79.145313 | n/a | n/a |
+| positiveParticipationPlyShare | 0.454688 | n/a | n/a |
 | decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
-| mobilityReleaseSlope | -0.197619 | >= 0.05 (warn 0) | bad |
-| meanBoardDisplacement | 0.077821 | >= 0.08 (warn 0.06) | warn |
-| drama | 1.003205 | >= 0.25 (warn 0.18) | good |
+| mobilityReleaseSlope | -0.127381 | >= 0.05 (warn 0) | bad |
+| meanBoardDisplacement | 0.077604 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.410256 | >= 0.25 (warn 0.18) | good |
 | tension | 0 | >= 0.45 (warn 0.3) | bad |
 
 ### medium
 
 Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 1. Persona coverage: 1.
 
-RiskMode ply shares: {"late":1,"normal":0,"stagnation":0}. Persona ply shares: {"builder":0.309375,"expander":0.309375,"hunter":0.38125}.
+RiskMode ply shares: {"late":1,"normal":0,"stagnation":0}. Persona ply shares: {"builder":0.309375,"expander":0.295312,"hunter":0.395313}.
 
 | Metric | Value | Target | Status |
 | --- | ---: | --- | --- |
 | decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
 | threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
 | repetitionPlyShare | 0 | <= 0.1 (warn 0.2) | good |
-| twoPlyUndoRate | 0.085938 | <= 0.02 (warn 0.08) | bad |
-| stagnationWindowRate | 0.335714 | <= 0.15 (warn 0.3) | bad |
+| twoPlyUndoRate | 0.126562 | <= 0.02 (warn 0.08) | bad |
+| stagnationWindowRate | 0.408929 | <= 0.15 (warn 0.3) | bad |
 | openingEntropy | 0 | >= 1 (warn 0.5) | bad |
 | uniqueOpeningLineShare | 0.0625 | >= 0.35 (warn 0.2) | bad |
+| meanParticipationDelta | 94.025 | n/a | n/a |
+| positiveParticipationPlyShare | 0.4 | n/a | n/a |
 | decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
-| mobilityReleaseSlope | -0.197619 | >= 0.05 (warn 0) | bad |
-| meanBoardDisplacement | 0.077213 | >= 0.08 (warn 0.06) | warn |
-| drama | 0.929487 | >= 0.25 (warn 0.18) | good |
+| mobilityReleaseSlope | -0.127381 | >= 0.05 (warn 0) | bad |
+| meanBoardDisplacement | 0.077908 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.36859 | >= 0.25 (warn 0.18) | good |
 | tension | 0 | >= 0.45 (warn 0.3) | bad |
 
 ### hard
 
 Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 1. Persona coverage: 1.
 
-RiskMode ply shares: {"late":1,"normal":0,"stagnation":0}. Persona ply shares: {"builder":0.30625,"expander":0.290625,"hunter":0.403125}.
+RiskMode ply shares: {"late":1,"normal":0,"stagnation":0}. Persona ply shares: {"builder":0.309375,"expander":0.310937,"hunter":0.379688}.
 
 | Metric | Value | Target | Status |
 | --- | ---: | --- | --- |
 | decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
 | threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
-| repetitionPlyShare | 0.021875 | <= 0.1 (warn 0.2) | good |
-| twoPlyUndoRate | 0.170313 | <= 0.02 (warn 0.08) | bad |
-| stagnationWindowRate | 0.3625 | <= 0.15 (warn 0.3) | bad |
+| repetitionPlyShare | 0 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.00625 | <= 0.02 (warn 0.08) | good |
+| stagnationWindowRate | 0.253571 | <= 0.15 (warn 0.3) | warn |
 | openingEntropy | 0 | >= 1 (warn 0.5) | bad |
 | uniqueOpeningLineShare | 0.0625 | >= 0.35 (warn 0.2) | bad |
+| meanParticipationDelta | 103.607812 | n/a | n/a |
+| positiveParticipationPlyShare | 0.5 | n/a | n/a |
 | decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
-| mobilityReleaseSlope | -0.197619 | >= 0.05 (warn 0) | bad |
-| meanBoardDisplacement | 0.073915 | >= 0.08 (warn 0.06) | warn |
-| drama | 1.221154 | >= 0.25 (warn 0.18) | good |
+| mobilityReleaseSlope | -0.127381 | >= 0.05 (warn 0) | bad |
+| meanBoardDisplacement | 0.074913 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.464744 | >= 0.25 (warn 0.18) | good |
 | tension | 0 | >= 0.45 (warn 0.3) | bad |
 
-## turn200
+## lateSparse200
 
 Imported position move number: 201, replay turn count: 200.
 
 | Difficulty | Avg plies | Decisive | 3fold draws | Repetition | Undo | Stagnation | Displacement | Drama | Tension | Risk active | Late risk | Stagnation risk |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| easy | 40 | 0 | 0 | 0 | 0.035937 | 0.103571 | 0.075521 | 1.141026 | 0 | 1 | 1 | 0 |
-| medium | 40 | 0 | 0 | 0 | 0.05 | 0.121429 | 0.076128 | 1.11859 | 0 | 1 | 1 | 0 |
-| hard | 40 | 0 | 0 | 0.007813 | 0.067187 | 0.257143 | 0.076085 | 1.051282 | 0 | 1 | 1 | 0 |
+| easy | 40 | 0 | 0 | 0 | 0.060937 | 0.230357 | 0.074609 | 1.512821 | 0 | 1 | 1 | 0 |
+| medium | 40 | 0 | 0 | 0 | 0.0375 | 0.192857 | 0.076606 | 1.448718 | 0 | 1 | 1 | 0 |
+| hard | 40 | 0 | 0 | 0 | 0.032813 | 0.203571 | 0.075911 | 1.467949 | 0 | 1 | 1 | 0 |
 
 ### easy
 
 Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 1. Persona coverage: 1.
 
-RiskMode ply shares: {"late":1,"normal":0,"stagnation":0}. Persona ply shares: {"builder":0.310937,"expander":0.30625,"hunter":0.382813}.
+RiskMode ply shares: {"late":1,"normal":0,"stagnation":0}. Persona ply shares: {"builder":0.317188,"expander":0.309375,"hunter":0.373437}.
 
 | Metric | Value | Target | Status |
 | --- | ---: | --- | --- |
 | decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
 | threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
 | repetitionPlyShare | 0 | <= 0.1 (warn 0.2) | good |
-| twoPlyUndoRate | 0.035937 | <= 0.02 (warn 0.08) | warn |
-| stagnationWindowRate | 0.103571 | <= 0.15 (warn 0.3) | good |
+| twoPlyUndoRate | 0.060937 | <= 0.02 (warn 0.08) | warn |
+| stagnationWindowRate | 0.230357 | <= 0.15 (warn 0.3) | warn |
 | openingEntropy | 0 | >= 1 (warn 0.5) | bad |
-| uniqueOpeningLineShare | 0.125 | >= 0.35 (warn 0.2) | bad |
+| uniqueOpeningLineShare | 0.0625 | >= 0.35 (warn 0.2) | bad |
+| meanParticipationDelta | 70.04375 | n/a | n/a |
+| positiveParticipationPlyShare | 0.501563 | n/a | n/a |
 | decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
-| mobilityReleaseSlope | -0.214286 | >= 0.05 (warn 0) | bad |
-| meanBoardDisplacement | 0.075521 | >= 0.08 (warn 0.06) | warn |
-| drama | 1.141026 | >= 0.25 (warn 0.18) | good |
+| mobilityReleaseSlope | -0.121429 | >= 0.05 (warn 0) | bad |
+| meanBoardDisplacement | 0.074609 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.512821 | >= 0.25 (warn 0.18) | good |
 | tension | 0 | >= 0.45 (warn 0.3) | bad |
 
 ### medium
 
 Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 1. Persona coverage: 1.
 
-RiskMode ply shares: {"late":1,"normal":0,"stagnation":0}. Persona ply shares: {"builder":0.31875,"expander":0.31875,"hunter":0.3625}.
+RiskMode ply shares: {"late":1,"normal":0,"stagnation":0}. Persona ply shares: {"builder":0.320313,"expander":0.30625,"hunter":0.373437}.
 
 | Metric | Value | Target | Status |
 | --- | ---: | --- | --- |
 | decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
 | threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
 | repetitionPlyShare | 0 | <= 0.1 (warn 0.2) | good |
-| twoPlyUndoRate | 0.05 | <= 0.02 (warn 0.08) | warn |
-| stagnationWindowRate | 0.121429 | <= 0.15 (warn 0.3) | good |
+| twoPlyUndoRate | 0.0375 | <= 0.02 (warn 0.08) | warn |
+| stagnationWindowRate | 0.192857 | <= 0.15 (warn 0.3) | warn |
 | openingEntropy | 0 | >= 1 (warn 0.5) | bad |
 | uniqueOpeningLineShare | 0.0625 | >= 0.35 (warn 0.2) | bad |
+| meanParticipationDelta | 74.939063 | n/a | n/a |
+| positiveParticipationPlyShare | 0.51875 | n/a | n/a |
 | decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
-| mobilityReleaseSlope | -0.214286 | >= 0.05 (warn 0) | bad |
-| meanBoardDisplacement | 0.076128 | >= 0.08 (warn 0.06) | warn |
-| drama | 1.11859 | >= 0.25 (warn 0.18) | good |
+| mobilityReleaseSlope | -0.121429 | >= 0.05 (warn 0) | bad |
+| meanBoardDisplacement | 0.076606 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.448718 | >= 0.25 (warn 0.18) | good |
 | tension | 0 | >= 0.45 (warn 0.3) | bad |
 
 ### hard
 
 Terminals: {"homeField":0,"sixStacks":0,"threefoldTiebreakWin":0,"stalemateTiebreakWin":0,"threefoldDraw":0,"stalemateDraw":0,"unfinished":16}. Risk-active games: 1. Persona coverage: 1.
 
-RiskMode ply shares: {"late":1,"normal":0,"stagnation":0}. Persona ply shares: {"builder":0.3125,"expander":0.315625,"hunter":0.371875}.
+RiskMode ply shares: {"late":1,"normal":0,"stagnation":0}. Persona ply shares: {"builder":0.3125,"expander":0.314063,"hunter":0.373437}.
 
 | Metric | Value | Target | Status |
 | --- | ---: | --- | --- |
 | decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
 | threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
-| repetitionPlyShare | 0.007813 | <= 0.1 (warn 0.2) | good |
-| twoPlyUndoRate | 0.067187 | <= 0.02 (warn 0.08) | warn |
-| stagnationWindowRate | 0.257143 | <= 0.15 (warn 0.3) | warn |
+| repetitionPlyShare | 0 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.032813 | <= 0.02 (warn 0.08) | warn |
+| stagnationWindowRate | 0.203571 | <= 0.15 (warn 0.3) | warn |
 | openingEntropy | 0 | >= 1 (warn 0.5) | bad |
 | uniqueOpeningLineShare | 0.0625 | >= 0.35 (warn 0.2) | bad |
+| meanParticipationDelta | 120.998437 | n/a | n/a |
+| positiveParticipationPlyShare | 0.451562 | n/a | n/a |
 | decompressionSlope | 0 | >= 0.04 (warn 0.02) | bad |
-| mobilityReleaseSlope | -0.214286 | >= 0.05 (warn 0) | bad |
-| meanBoardDisplacement | 0.076085 | >= 0.08 (warn 0.06) | warn |
-| drama | 1.051282 | >= 0.25 (warn 0.18) | good |
+| mobilityReleaseSlope | -0.121429 | >= 0.05 (warn 0) | bad |
+| meanBoardDisplacement | 0.075911 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.467949 | >= 0.25 (warn 0.18) | good |
 | tension | 0 | >= 0.45 (warn 0.3) | bad |
 

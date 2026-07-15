@@ -1895,16 +1895,29 @@ external action ───────► advanceEngineState()
 Step by step:
 
 1. Generate legal candidates from the current state and its active rules.
-2. For one of those exact candidates, call `advanceGeneratedEngineState()`.
+2. For one of those exact candidates, call `advanceGeneratedEngineTransition()`
+   when the search also needs the already-derived position hash.
 3. The transition skips only `validateAction()`; it still applies the action and
    resolves continuation, turn/pass, victory, hash, and repetition state.
-4. For UI input, network payloads, imports, or any action from another position
+4. Search move ordering stores the new repetition count in an immutable
+   one-entry overlay whose prototype is the parent count table. This persistent
+   structural sharing preserves keyed lookup semantics while avoiding a copy of
+   the complete game-history count record for every simulated child.
+5. Public and state-only transition calls retain ordinary copied records, so
+   persistence and serialization never observe the search-only overlay.
+6. The hot path checks legal-action availability without materializing every
+   action kind after the first viable kind, and victory evaluation counts both
+   players in one allocation-free pass while reusing the resolved rule config.
+7. For UI input, network payloads, imports, or any action from another position
    or ruleset, call the validating `advanceEngineState()` instead.
 
 Trade-offs:
 
 - Removes duplicate legality work from recursive candidate evaluation without
   changing the resulting game state.
+- Persistent repetition overlays are immutable and search-local. Exact tests
+  compare every inherited count and force a third-occurrence draw against the
+  copied-record implementation.
 - The faster path is deliberately narrow. Treating untrusted or stale actions
   as generated candidates would bypass the engine's public validation boundary.
 
