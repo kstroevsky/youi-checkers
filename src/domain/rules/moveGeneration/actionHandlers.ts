@@ -40,7 +40,10 @@ import {
 } from '@/domain/rules/moveGeneration/jump';
 import type { AppliedActionState } from '@/domain/rules/moveGeneration/types';
 
-type ActionState = Pick<EngineState, 'board' | 'currentPlayer' | 'pendingJump' | 'status'>;
+type ActionState = Pick<
+  EngineState,
+  'board' | 'currentPlayer' | 'pendingJump' | 'status'
+>;
 
 type ActionHandler = {
   kind: ActionKind;
@@ -88,7 +91,10 @@ function getClimbTargets(board: EngineState['board'], source: Coord): Coord[] {
   );
 }
 
-function getSingleStepTargets(board: EngineState['board'], source: Coord): Coord[] {
+function getSingleStepTargets(
+  board: EngineState['board'],
+  source: Coord,
+): Coord[] {
   return collectAdjacentTargets(board, source, isEmptyCell);
 }
 
@@ -98,7 +104,10 @@ function getSplitTargets(
   movingCount: number,
 ): Coord[] {
   return collectAdjacentTargets(board, source, (nextBoard, target) => {
-    return isEmptyCell(nextBoard, target) || canLandOnOccupiedCell(nextBoard, target, movingCount);
+    return (
+      isEmptyCell(nextBoard, target) ||
+      canLandOnOccupiedCell(nextBoard, target, movingCount)
+    );
   });
 }
 
@@ -191,7 +200,11 @@ function moveFriendlyTransferChecker(
   ensureMutableCell(board, source, clonedCoords);
   ensureMutableCell(board, target, clonedCoords);
 
-  const buriedIndex = findBuriedFriendlyTransferCheckerIndex(board, source, player);
+  const buriedIndex = findBuriedFriendlyTransferCheckerIndex(
+    board,
+    source,
+    player,
+  );
   const checkers =
     buriedIndex === -1
       ? removeTopCheckers(board, source, 1)
@@ -213,7 +226,10 @@ const actionHandlers = {
     },
     applyValidated: (state, action) => {
       if (action.type !== 'manualUnfreeze') {
-        return { valid: false, reason: `Unsupported action ${action.type} for manual unfreeze.` };
+        return {
+          valid: false,
+          reason: `Unsupported action ${action.type} for manual unfreeze.`,
+        };
       }
 
       const board = cloneBoardStructure(state.board);
@@ -231,7 +247,11 @@ const actionHandlers = {
   jumpSequence: {
     kind: 'jumpSequence',
     getActions: (state, coord, _config) => {
-      return getJumpContinuationTargets(state, coord, []).map<JumpSequenceAction>((target) => ({
+      return getJumpContinuationTargets(
+        state,
+        coord,
+        [],
+      ).map<JumpSequenceAction>((target) => ({
         type: 'jumpSequence',
         source: coord,
         path: [target],
@@ -239,13 +259,19 @@ const actionHandlers = {
     },
     applyValidated: (state, action) => {
       if (action.type !== 'jumpSequence') {
-        return { valid: false, reason: `Unsupported action ${action.type} for jump sequence.` };
+        return {
+          valid: false,
+          reason: `Unsupported action ${action.type} for jump sequence.`,
+        };
       }
 
       const movingPlayer = getMovingPlayer(state.board, action.source);
 
       if (!movingPlayer) {
-        return { valid: false, reason: `No moving player found at ${action.source}.` };
+        return {
+          valid: false,
+          reason: `No moving player found at ${action.source}.`,
+        };
       }
 
       const result = resolveJumpPath(
@@ -293,11 +319,20 @@ const actionHandlers = {
     },
     applyValidated: (state, action) => {
       if (action.type !== 'climbOne') {
-        return { valid: false, reason: `Unsupported action ${action.type} for climb.` };
+        return {
+          valid: false,
+          reason: `Unsupported action ${action.type} for climb.`,
+        };
       }
 
       const board = cloneBoardStructure(state.board);
-      return moveCheckers(board, action.source, action.target, 1, new Set<Coord>());
+      return moveCheckers(
+        board,
+        action.source,
+        action.target,
+        1,
+        new Set<Coord>(),
+      );
     },
   } satisfies ActionHandler,
   moveSingleToEmpty: {
@@ -311,12 +346,23 @@ const actionHandlers = {
     },
     applyValidated: (state, action) => {
       if (action.type !== 'moveSingleToEmpty') {
-        return { valid: false, reason: `Unsupported action ${action.type} for step move.` };
+        return {
+          valid: false,
+          reason: `Unsupported action ${action.type} for step move.`,
+        };
       }
 
       const board = cloneBoardStructure(state.board);
-      const movingCount = isStack(board, action.source) ? getCellHeight(board, action.source) : 1;
-      return moveCheckers(board, action.source, action.target, movingCount, new Set<Coord>());
+      const movingCount = isStack(board, action.source)
+        ? getCellHeight(board, action.source)
+        : 1;
+      return moveCheckers(
+        board,
+        action.source,
+        action.target,
+        movingCount,
+        new Set<Coord>(),
+      );
     },
   } satisfies ActionHandler,
   splitOneFromStack: {
@@ -330,11 +376,20 @@ const actionHandlers = {
     },
     applyValidated: (state, action) => {
       if (action.type !== 'splitOneFromStack') {
-        return { valid: false, reason: `Unsupported action ${action.type} for split-one.` };
+        return {
+          valid: false,
+          reason: `Unsupported action ${action.type} for split-one.`,
+        };
       }
 
       const board = cloneBoardStructure(state.board);
-      return moveCheckers(board, action.source, action.target, 1, new Set<Coord>());
+      return moveCheckers(
+        board,
+        action.source,
+        action.target,
+        1,
+        new Set<Coord>(),
+      );
     },
   } satisfies ActionHandler,
   splitTwoFromStack: {
@@ -348,11 +403,20 @@ const actionHandlers = {
     },
     applyValidated: (state, action) => {
       if (action.type !== 'splitTwoFromStack') {
-        return { valid: false, reason: `Unsupported action ${action.type} for split-two.` };
+        return {
+          valid: false,
+          reason: `Unsupported action ${action.type} for split-two.`,
+        };
       }
 
       const board = cloneBoardStructure(state.board);
-      return moveCheckers(board, action.source, action.target, 2, new Set<Coord>());
+      return moveCheckers(
+        board,
+        action.source,
+        action.target,
+        2,
+        new Set<Coord>(),
+      );
     },
   } satisfies ActionHandler,
   friendlyStackTransfer: {
@@ -407,7 +471,11 @@ export function getGeneratedActionsForCell(
   }
 
   if (topChecker.owner !== state.currentPlayer) {
-    return actionHandlers.friendlyStackTransfer.getActions(state, coord, config);
+    return actionHandlers.friendlyStackTransfer.getActions(
+      state,
+      coord,
+      config,
+    );
   }
 
   if (topChecker.frozen) {
@@ -443,4 +511,56 @@ export function getGeneratedActionsForCell(
   }
 
   return actions;
+}
+
+/** Tests whether a coordinate can generate an action without building every action kind. */
+export function hasGeneratedActionForCell(
+  state: ActionState,
+  coord: Coord,
+  config: RuleConfig,
+): boolean {
+  const topChecker = getTopChecker(state.board, coord);
+
+  if (!topChecker) {
+    return false;
+  }
+
+  if (topChecker.owner !== state.currentPlayer) {
+    return (
+      actionHandlers.friendlyStackTransfer.getActions(state, coord, config)
+        .length > 0
+    );
+  }
+
+  if (topChecker.frozen) {
+    return isFrozenSingle(state.board, coord);
+  }
+
+  const isPlayerSingle = isSingleChecker(state.board, coord);
+  const isPlayerStack = !isPlayerSingle && isStack(state.board, coord);
+
+  if (!isPlayerSingle && !isPlayerStack) {
+    return false;
+  }
+
+  for (const kind of ACTION_GENERATION_ORDER) {
+    if (
+      (kind === 'splitOneFromStack' ||
+        kind === 'splitTwoFromStack' ||
+        kind === 'friendlyStackTransfer') &&
+      !isPlayerStack
+    ) {
+      continue;
+    }
+
+    if (kind === 'splitTwoFromStack' && getCellHeight(state.board, coord) < 2) {
+      continue;
+    }
+
+    if (actionHandlers[kind].getActions(state, coord, config).length > 0) {
+      return true;
+    }
+  }
+
+  return false;
 }

@@ -100,9 +100,10 @@ function playerHasLegalAction(
 ): boolean {
   return hasLegalAction(
     {
-      ...state,
+      board: state.board,
       currentPlayer: player,
       pendingJump: null,
+      status: state.status,
     },
     config,
   );

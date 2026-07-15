@@ -7,7 +7,10 @@ import type {
   TurnAction,
 } from '@/domain/model/types';
 
-import { getGeneratedActionsForCell } from '@/domain/rules/moveGeneration/actionHandlers';
+import {
+  getGeneratedActionsForCell,
+  hasGeneratedActionForCell,
+} from '@/domain/rules/moveGeneration/actionHandlers';
 import { getForcedActionCoord } from '@/domain/rules/moveGeneration/turnConstraint';
 import { buildTargetMap } from '@/domain/rules/moveGeneration/targetMap';
 import type { TargetMap } from '@/domain/rules/moveGeneration/types';
@@ -103,13 +106,11 @@ export function hasLegalAction(
   const forcedCoord = getForcedActionCoord(state);
 
   if (forcedCoord !== null) {
-    return (
-      getGeneratedActionsForCell(state, forcedCoord, resolvedConfig).length > 0
-    );
+    return hasGeneratedActionForCell(state, forcedCoord, resolvedConfig);
   }
 
   for (const coord of allCoords()) {
-    if (getGeneratedActionsForCell(state, coord, resolvedConfig).length > 0) {
+    if (hasGeneratedActionForCell(state, coord, resolvedConfig)) {
       return true;
     }
   }

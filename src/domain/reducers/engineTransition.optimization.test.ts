@@ -16,6 +16,7 @@ import {
   checkVictory,
   checkVictoryWithPositionHash,
 } from '@/domain/rules/victory';
+import { createRandomPlayPerfState } from '../../../scripts/lateGamePerfFixtures';
 
 function getPositionCountKeys(
   positionCounts: EngineState['positionCounts'],
@@ -213,5 +214,31 @@ describe('generated-action engine transition', () => {
     };
 
     expect(hasLegalAction(state, config)).toBe(false);
+  });
+
+  it('matches action availability across seeded positions and players', () => {
+    const config = withConfig();
+    const seeds = [1, 21, 0x1a2b3c, 0x4d5e6f];
+    const turnCounts = [0, 1, 2, 5, 10, 20, 40, 80];
+
+    for (const seed of seeds) {
+      for (const turnCount of turnCounts) {
+        const state = createRandomPlayPerfState(turnCount, config, seed);
+
+        for (const currentPlayer of ['white', 'black'] as const) {
+          const candidateState = {
+            board: state.board,
+            currentPlayer,
+            pendingJump: null,
+            status: state.status,
+          };
+
+          expect(
+            hasLegalAction(candidateState, config),
+            `seed=${seed}, turn=${turnCount}, player=${currentPlayer}`,
+          ).toBe(getLegalActions(candidateState, config).length > 0);
+        }
+      }
+    }
   });
 });
