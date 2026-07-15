@@ -31,64 +31,65 @@ For every algorithm listed below, this document gives:
 
 The following algorithm families are explicitly covered in this document.
 
-| Family | Algorithm | Files |
-| --- | --- | --- |
-| Search core | Negamax with alpha-beta pruning | [`src/ai/search/negamax.ts`](../src/ai/search/negamax.ts) |
-| Search core | Iterative deepening | [`src/ai/search/rootSearch.ts`](../src/ai/search/rootSearch.ts) |
-| Search core | Principal variation search | [`src/ai/search/negamax.ts`](../src/ai/search/negamax.ts) |
-| Search core | Quiescence search | [`src/ai/search/quiescence.ts`](../src/ai/search/quiescence.ts) |
-| Search core | Aspiration windows | [`src/ai/search/rootSearch.ts`](../src/ai/search/rootSearch.ts) |
-| Search core | Time-governed control flow | [`src/ai/search/rootSearch.ts`](../src/ai/search/rootSearch.ts) |
-| Search core | Fixed-size search stack (`SearchStack`) | [`src/ai/search/types.ts`](../src/ai/search/types.ts), [`src/ai/search/negamax.ts`](../src/ai/search/negamax.ts), [`src/ai/search/quiescence.ts`](../src/ai/search/quiescence.ts) |
-| Move ordering | PV ordering | [`src/ai/moveOrdering.ts`](../src/ai/moveOrdering.ts) |
-| Move ordering | TT move ordering | [`src/ai/moveOrdering.ts`](../src/ai/moveOrdering.ts) |
-| Move ordering | History heuristic | [`src/ai/search/heuristics.ts`](../src/ai/search/heuristics.ts), [`src/ai/moveOrdering.ts`](../src/ai/moveOrdering.ts) |
-| Move ordering | History aging (Schaeffer, 1989) | [`src/ai/search/rootSearch.ts`](../src/ai/search/rootSearch.ts) |
-| Move ordering | Killer heuristic | [`src/ai/search/heuristics.ts`](../src/ai/search/heuristics.ts), [`src/ai/moveOrdering.ts`](../src/ai/moveOrdering.ts) |
-| Move ordering | Continuation heuristic | [`src/ai/search/heuristics.ts`](../src/ai/search/heuristics.ts), [`src/ai/moveOrdering.ts`](../src/ai/moveOrdering.ts) |
-| Move ordering | Static action scoring | [`src/ai/moveOrdering.ts`](../src/ai/moveOrdering.ts) |
-| Move ordering | Quiet move trimming | [`src/ai/moveOrdering.ts`](../src/ai/moveOrdering.ts) |
-| Evaluation and planning | Static evaluation | [`src/ai/evaluation.ts`](../src/ai/evaluation.ts) |
-| Evaluation and planning | Structural analysis | [`src/ai/strategy.ts`](../src/ai/strategy.ts) |
-| Evaluation and planning | Macro phase detection | [`src/ai/strategy.ts`](../src/ai/strategy.ts) |
-| Evaluation and planning | Phase-dependent reweighting | [`src/ai/strategy.ts`](../src/ai/strategy.ts) |
-| Evaluation and planning | Strategic intent classification | [`src/ai/strategy.ts`](../src/ai/strategy.ts) |
-| Evaluation and planning | Hybrid valuation logic | [`src/ai/strategy.ts`](../src/ai/strategy.ts) |
-| Evaluation and planning | Semantic tagging engine | [`src/ai/strategy.ts`](../src/ai/strategy.ts) |
-| Evaluation and planning | Novelty penalty | [`src/ai/strategy.ts`](../src/ai/strategy.ts) |
-| Behavior and variety | Participation layer | [`src/ai/participation.ts`](../src/ai/participation.ts) |
-| Behavior and variety | Procedural personas | [`src/ai/behavior.ts`](../src/ai/behavior.ts) |
-| Behavior and variety | Seeded source-geometry bias | [`src/ai/behavior.ts`](../src/ai/behavior.ts) |
-| Behavior and variety | Deterministic result shaping | [`src/ai/search/result.ts`](../src/ai/search/result.ts) |
-| Behavior and variety | Score compression | [`src/ai/search/result.ts`](../src/ai/search/result.ts) |
-| Behavior and variety | Adjusted candidate reranking | [`src/ai/search/result.ts`](../src/ai/search/result.ts) |
-| Risk shaping | Stagnation detection index | [`src/ai/risk.ts`](../src/ai/risk.ts) |
-| Risk shaping | Dynamic draw aversion | [`src/ai/risk.ts`](../src/ai/risk.ts) |
-| Risk shaping | Risk escalation modes | [`src/ai/risk.ts`](../src/ai/risk.ts), [`src/ai/search/rootSearch.ts`](../src/ai/search/rootSearch.ts) |
-| Risk shaping | Certified risk progress gate | [`src/ai/risk.ts`](../src/ai/risk.ts) |
-| Risk shaping | Tiebreak-aware draw-trap pressure | [`src/ai/risk.ts`](../src/ai/risk.ts) |
-| Neural guidance | Perspective-normalized state encoding | [`src/ai/model/encoding.ts`](../src/ai/model/encoding.ts) |
-| Neural guidance | Action-space indexing | [`src/ai/model/actionSpace.ts`](../src/ai/model/actionSpace.ts) |
-| Neural guidance | In-browser ONNX inference | [`src/ai/model/guidance.ts`](../src/ai/model/guidance.ts) |
-| Domain engine | Recursive jump pathfinding | [`src/domain/rules/moveGeneration/jump.ts`](../src/domain/rules/moveGeneration/jump.ts) |
-| Domain engine | Deterministic position hashing | [`src/domain/model/hash.ts`](../src/domain/model/hash.ts) |
-| Search core | 64-bit Zobrist hashing | [`src/ai/search/zobristHash.ts`](../src/ai/search/zobristHash.ts) |
-| Domain engine | Draw tiebreak logic | [`src/domain/rules/victory.ts`](../src/domain/rules/victory.ts) |
-| Domain engine | Incremental state normalization | [`src/domain/serialization/session/normalization.ts`](../src/domain/serialization/session/normalization.ts) |
-| Domain engine | Coordinate vector delta math | [`src/domain/model/coordinates.ts`](../src/domain/model/coordinates.ts) |
-| Persistence and perf | Lazy state evaluation and memoization | [`src/ai/perf.ts`](../src/ai/perf.ts) |
-| Persistence and perf | Session compaction and history rebase | [`src/app/store/sessionPersistence.ts`](../src/app/store/sessionPersistence.ts) |
-| Persistence and perf | IndexedDB serializer bridge | [`src/app/store/sessionArchive.ts`](../src/app/store/sessionArchive.ts) |
-| Diagnostics | Recurrence quantification analysis | [`src/ai/test/advancedMetrics.ts`](../src/ai/test/advancedMetrics.ts) |
-| Diagnostics | Sample entropy | [`src/ai/test/advancedMetrics.ts`](../src/ai/test/advancedMetrics.ts) |
-| Diagnostics | Permutation entropy | [`src/ai/test/advancedMetrics.ts`](../src/ai/test/advancedMetrics.ts) |
-| Diagnostics | Lempel-Ziv complexity | [`src/ai/test/advancedMetrics.ts`](../src/ai/test/advancedMetrics.ts), [`src/ai/test/metrics.ts`](../src/ai/test/metrics.ts) |
-| Diagnostics | Shannon entropy | [`src/ai/test/metrics.ts`](../src/ai/test/metrics.ts) |
-| Diagnostics | Simpson diversity | [`src/ai/test/metrics.ts`](../src/ai/test/metrics.ts) |
-| Diagnostics | Jensen-Shannon divergence | [`src/ai/test/metrics.ts`](../src/ai/test/metrics.ts) |
-| Training pipeline | Heuristic-guided self-play generation | [`scripts/ai-selfplay-dataset.ts`](../scripts/ai-selfplay-dataset.ts) |
-| Training pipeline | Residual policy/value network | [`training/train_policy_value.py`](../training/train_policy_value.py) |
-| Training pipeline | ONNX export pipeline | [`training/train_policy_value.py`](../training/train_policy_value.py), [`src/ai/model/guidance.ts`](../src/ai/model/guidance.ts) |
+| Family                  | Algorithm                               | Files                                                                                                                                                                             |
+| ----------------------- | --------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Search core             | Negamax with alpha-beta pruning         | [`src/ai/search/negamax.ts`](../src/ai/search/negamax.ts)                                                                                                                         |
+| Search core             | Iterative deepening                     | [`src/ai/search/rootSearch.ts`](../src/ai/search/rootSearch.ts)                                                                                                                   |
+| Search core             | Principal variation search              | [`src/ai/search/negamax.ts`](../src/ai/search/negamax.ts)                                                                                                                         |
+| Search core             | Quiescence search                       | [`src/ai/search/quiescence.ts`](../src/ai/search/quiescence.ts)                                                                                                                   |
+| Search core             | Aspiration windows                      | [`src/ai/search/rootSearch.ts`](../src/ai/search/rootSearch.ts)                                                                                                                   |
+| Search core             | Time-governed control flow              | [`src/ai/search/rootSearch.ts`](../src/ai/search/rootSearch.ts)                                                                                                                   |
+| Search core             | Fixed-size search stack (`SearchStack`) | [`src/ai/search/types.ts`](../src/ai/search/types.ts), [`src/ai/search/negamax.ts`](../src/ai/search/negamax.ts), [`src/ai/search/quiescence.ts`](../src/ai/search/quiescence.ts) |
+| Move ordering           | PV ordering                             | [`src/ai/moveOrdering.ts`](../src/ai/moveOrdering.ts)                                                                                                                             |
+| Move ordering           | TT move ordering                        | [`src/ai/moveOrdering.ts`](../src/ai/moveOrdering.ts)                                                                                                                             |
+| Move ordering           | History heuristic                       | [`src/ai/search/heuristics.ts`](../src/ai/search/heuristics.ts), [`src/ai/moveOrdering.ts`](../src/ai/moveOrdering.ts)                                                            |
+| Move ordering           | History aging (Schaeffer, 1989)         | [`src/ai/search/rootSearch.ts`](../src/ai/search/rootSearch.ts)                                                                                                                   |
+| Move ordering           | Killer heuristic                        | [`src/ai/search/heuristics.ts`](../src/ai/search/heuristics.ts), [`src/ai/moveOrdering.ts`](../src/ai/moveOrdering.ts)                                                            |
+| Move ordering           | Continuation heuristic                  | [`src/ai/search/heuristics.ts`](../src/ai/search/heuristics.ts), [`src/ai/moveOrdering.ts`](../src/ai/moveOrdering.ts)                                                            |
+| Move ordering           | Static action scoring                   | [`src/ai/moveOrdering.ts`](../src/ai/moveOrdering.ts)                                                                                                                             |
+| Move ordering           | Quiet move trimming                     | [`src/ai/moveOrdering.ts`](../src/ai/moveOrdering.ts)                                                                                                                             |
+| Evaluation and planning | Static evaluation                       | [`src/ai/evaluation.ts`](../src/ai/evaluation.ts)                                                                                                                                 |
+| Evaluation and planning | Structural analysis                     | [`src/ai/strategy.ts`](../src/ai/strategy.ts)                                                                                                                                     |
+| Evaluation and planning | Macro phase detection                   | [`src/ai/strategy.ts`](../src/ai/strategy.ts)                                                                                                                                     |
+| Evaluation and planning | Phase-dependent reweighting             | [`src/ai/strategy.ts`](../src/ai/strategy.ts)                                                                                                                                     |
+| Evaluation and planning | Strategic intent classification         | [`src/ai/strategy.ts`](../src/ai/strategy.ts)                                                                                                                                     |
+| Evaluation and planning | Hybrid valuation logic                  | [`src/ai/strategy.ts`](../src/ai/strategy.ts)                                                                                                                                     |
+| Evaluation and planning | Semantic tagging engine                 | [`src/ai/strategy.ts`](../src/ai/strategy.ts)                                                                                                                                     |
+| Evaluation and planning | Novelty penalty                         | [`src/ai/strategy.ts`](../src/ai/strategy.ts)                                                                                                                                     |
+| Behavior and variety    | Participation layer                     | [`src/ai/participation.ts`](../src/ai/participation.ts)                                                                                                                           |
+| Behavior and variety    | Procedural personas                     | [`src/ai/behavior.ts`](../src/ai/behavior.ts)                                                                                                                                     |
+| Behavior and variety    | Seeded source-geometry bias             | [`src/ai/behavior.ts`](../src/ai/behavior.ts)                                                                                                                                     |
+| Behavior and variety    | Deterministic result shaping            | [`src/ai/search/result.ts`](../src/ai/search/result.ts)                                                                                                                           |
+| Behavior and variety    | Score compression                       | [`src/ai/search/result.ts`](../src/ai/search/result.ts)                                                                                                                           |
+| Behavior and variety    | Adjusted candidate reranking            | [`src/ai/search/result.ts`](../src/ai/search/result.ts)                                                                                                                           |
+| Risk shaping            | Stagnation detection index              | [`src/ai/risk.ts`](../src/ai/risk.ts)                                                                                                                                             |
+| Risk shaping            | Dynamic draw aversion                   | [`src/ai/risk.ts`](../src/ai/risk.ts)                                                                                                                                             |
+| Risk shaping            | Risk escalation modes                   | [`src/ai/risk.ts`](../src/ai/risk.ts), [`src/ai/search/rootSearch.ts`](../src/ai/search/rootSearch.ts)                                                                            |
+| Risk shaping            | Certified risk progress gate            | [`src/ai/risk.ts`](../src/ai/risk.ts)                                                                                                                                             |
+| Risk shaping            | Tiebreak-aware draw-trap pressure       | [`src/ai/risk.ts`](../src/ai/risk.ts)                                                                                                                                             |
+| Neural guidance         | Perspective-normalized state encoding   | [`src/ai/model/encoding.ts`](../src/ai/model/encoding.ts)                                                                                                                         |
+| Neural guidance         | Action-space indexing                   | [`src/ai/model/actionSpace.ts`](../src/ai/model/actionSpace.ts)                                                                                                                   |
+| Neural guidance         | In-browser ONNX inference               | [`src/ai/model/guidance.ts`](../src/ai/model/guidance.ts)                                                                                                                         |
+| Domain engine           | Recursive jump pathfinding              | [`src/domain/rules/moveGeneration/jump.ts`](../src/domain/rules/moveGeneration/jump.ts)                                                                                           |
+| Domain engine           | Deterministic position hashing          | [`src/domain/model/hash.ts`](../src/domain/model/hash.ts)                                                                                                                         |
+| Search core             | 64-bit Zobrist hashing                  | [`src/ai/search/zobristHash.ts`](../src/ai/search/zobristHash.ts)                                                                                                                 |
+| Domain engine           | Draw tiebreak logic                     | [`src/domain/rules/victory.ts`](../src/domain/rules/victory.ts)                                                                                                                   |
+| Domain engine           | Incremental state normalization         | [`src/domain/serialization/session/normalization.ts`](../src/domain/serialization/session/normalization.ts)                                                                       |
+| Domain engine           | Generated-action transition fast path   | [`src/domain/reducers/gameReducer.ts`](../src/domain/reducers/gameReducer.ts), [`src/domain/reducers/engineTransition.ts`](../src/domain/reducers/engineTransition.ts)            |
+| Domain engine           | Coordinate vector delta math            | [`src/domain/model/coordinates.ts`](../src/domain/model/coordinates.ts)                                                                                                           |
+| Persistence and perf    | Lazy state evaluation and memoization   | [`src/ai/perf.ts`](../src/ai/perf.ts)                                                                                                                                             |
+| Persistence and perf    | Session compaction and history rebase   | [`src/app/store/sessionPersistence.ts`](../src/app/store/sessionPersistence.ts)                                                                                                   |
+| Persistence and perf    | IndexedDB serializer bridge             | [`src/app/store/sessionArchive.ts`](../src/app/store/sessionArchive.ts)                                                                                                           |
+| Diagnostics             | Recurrence quantification analysis      | [`src/ai/test/advancedMetrics.ts`](../src/ai/test/advancedMetrics.ts)                                                                                                             |
+| Diagnostics             | Sample entropy                          | [`src/ai/test/advancedMetrics.ts`](../src/ai/test/advancedMetrics.ts)                                                                                                             |
+| Diagnostics             | Permutation entropy                     | [`src/ai/test/advancedMetrics.ts`](../src/ai/test/advancedMetrics.ts)                                                                                                             |
+| Diagnostics             | Lempel-Ziv complexity                   | [`src/ai/test/advancedMetrics.ts`](../src/ai/test/advancedMetrics.ts), [`src/ai/test/metrics.ts`](../src/ai/test/metrics.ts)                                                      |
+| Diagnostics             | Shannon entropy                         | [`src/ai/test/metrics.ts`](../src/ai/test/metrics.ts)                                                                                                                             |
+| Diagnostics             | Simpson diversity                       | [`src/ai/test/metrics.ts`](../src/ai/test/metrics.ts)                                                                                                                             |
+| Diagnostics             | Jensen-Shannon divergence               | [`src/ai/test/metrics.ts`](../src/ai/test/metrics.ts)                                                                                                                             |
+| Training pipeline       | Heuristic-guided self-play generation   | [`scripts/ai-selfplay-dataset.ts`](../scripts/ai-selfplay-dataset.ts)                                                                                                             |
+| Training pipeline       | Residual policy/value network           | [`training/train_policy_value.py`](../training/train_policy_value.py)                                                                                                             |
+| Training pipeline       | ONNX export pipeline                    | [`training/train_policy_value.py`](../training/train_policy_value.py), [`src/ai/model/guidance.ts`](../src/ai/model/guidance.ts)                                                  |
 
 ## Shared Mental Model
 
@@ -152,12 +153,13 @@ Simplified pseudocode:
 ```text
 function negamax(state, depth, alpha, beta, context):
   throw_if_timed_out()
-  cached = TT.lookup(state)
-  if cached is usable:
-    narrow alpha/beta or return exact score
 
   if state is terminal:
     return evaluate(state)
+
+  cached = TT.lookup(state)
+  if cached is usable:
+    narrow alpha/beta or return exact score
 
   if depth == 0:
     return quiescence(state, alpha, beta)
@@ -723,6 +725,22 @@ Implementation notes:
 
 - This is the single densest heuristic bundle in the AI.
 - It is intentionally one-ply and bounded. Deep tactical truth still comes from search.
+- The static bundle is represented by a search-private `PrecomputedOrderedAction`. At the root, it is built once and rescored for each iterative-deepening pass. Rescoring overwrites the mutable `score` field with `staticScore + dynamicScore`; it does not clone the action metadata or recompute successor-state facts.
+- Dynamic terms must be included before the final sort and quiet-move trim. In this implementation, ordering is also bounded-search admission: changing whether PV, TT, history, continuation, or killer information affects the top quiet moves changes the searched tree, not merely its presentation order.
+
+Reuse shape:
+
+```text
+precomputed = derive one-ply facts for every legal action
+
+for each iterative-deepening pass:
+  for each entry in precomputed:
+    entry.score = entry.staticScore + dynamicTerms(entry)
+  ranked = sort and trim entries by entry.score
+  search(ranked)
+```
+
+The entry list belongs to one search operation. In-place score replacement is therefore safe: no live game state, cache entry, or concurrent search observes a partially rescored list.
 
 ### 2.7 Quiet Move Trimming
 
@@ -841,6 +859,7 @@ for each coordinate:
   count buried debt
   count openness and jump lanes
   count transport potential
+  record active-mover files for each player
 derive macro phase from summary
 return analysis
 ```
@@ -857,6 +876,7 @@ Implementation notes:
 
 - This layer is about board structure, not exact legal tactic counting.
 - It is cached by position hash because it is reused everywhere.
+- `PlayerAnalysis.frontierWidth` is a derived feature, not a second legality pass. The scan sets one bit per board file when it finds a movable single or a controlled stack for that player, then increments the width only for a newly set bit. The participation layer consumes that same value when it receives a `PositionAnalysis`.
 
 ### 3.3 Macro Phase Detection
 
@@ -1110,6 +1130,8 @@ Implementation notes:
 
 - `sourceFamily` is checker-identity-based when possible, not merely coordinate-based.
 - Phase scaling weakens variety pressure in late conversion races.
+- In the move-ordering path, the before and successor participation profiles are each constructed once and scored from those already-built profiles. The formula is unchanged; the optimization removes duplicate profile construction.
+- The profile's `frontierWidth` is read from the current/successor `PositionAnalysis` when supplied. A direct board scan remains as a fallback API behavior for callers that do not have an analysis.
 
 ### 4.2 Procedural Personas
 
@@ -1567,9 +1589,10 @@ Simplified pseudocode:
 
 ```text
 if session not loaded:
-  probe asset
-  import onnxruntime-web
-  create inference session
+  fetch complete model bytes
+  reject non-200 or HTML-like response
+  import onnxruntime-web/wasm
+  create inference session from bytes
 
 input = encodeStateForModel(state)
 outputs = session.run(input)
@@ -1582,8 +1605,8 @@ return { priors, valueEstimate }
 
 Step by step:
 
-1. Verify that a real ONNX asset exists before paying to load it.
-2. Lazily initialize the runtime session once.
+1. Fetch the complete model asset and reject HTTP/HTML fallback responses before importing inference code.
+2. Lazily initialize one WASM-backed runtime session from those bytes.
 3. Encode the current engine state into the fixed tensor format.
 4. Run the model and read the policy and value outputs.
 5. Throw away every policy logit that does not correspond to a legal domain action.
@@ -1592,6 +1615,7 @@ Step by step:
 Implementation notes:
 
 - If the asset is missing or invalid, the function quietly returns `null`.
+- The session is intentionally not constructed from a ranged response; full bytes ensure that a cache or server cannot supply an incomplete model to the runtime.
 - Runtime currently uses `valueEstimate` for diagnostics, not for leaf evaluation.
 - `buildMaskedActionPriors` returns a `Float32Array` of size `AI_MODEL_ACTION_COUNT` rather than a string-keyed record. Each element is the softmax-normalized prior for that action index. This lets the search engine look up policy priors with `policyPriors[actionId]` — an O(1) array index — instead of a hash-table lookup on a generated string key.
 
@@ -1667,7 +1691,8 @@ function hashBoard(board):
     coord + ":" + join(checker signatures in stack order)
 
 function hashPosition(state):
-  pendingJumpKey = source + trail if pendingJump exists else "-"
+  pendingJumpKey = source + trail + jumped-checker placements
+                    if pendingJump exists else "-"
   return currentPlayer + "::" + pendingJumpKey + "::" + hashBoard(board)
 ```
 
@@ -1676,7 +1701,7 @@ Step by step:
 1. Serialize the board in one fixed coordinate order so equivalent boards always produce the same string.
 2. Serialize checker ownership and frozen state at each coordinate.
 3. Prefix the side to move.
-4. Prefix the pending-jump continuation identity when present.
+4. Prefix the pending-jump continuation identity when present, including the current board slots of checker identities that have already been jumped.
 5. Use that final string as the cross-session canonical position key.
 
 Implementation notes:
@@ -1684,6 +1709,7 @@ Implementation notes:
 - This is deterministic string serialization with zero collision risk: two different positions always produce different strings.
 - The trade-off is exactness over speed: string allocation on every call makes it unsuitable for the AI's inner search loop.
 - The output is stored in `TurnRecord.positionHash` and in `GameState.positionCounts`, giving it cross-session persistence obligations that rule out any hash format that might collide.
+- The jumped-checker placement matters because continuation legality is identity-based. Two positions with the same visible owner/frozen pattern but different locations for a previously jumped checker can permit different next jumps.
 
 ### 7.2a 64-bit Zobrist Hashing
 
@@ -1697,7 +1723,7 @@ Simplified pseudocode:
 
 ```text
 // Precomputed at module load from two independent Splitmix32 streams:
-TABLE_H1[471], TABLE_H2[471]        // board / player / pending-jump source+owner
+TABLE_H1[579], TABLE_H2[579]        // board / player / pending-jump source+owner / jumped-id placement
 CHECKER_H1[36], CHECKER_H2[36]      // one entry per checker id (white-01..black-18)
 LEGACY_COORD_H1[36], LEGACY_COORD_H2[36]  // one entry per coord (legacy trail path)
 
@@ -1711,6 +1737,10 @@ function zobristHash(state):
       idx = cellIndex * 12 + stackPos * 4 + cs
       h1 ^= TABLE_H1[idx]
       h2 ^= TABLE_H2[idx]
+      if checker.id is in pendingJump.jumpedCheckerIds:
+        jumpedSlot = PENDING_JUMPED_SLOT_OFFSET + cellIndex * 3 + stackPos
+        h1 ^= TABLE_H1[jumpedSlot]
+        h2 ^= TABLE_H2[jumpedSlot]
 
   if currentPlayer == 'black':
     h1 ^= TABLE_H1[PLAYER_OFFSET]
@@ -1745,19 +1775,20 @@ function zobristHash(state):
 
 Step by step:
 
-1. At module load, fill three pairs of `Uint32Array` tables with sequential Splitmix32 output from two fixed seeds.
-2. Validate stack height (> 3 is a logic error); for each cell XOR in the value for position × stack depth × checker state.
+1. At module load, fill the board/pending, checker-id, and legacy-coordinate `Uint32Array` tables with sequential Splitmix32 output from two fixed seeds.
+2. Validate stack height (> 3 is a logic error); for each cell XOR in the value for position × stack depth × checker state. If a pending-jump trail names that checker id, XOR an additional table value for its current board slot.
 3. XOR in the side-to-move entry if black is to move.
 4. Assert the pending-jump source coord is known; XOR its table entry. XOR the `firstJumpedOwner` entry when present.
 5. Hash the jumped-checker trail using whichever format is present, in the same priority order as `getPendingJumpTrail()`:
-   - **Current format** (`jumpedCheckerIds`): standard 8-char IDs look up `CHECKER_H1/H2` by index; non-standard IDs (e.g. test-factory 3-digit IDs) derive a hash via FNV-1a seeded into two independent Splitmix32 finalization rounds.
+   - **Current format** (`jumpedCheckerIds`): standard 8-char IDs look up `CHECKER_H1/H2` by index; non-standard IDs (e.g. test-factory 3-digit IDs) derive a hash via FNV-1a seeded into two independent Splitmix32 finalization rounds. The board loop above separately commits the current slot of every named checker.
    - **Legacy format** (`visitedCoords`): coord strings look up `LEGACY_COORD_H1/H2` by coord index.
    - **Oldest legacy** (`visitedStateKeys`): arbitrary strings use raw FNV-1a (unreachable in newly generated game states).
 6. Concatenate the two 32-bit halves as 8-char hex each → 16-char result.
 
 Implementation notes:
 
-- Three table pairs (board/player/pending, checker ids, legacy coords) keep every path in the Zobrist framework and off FNV-1a for reachable game states.
+- The board/pending table reserves 108 extra values for `36` coordinates × `3` stack slots. They distinguish the current placement of the checker identities already crossed in a pending jump.
+- Separate checker-id and legacy-coordinate tables keep normal reachable trail formats in the Zobrist framework; the deterministic FNV-based fallback exists only for non-standard test or legacy ids.
 - XOR accumulation over `jumpedCheckerIds` is order-independent by design: `getJumpTargetsForContext` checks set membership only, so states that reached the same jumped-checker set via different orderings are identical for TT purposes.
 - XOR degeneracy: two distinct checker-id sets can hash identically if their per-half XOR sums cancel. Per-half probability is ~630/2³² ≈ 1.5×10⁻⁷ (630 pairs from 36 checkers); the 64-bit joint probability is ~630²/2⁶⁴ ≈ 2×10⁻¹⁴ — negligible for a 50,000-entry table.
 - `firstJumpedOwner` encodes one bit (black vs white), not a specific checker. Two states that differ only in which exact checker was jumped first produce the same contribution from this field; the trail itself provides the differentiation.
@@ -1837,6 +1868,46 @@ Implementation notes:
 
 - This is essential after deserialization because trusting stale serialized hashes is dangerous.
 
+### 7.4a Generated-Action Transition Fast Path
+
+Files:
+[`src/domain/reducers/gameReducer.ts`](../src/domain/reducers/gameReducer.ts),
+[`src/domain/reducers/engineTransition.ts`](../src/domain/reducers/engineTransition.ts)
+
+Role in YOUI:
+Avoids running the public action validator a second time for a candidate that
+the domain has just generated for the same position and rule configuration.
+
+```text
+state + rules
+    │
+    ├── getLegalActions() ──► generated candidate
+    │                              │
+    │                              ▼
+    │                   advanceGeneratedEngineState()
+    │                    (skip duplicate validation)
+    │                              │
+    ▼                              ▼
+external action ───────► advanceEngineState()
+                         (validate before applying)
+```
+
+Step by step:
+
+1. Generate legal candidates from the current state and its active rules.
+2. For one of those exact candidates, call `advanceGeneratedEngineState()`.
+3. The transition skips only `validateAction()`; it still applies the action and
+   resolves continuation, turn/pass, victory, hash, and repetition state.
+4. For UI input, network payloads, imports, or any action from another position
+   or ruleset, call the validating `advanceEngineState()` instead.
+
+Trade-offs:
+
+- Removes duplicate legality work from recursive candidate evaluation without
+  changing the resulting game state.
+- The faster path is deliberately narrow. Treating untrusted or stale actions
+  as generated candidates would bypass the engine's public validation boundary.
+
 ### 7.5 Coordinate Vector Delta Math
 
 File:
@@ -1858,14 +1929,15 @@ getJumpDirection(source, landing) -> jump vector or null
 
 Step by step:
 
-1. Parse a symbolic coordinate into integer file and rank indices.
-2. Apply the direction vector in index space.
-3. Reject any result that leaves the `6 x 6` bounds.
-4. Convert the indices back to typed coordinates for the rest of the rules engine.
+1. Resolve a symbolic coordinate through the fixed board's precomputed coordinate index.
+2. Resolve the direction through the finite direction lattice and look up the precomputed adjacent or jump-landing coordinate.
+3. Return `null` for a lookup that leaves the `6 x 6` bounds.
+4. Convert to typed coordinate data only where a caller needs component indices.
 
 Implementation notes:
 
 - The helpers are small, but correctness here protects the whole rules engine.
+- The lookup tables are a representation optimization for a fixed-size board, not a change to vector semantics. Their public behavior remains the same as coordinate arithmetic over the `6 x 6` lattice.
 
 ## 8. Persistence And Performance Glue
 
@@ -1905,6 +1977,43 @@ Implementation notes:
 
 - Cache entries are bounded.
 - Legal actions are cached separately by position plus rule config.
+- This cache is distinct from `PositionAnalysis` reuse. `StatePerfBundle` prevents duplicated keyed pure-summary work across a search; `PositionAnalysis` packages many facts obtained by one board traversal, including frontier width, for immediate strategic and participation consumers. Both mechanisms preserve the same inputs and outputs as the uncached calculations.
+
+### 8.1a Feature reuse inside move ordering
+
+Files:
+[`src/ai/moveOrdering.ts`](../src/ai/moveOrdering.ts),
+[`src/ai/strategy.ts`](../src/ai/strategy.ts), and
+[`src/ai/participation.ts`](../src/ai/participation.ts)
+
+Role in YOUI:
+Avoids recomputing the same state-derived feature while evaluating every legal successor for move ordering.
+
+```mermaid
+flowchart LR
+  Base["base EngineState"] --> BaseAnalysis["base PositionAnalysis"]
+  Action["candidate action"] --> Next["successor EngineState"]
+  Next --> NextAnalysis["successor PositionAnalysis"]
+  BaseAnalysis --> Strategic["strategic profile"]
+  NextAnalysis --> Strategic
+  BaseAnalysis --> Participation["before profile"]
+  NextAnalysis --> Participation["after profile"]
+  Strategic --> Score["static action score"]
+  Participation --> Score
+```
+
+Step by step:
+
+1. Analyze the base state once before iterating candidate actions.
+2. Advance a candidate and analyze its successor once.
+3. Give the exact same base/successor analyses to strategic and participation feature extraction.
+4. Build each participation profile once, score it once, then retain only the score delta and next rolling state on the ordered entry.
+5. Reuse the completed entry during iterative-deepening rescoring; only dynamic search terms change.
+
+Trade-off:
+
+- This removes repeated work but does not make the search asymptotically smaller. Its benefit is bounded by the fraction of time previously spent in feature extraction (Amdahl's law).
+- It must not substitute a cheaper approximation for the shared feature. In particular, the frontier predicate remains exactly `isMovableSingle || isControlledStack`.
 
 ### 8.2 Session Compaction And History Rebase
 

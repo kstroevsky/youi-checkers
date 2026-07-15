@@ -29,7 +29,8 @@ The repository documentation is intentionally split by subsystem.
 6. [`docs/ALGORITHMS.md`](./docs/ALGORITHMS.md): step-by-step algorithm explanations, project context, and trade-offs across search, rules, diagnostics, and training.
 7. [`src/ui/README.md`](./src/ui/README.md): presentation-layer and localization strategy.
 8. [`docs/INFRASTRUCTURE.md`](./docs/INFRASTRUCTURE.md): PWA/runtime caching and generated report tooling.
-9. [`training/README.md`](./training/README.md): offline dataset and training path for the optional neural guidance model.
+9. [`docs/performance-ab-testing.md`](./docs/performance-ab-testing.md): reproducible paired performance experiments, guardrails, and verdict interpretation.
+10. [`training/README.md`](./training/README.md): offline dataset and training path for the optional neural guidance model.
 
 ## System Map
 
@@ -84,33 +85,33 @@ Threefold and stalemate tiebreaks both compare:
 
 ## Repository Map
 
-| Path | Role |
-| --- | --- |
-| [`src/domain/`](./src/domain/) | Pure rules engine, reducers, validators, hashing, serialization, invariants |
-| [`src/ai/`](./src/ai/) | Search engine, heuristics, model encoding, worker bridge, tests |
-| [`src/app/store/`](./src/app/store/) | Store assembly, interaction flow, persistence runtime, AI control |
-| [`src/app/`](./src/app/) | Application shell and top-level composition |
-| [`src/ui/`](./src/ui/) | Board, tabs, panels, tooltips, and other presentation components |
-| [`src/shared/`](./src/shared/) | i18n, constants, hooks, and shared utilities |
-| [`docs/`](./docs/) | Rulebook and cross-cutting technical documentation |
-| [`scripts/`](./scripts/) | Self-play, report generation, and benchmark tooling |
-| [`training/`](./training/) | Offline training script and requirements |
-| [`public/models/`](./public/models/) | Deployment slot for the optional ONNX model |
-| [`output/`](./output/) | Generated report artifacts |
+| Path                                 | Role                                                                        |
+| ------------------------------------ | --------------------------------------------------------------------------- |
+| [`src/domain/`](./src/domain/)       | Pure rules engine, reducers, validators, hashing, serialization, invariants |
+| [`src/ai/`](./src/ai/)               | Search engine, heuristics, model encoding, worker bridge, tests             |
+| [`src/app/store/`](./src/app/store/) | Store assembly, interaction flow, persistence runtime, AI control           |
+| [`src/app/`](./src/app/)             | Application shell and top-level composition                                 |
+| [`src/ui/`](./src/ui/)               | Board, tabs, panels, tooltips, and other presentation components            |
+| [`src/shared/`](./src/shared/)       | i18n, constants, hooks, and shared utilities                                |
+| [`docs/`](./docs/)                   | Rulebook and cross-cutting technical documentation                          |
+| [`scripts/`](./scripts/)             | Self-play, report generation, and benchmark tooling                         |
+| [`training/`](./training/)           | Offline training script and requirements                                    |
+| [`public/models/`](./public/models/) | Deployment slot for the optional ONNX model                                 |
+| [`output/`](./output/)               | Generated report artifacts                                                  |
 
 The application shell itself lives in [`src/app/App/App.tsx`](./src/app/App/App.tsx). It owns top-level tab switching between game, instructions, and settings, mounts the PWA lifecycle banner, and preloads non-critical overlays during idle time through `preloadAppOverlays()`. Shell-level regression coverage lives in [`src/app/App.test.tsx`](./src/app/App.test.tsx) and [`src/app/rendering.test.tsx`](./src/app/rendering.test.tsx), while the deeper runtime contracts remain under [`src/app/store/`](./src/app/store/).
 
 ## Key Runtime Concepts
 
-| Concept | Where it lives | Role in the system |
-| --- | --- | --- |
-| `GameState` | [`src/domain/model/types.ts`](./src/domain/model/types.ts) | authoritative live position, including board, side to move, terminal status, history, and repetition counts |
-| `StateSnapshot` | [`src/domain/model/types.ts`](./src/domain/model/types.ts) | serialization-safe and history-safe position snapshot without live history arrays |
-| `TurnRecord` | [`src/domain/model/types.ts`](./src/domain/model/types.ts) | one committed move plus before/after snapshots, auto-passes, and canonical post-move hash |
-| `UndoFrame` | [`src/shared/types/session.ts`](./src/shared/types/session.ts) | lightweight history cursor used by undo/redo and persistence compaction |
-| `AiBehaviorProfile` | [`src/shared/types/session.ts`](./src/shared/types/session.ts) | hidden persisted persona that keeps a computer opponent's style stable across reloads in one match |
-| `InteractionState` | [`src/shared/types/session.ts`](./src/shared/types/session.ts) | store-owned UI protocol: idle, piece selection, targeting, jump follow-up, pass overlay, or game over |
-| `AiSearchResult` | [`src/ai/types.ts`](./src/ai/types.ts) | one complete AI decision, including chosen move, fallback mode, diagnostics, root candidates, active risk mode, and persona id |
+| Concept             | Where it lives                                                 | Role in the system                                                                                                             |
+| ------------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
+| `GameState`         | [`src/domain/model/types.ts`](./src/domain/model/types.ts)     | authoritative live position, including board, side to move, terminal status, history, and repetition counts                    |
+| `StateSnapshot`     | [`src/domain/model/types.ts`](./src/domain/model/types.ts)     | serialization-safe and history-safe position snapshot without live history arrays                                              |
+| `TurnRecord`        | [`src/domain/model/types.ts`](./src/domain/model/types.ts)     | one committed move plus before/after snapshots, auto-passes, and canonical post-move hash                                      |
+| `UndoFrame`         | [`src/shared/types/session.ts`](./src/shared/types/session.ts) | lightweight history cursor used by undo/redo and persistence compaction                                                        |
+| `AiBehaviorProfile` | [`src/shared/types/session.ts`](./src/shared/types/session.ts) | hidden persisted persona that keeps a computer opponent's style stable across reloads in one match                             |
+| `InteractionState`  | [`src/shared/types/session.ts`](./src/shared/types/session.ts) | store-owned UI protocol: idle, piece selection, targeting, jump follow-up, pass overlay, or game over                          |
+| `AiSearchResult`    | [`src/ai/types.ts`](./src/ai/types.ts)                         | one complete AI decision, including chosen move, fallback mode, diagnostics, root candidates, active risk mode, and persona id |
 
 ## Runtime Boundaries
 
@@ -198,6 +199,7 @@ Key commands:
 - `npm run ai:variety`: generate AI variety reports
 - `npm run perf:report`: generate browser and domain performance reports
 - `npm run perf:compare`: compare historical and current performance JSON snapshots
+- `pnpm perf:ab --baseline=<ref> --candidate=<ref>`: run a counterbalanced, immutable-revision performance A/B experiment
 - `npm run ai:crossplay:compare`: compare two cross-play report snapshots by git ref or `working`
 - `npm run ai:loop-benchmark:compare`: compare two loop-benchmark snapshots by git ref or `working`
 - `npm run ai:position-buckets:compare`: compare two position-bucket snapshots by git ref or `working`
@@ -220,7 +222,7 @@ All `*:compare` wrappers accept `--before=<ref|working>` and `--after=<ref|worki
 3. Search remains the tactical authority. Heuristics and model guidance improve move ordering and style; they do not replace legality or tree search.
 4. Asynchronous work is isolated. Worker results and archive hydration are versioned so stale results can be ignored safely.
 5. Optional infrastructure degrades gracefully. The model file, IndexedDB archive, and some browser features may be absent without breaking the core game.
-6. Performance optimizations stay semantics-preserving. The current search uses keyed pure-summary caches and per-search lazy bundles to remove repeated work without changing heuristic formulas or move-selection policy.
+6. Performance optimizations stay semantics-preserving. The current search reuses keyed pure summaries, per-search lazy bundles, and already-derived structural features (including participation frontier width) rather than changing heuristic formulas, candidate admission, or move-selection policy. Performance claims are accepted only through the paired-revision protocol in [`docs/performance-ab-testing.md`](./docs/performance-ab-testing.md).
 
 ## Where To Go Next
 
@@ -230,3 +232,4 @@ All `*:compare` wrappers accept `--before=<ref|working>` and `--after=<ref|worki
 - Step-by-step algorithm explanations: [`docs/ALGORITHMS.md`](./docs/ALGORITHMS.md)
 - Runtime store and persistence: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
 - PWA/report tooling: [`docs/INFRASTRUCTURE.md`](./docs/INFRASTRUCTURE.md)
+- Paired performance methodology and verdicts: [`docs/performance-ab-testing.md`](./docs/performance-ab-testing.md)

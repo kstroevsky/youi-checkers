@@ -86,8 +86,8 @@ Important settings:
 
 The optional ONNX artifact lives at `/models/ai-policy-value.onnx`. The runtime handles it in two layers:
 
-1. [`src/ai/model/guidance.ts`](../src/ai/model/guidance.ts) probes the asset with a small ranged `GET` and loads `onnxruntime-web` only when the file looks like a real model.
-2. [`vite.config.ts`](../vite.config.ts) applies a `CacheFirst` Workbox rule for that exact pathname with a 30-day retention window and `200`/`206` cacheable responses.
+1. [`src/ai/model/guidance.ts`](../src/ai/model/guidance.ts) fetches the full model bytes, accepts only a `200` non-HTML-like response, and loads the `onnxruntime-web` WASM entry point only after those bytes are available. The inference session is created from the fetched bytes, never from a cached range probe.
+2. [`vite.config.ts`](../vite.config.ts) applies a `CacheFirst` Workbox rule for that exact pathname with a 30-day retention window and `200` cacheable responses.
 
 That split avoids bundling neural inference payloads into the main application path while still allowing offline reuse once the file has been fetched successfully.
 
@@ -141,6 +141,33 @@ The imported-session fixtures are deterministic and come from [`scripts/lateGame
 The domain-side report merged into the same JSON also measures root-ordering reuse on those fixtures by comparing a baseline full reordering loop against the optimized `precomputeOrderedActions()` plus `orderPrecomputedMoves()` path.
 
 The Markdown file is a report artifact, not hand-authored documentation. Its prose should therefore explain methodology and thresholds, but the numeric body should always come from the generator.
+
+### Paired immutable-revision A/B experiments
+
+[`scripts/perf-ab.mjs`](../scripts/perf-ab.mjs) is the keep/reject runner for a proposed performance change. It is deliberately separate from `perf:report`: a one-off report describes a machine run, whereas `perf:ab` compares two immutable Git revisions under the same workload contract.
+
+```mermaid
+flowchart TD
+  Refs["baseline + candidate Git refs"] --> Lock["verify distinct commits and identical lockfile"]
+  Lock --> Worktrees["detached temporary worktrees"]
+  Worktrees --> Validate["build + non-benchmark tests"]
+  Validate --> Warm["one warmup per revision"]
+  Warm --> Schedule["counterbalanced pairs: A/B, B/A, …"]
+  Schedule --> Domain["domain pipeline or full browser pipeline"]
+  Domain --> Contract["verify fixtures and workload schema"]
+  Contract --> Summary["paired medians + bootstrap interval + guardrails"]
+  Summary --> Artifacts["experiment.json, report.md, logs, warmups, raw samples"]
+```
+
+The default `domain` pipeline makes hard-mode AI nodes per second the decision metric. It treats per-fixture legal-action counts and completed depth as guardrails; selected legal moves are observations rather than an identity requirement because a faster time-bounded search can legitimately complete more work. The `full` pipeline additionally normalizes browser, mobile-profile, and delivered-artifact metrics.
+
+Run it with two immutable refs:
+
+```bash
+pnpm perf:ab --baseline=main --candidate=<candidate-ref>
+```
+
+Artifacts go under `output/perf-ab/` and are intentionally ignored by Git. They include the exact commits, environment metadata, counterbalanced schedule, raw reports, warmups, logs, and verdict, so the hand-authored documentation does not become a stale metric dump. The canonical methodology, statistical meaning of a verdict, controls, and interpretation limits live in [`performance-ab-testing.md`](./performance-ab-testing.md).
 
 ## Archival Baselines And Comparisons
 
@@ -224,6 +251,7 @@ Current compare wrappers:
 - `npm run ai:position-buckets:compare`
 - `npm run ai:threat:compare`
 - `npm run perf:compare:git`
+- `pnpm perf:ab --baseline=<ref> --candidate=<ref>`
 
 The compare layer supports three common workflows directly:
 
@@ -270,3 +298,4 @@ This file does not explain search algorithms, heuristic formulas, or domain lega
 - game and state semantics: [`src/domain/README.md`](../src/domain/README.md)
 - AI architecture and lineage: [`src/ai/README.md`](../src/ai/README.md)
 - heuristic formulas: [`src/ai/HEURISTICS.md`](../src/ai/HEURISTICS.md)
+- paired performance methodology: [`performance-ab-testing.md`](./performance-ab-testing.md)

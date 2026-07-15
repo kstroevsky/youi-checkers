@@ -2,7 +2,9 @@
 
 Place the exported ONNX guidance model here as `ai-policy-value.onnx`.
 
-This directory is a deployment slot, not a source directory. The browser worker probes `/models/ai-policy-value.onnx` with a small ranged `GET`, loads it lazily through [`src/ai/model/guidance.ts`](../../src/ai/model/guidance.ts), and falls back to search-only play if the file is absent or unusable.
+This directory is a deployment slot, not a source directory. The browser worker fetches `/models/ai-policy-value.onnx` as a complete `200` response, rejects an HTML-like fallback response, then lazily imports the `onnxruntime-web` WASM runtime and creates a session from the fetched bytes. It falls back to search-only play if the file is absent or unusable.
+
+Using complete bytes is intentional: a session must never be built from a cached range probe. The full response also makes the failure boundary explicit—asset availability is checked before the optional inference runtime is imported.
 
 Important constraints:
 
