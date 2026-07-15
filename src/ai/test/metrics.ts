@@ -95,12 +95,14 @@ export type AiVarietyMetricKey =
   | 'leadChangeRate'
   | 'maxRepeatedStateRun'
   | 'meanBoardDisplacement'
+  | 'meanParticipationDelta'
   | 'mobilityReleaseSlope'
   | 'normalizedLempelZiv'
   | 'noveltyScore'
   | 'openingEntropy'
   | 'openingJsDivergence'
   | 'openingSimpsonDiversity'
+  | 'positiveParticipationPlyShare'
   | 'repetitionPlyShare'
   | 'sameFamilyQuietRepeatRate'
   | 'sixStackProgressAuc'
@@ -1220,6 +1222,8 @@ export function summarizeAiVariety(
   let maxRepeatedStateRun = 0;
   let decisiveCount = 0;
   let intentSwitchCount = 0;
+  let participationDeltaSum = 0;
+  let positiveParticipationCount = 0;
 
   for (const trace of traces) {
     terminalCounts[trace.terminalType] += 1;
@@ -1249,6 +1253,12 @@ export function summarizeAiVariety(
 
       if (ply.isRepetition) {
         repetitionCount += 1;
+      }
+
+      participationDeltaSum += ply.participationDelta;
+
+      if (ply.participationDelta > 0) {
+        positiveParticipationCount += 1;
       }
     }
 
@@ -1348,6 +1358,9 @@ export function summarizeAiVariety(
     meanBoardDisplacement: roundMetric(
       average(traces.flatMap((trace) => trace.plies.map((ply) => ply.boardDisplacement))),
     ),
+    meanParticipationDelta: roundMetric(
+      participationDeltaSum / Math.max(1, totalPlies),
+    ),
     mobilityReleaseSlope: roundMetric(mobilityReleaseSlope),
     normalizedLempelZiv: roundMetric(
       average(
@@ -1365,6 +1378,9 @@ export function summarizeAiVariety(
         )
       : 0,
     openingSimpsonDiversity: computeSimpsonDiversity(firstMoveDistribution),
+    positiveParticipationPlyShare: roundMetric(
+      positiveParticipationCount / Math.max(1, totalPlies),
+    ),
     repetitionPlyShare: roundMetric(repetitionCount / Math.max(1, totalPlies)),
     sameFamilyQuietRepeatRate: computeSameFamilyQuietRepeatRate(traces),
     sixStackProgressAuc: roundMetric(sixStackProgressAuc),
@@ -1440,9 +1456,11 @@ export function compareSummaryToBaseline(
   const higherIsBetter: AiVarietyMetricKey[] = [
     'decompressionSlope',
     'meanBoardDisplacement',
+    'meanParticipationDelta',
     'mobilityReleaseSlope',
     'openingEntropy',
     'openingSimpsonDiversity',
+    'positiveParticipationPlyShare',
   ];
 
   for (const metric of lowerIsBetter) {

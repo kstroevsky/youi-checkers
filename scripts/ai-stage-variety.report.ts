@@ -194,6 +194,8 @@ function buildMarkdown(
     'stagnationWindowRate',
     'openingEntropy',
     'uniqueOpeningLineShare',
+    'meanParticipationDelta',
+    'positiveParticipationPlyShare',
     'decompressionSlope',
     'mobilityReleaseSlope',
     'meanBoardDisplacement',

@@ -92,6 +92,8 @@ function buildMarkdown(
     'normalizedLempelZiv',
     'noveltyScore',
     'behaviorSpaceCoverage',
+    'meanParticipationDelta',
+    'positiveParticipationPlyShare',
     'decompressionSlope',
     'mobilityReleaseSlope',
     'meanBoardDisplacement',
