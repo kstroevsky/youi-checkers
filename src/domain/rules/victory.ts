@@ -40,9 +40,25 @@ const drawTiebreakMetricsCache = new Map<string, DrawTiebreakMetrics>();
 
 type DrawSource = 'threefold' | 'stalemate';
 
+function countCheckersByPlayer(state: EngineState): Record<Player, number> {
+  const counts: Record<Player, number> = { black: 0, white: 0 };
+
+  for (const coord of allCoords()) {
+    for (const checker of state.board[coord].checkers) {
+      counts[checker.owner] += 1;
+    }
+  }
+
+  return counts;
+}
+
 /** True when all 18 player checkers are singles inside that player's home rows. */
-function hasHomeFieldWin(state: EngineState, player: Player): boolean {
-  if (countCheckersForPlayer(state.board, player) !== 18) {
+function hasHomeFieldWin(
+  state: EngineState,
+  player: Player,
+  checkerCount = countCheckersForPlayer(state.board, player),
+): boolean {
+  if (checkerCount !== 18) {
     return false;
   }
 
@@ -202,7 +218,19 @@ export function checkPlayerVictory(
   state: EngineState,
   player: Player,
 ): Victory {
-  if (hasHomeFieldWin(state, player)) {
+  return checkPlayerVictoryWithCount(
+    state,
+    player,
+    countCheckersForPlayer(state.board, player),
+  );
+}
+
+function checkPlayerVictoryWithCount(
+  state: EngineState,
+  player: Player,
+  checkerCount: number,
+): Victory {
+  if (hasHomeFieldWin(state, player, checkerCount)) {
     return { type: 'homeField', winner: player };
   }
 
@@ -238,22 +266,34 @@ export function checkVictoryWithPositionHash(
   state: EngineState,
   config: Partial<RuleConfig> = {},
 ): { positionHash: string | null; victory: Victory } {
-  const resolvedConfig = withRuleDefaults(config);
+  return checkVictoryWithPositionHashResolved(state, withRuleDefaults(config));
+}
+
+/** Hot-path variant for callers that already hold a complete rule configuration. */
+export function checkVictoryWithPositionHashResolved(
+  state: EngineState,
+  config: RuleConfig,
+): { positionHash: string | null; victory: Victory } {
+  const checkerCounts = countCheckersByPlayer(state);
 
   for (const player of ['white', 'black'] as const) {
-    const victory = checkPlayerVictory(state, player);
+    const victory = checkPlayerVictoryWithCount(
+      state,
+      player,
+      checkerCounts[player],
+    );
 
     if (victory.type !== 'none') {
       return { positionHash: null, victory };
     }
   }
 
-  if (resolvedConfig.drawRule === 'threefold') {
+  if (config.drawRule === 'threefold') {
     const positionHash = hashPosition(state);
 
     return {
       positionHash,
-      victory: checkRepetitionVictoryByKey(state, resolvedConfig, positionHash),
+      victory: checkRepetitionVictoryByKey(state, config, positionHash),
     };
   }
 

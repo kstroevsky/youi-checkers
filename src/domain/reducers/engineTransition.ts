@@ -18,7 +18,7 @@ import {
 import {
   checkPlayerVictory,
   checkRepetitionVictoryByKey,
-  checkVictoryWithPositionHash,
+  checkVictoryWithPositionHashResolved,
   resolveDrawOutcome,
 } from '@/domain/rules/victory';
 
@@ -248,7 +248,7 @@ function resolveEngineCommand(
           positionHash: null,
           victory: checkPlayerVictory(candidate, options.victoryPlayer),
         }
-      : checkVictoryWithPositionHash(candidate, victoryConfig);
+      : checkVictoryWithPositionHashResolved(candidate, victoryConfig);
   const immediateVictory = evaluateVictory(immediateState);
   const winAfterMove = immediateVictory.victory;
   const autoPasses: Player[] = [];

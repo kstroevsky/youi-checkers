@@ -46,7 +46,11 @@ export function cloneBoard(board: Board): Board {
 }
 
 /** Clones a cell on demand the first time a mutable move path touches it. */
-export function ensureMutableCell(board: Board, coord: Coord, clonedCoords: Set<Coord>): Cell {
+export function ensureMutableCell(
+  board: Board,
+  coord: Coord,
+  clonedCoords: Set<Coord>,
+): Cell {
   if (!clonedCoords.has(coord)) {
     board[coord] = cloneCell(board[coord]);
     clonedCoords.add(coord);
@@ -97,20 +101,35 @@ export function getController(board: Board, coord: Coord): Player | null {
 }
 
 /** True when a height-3 stack contains only checkers owned by the same player. */
-export function isFullStackOwnedByPlayer(board: Board, coord: Coord, player: Player): boolean {
+export function isFullStackOwnedByPlayer(
+  board: Board,
+  coord: Coord,
+  player: Player,
+): boolean {
   const { checkers } = getCell(board, coord);
 
-  return checkers.length === 3 && checkers.every((checker) => checker.owner === player);
+  return (
+    checkers.length === 3 &&
+    checkers.every((checker) => checker.owner === player)
+  );
 }
 
 /** Removes and returns `count` top checkers from a cell (mutable board helper). */
-export function removeTopCheckers(board: Board, coord: Coord, count: number): Checker[] {
+export function removeTopCheckers(
+  board: Board,
+  coord: Coord,
+  count: number,
+): Checker[] {
   const cell = getCell(board, coord);
   return cell.checkers.splice(cell.checkers.length - count, count);
 }
 
 /** Appends checkers to a cell while cloning each checker object. */
-export function addCheckers(board: Board, coord: Coord, checkers: Checker[]): void {
+export function addCheckers(
+  board: Board,
+  coord: Coord,
+  checkers: Checker[],
+): void {
   getCell(board, coord).checkers.push(...checkers.map(cloneChecker));
 }
 
@@ -131,9 +150,17 @@ export function setSingleCheckerFrozen(
 
 /** Counts all checkers owned by a player across the board. */
 export function countCheckersForPlayer(board: Board, player: Player): number {
-  return allCoords().reduce((count, coord) => {
-    return count + getCell(board, coord).checkers.filter((checker) => checker.owner === player).length;
-  }, 0);
+  let count = 0;
+
+  for (const coord of allCoords()) {
+    for (const checker of getCell(board, coord).checkers) {
+      if (checker.owner === player) {
+        count += 1;
+      }
+    }
+  }
+
+  return count;
 }
 
 /** Creates a serializable snapshot of runtime state without history/position counters. */
