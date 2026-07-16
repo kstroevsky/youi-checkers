@@ -146,7 +146,16 @@ The search stores bounded transposition entries, updates killer/history/continua
 
 #### Search stack (`SearchStack`)
 
-The recursive search passes a `SearchStack` — a pre-allocated fixed-size backing array plus a depth cursor — through every call frame instead of a dynamic JavaScript array. This avoids the V8 "generic property write" slow path that fires when `Array.length` changes dynamically. Each ply writes `stack.entries[stack.depth]` and increments the cursor in a `try/finally` guard that decrements it on exit, matching how Stockfish manages its `Stack ss[MAX_PLY]` pass-by-pointer idiom. The array is sized once at root-search startup to `preset.maxDepth + MAX_QUIESCENCE_DEPTH + 4` and never reallocated during the search.
+The recursive search passes a `SearchStack`—a fixed-capacity backing array plus
+a depth cursor—through every call frame instead of using `push()` and `pop()`.
+Each ply writes `stack.entries[stack.depth]` and increments the cursor in a
+`try/finally` guard that decrements it on exit. The array is created once at
+root-search startup with capacity
+`preset.maxDepth + MAX_QUIESCENCE_DEPTH + 4`, so the search does not grow,
+shrink, or replace that backing array. Because `new Array(capacity)` is holey,
+this README deliberately makes no “packed elements” claim. Search-line entry
+objects are still created per visited edge; the optimization concerns stack
+container reuse, not zero-allocation recursion.
 
 ![Zero-sum negamax score-scale illustration](../../docs/img/zero-sum-negamax-scale.jpeg)
 
@@ -189,6 +198,55 @@ Quiescence exists because a leaf at nominal search depth is not necessarily stra
 ![Search-depth cutoff versus quiescence illustration](../../docs/img/search-score-depth.jpeg)
 
 _This is a useful non-Mermaid illustration because the issue is not control flow but the shape of an evaluation error: a nominal depth cutoff can look stable until one more forcing ply causes the score to collapse._
+
+#### Staged quiescence candidate scoring
+
+Quiescence used to send every geometrically plausible candidate through
+`orderMoves()` and only afterwards discard entries that were neither forcing
+nor tactical. That ordering call advances each action and builds strategic,
+participation, repetition, and tiebreak metadata. For ordinary home/front-row
+moves, all of that work was unused unless the transition ended the game.
+
+[`getQuiescenceScoringActions()`](./search/quiescence.ts) now applies the same
+retention logic in two stages:
+
+1. preserve the old no-action and single-candidate behavior exactly;
+2. retain every jump sequence without a probe;
+3. retain every manual unfreeze because its tactical status requires the full
+   profile;
+4. for every other multi-candidate action, run only the generated transition
+   and retain it only when the successor is terminal;
+5. call `orderMoves()` only for the survivors, then apply the unchanged final
+   forcing/tactical predicate.
+
+```mermaid
+flowchart TD
+  Candidates["geometric quiescence candidates"] --> Count{"zero or one?"}
+  Count -- "yes" --> Full["full orderMoves scoring"]
+  Count -- "no" --> Kind{"jump or manual unfreeze?"}
+  Kind -- "yes" --> Full
+  Kind -- "no" --> Probe["generated transition only"]
+  Probe --> Terminal{"game over?"}
+  Terminal -- "yes" --> Full
+  Terminal -- "no" --> Reject["discard before feature extraction"]
+  Full --> Final["unchanged forcing/tactical retention predicate"]
+```
+
+If `k` is the number of geometric candidates, `m` the non-jump/non-unfreeze
+candidates, `r` the actions that survive the prefilter and reach full scoring,
+`C_t` the transition cost, and `C_f` the full ordering-feature cost, the
+relevant shape changes from approximately
+`k * C_f` to `m * C_t + r * C_f`. A retained ordinary terminal move may be
+transitioned once in the probe and again during full scoring, so this is not a
+blanket "one transition per move" claim. It wins because in the measured
+quiescence workload `r` is much smaller than `k` and `C_f` includes several
+board summaries beyond the transition itself.
+
+The correctness oracle in [`test/quiescence.test.ts`](./test/quiescence.test.ts)
+contains the pre-staging algorithm and compares its complete ordered output
+with the staged implementation on the opening, two seeded realistic midgames,
+and the legacy single-candidate case. This is stronger than checking only the
+chosen action.
 
 ## Move Ordering And Evaluation
 
@@ -416,7 +474,14 @@ Those numbers are not mathematical truths. They are bounded browser-runtime poli
 
 #### History aging
 
-After each completed iterative-deepening pass, the root search right-shifts every history score by 2 (i.e., divides by 4). This is Schaeffer's (1989) history-aging technique: scores earned at shallow depth should not dominate ordering at the next, deeper pass where the search horizon is fundamentally longer. Without aging, a move that caused many beta-cutoffs at depth 2 can still crowd out plausibly better moves at depth 6. The right-shift is applied unconditionally to the full `Int32Array` of `2_736` entries in a single tight loop after the depth's best action is recorded.
+After each completed iterative-deepening pass, the root search right-shifts
+every history score by 2 (i.e., divides by 4). Schaeffer (1989) is the lineage
+for using accumulated cutoff history to improve alpha-beta move ordering; the
+exact divide-by-four schedule is this repository's bounded forgetting policy,
+not a claim about a formula prescribed by that paper. The shift prevents
+shallow iterations from permanently dominating later ordering and keeps the
+`Int32Array` values away from their saturation cap. It is applied to all
+`2_736` entries in one loop after the depth's best action is recorded.
 
 ## Search-Time Summary Reuse
 
@@ -452,6 +517,39 @@ flowchart LR
 ```
 
 This is common-subexpression elimination in project terms: one predicate and one board traversal establish a fact once, then several consumers read that fact. The fallback profile API can still calculate frontier width directly when a caller has no `PositionAnalysis`; the hot move-ordering path always supplies one.
+
+The generated-child path also reuses work produced below the AI layer:
+
+```mermaid
+sequenceDiagram
+  participant Order as precomputeOrderedActions()
+  participant Domain as advanceGeneratedEngineTransition()
+  participant Victory as victory/repetition resolution
+  participant Cache as StatePerfBundle
+
+  Order->>Domain: generated action + overlay storage option
+  Domain->>Victory: resolve terminal state and repetition
+  Victory-->>Domain: victory + canonical active-state hash when available
+  Domain-->>Order: nextState + positionHash
+  Order->>Cache: getStatePerfBundle(nextState, positionHash)
+  Cache-->>Order: lazy summaries keyed without another active-state hash
+```
+
+Move ordering requests `positionCountStorage: 'overlay'`. The domain layer
+creates a one-entry object whose prototype is the parent repetition-count
+record. Creating a speculative child is therefore constant-size with respect
+to the number of historically seen positions, while lookup follows ordinary
+JavaScript property resolution through at most the bounded search ancestry.
+This is a narrow, search-local application of persistent-version ideas, not a
+claim that JavaScript prototype objects provide the full asymptotic guarantees
+of a general persistent map. Public and serializable transitions continue to
+copy plain records.
+
+For active successors, the transition's `positionHash` is passed directly to
+`getStatePerfBundle()`. A terminal successor deliberately falls back to a fresh
+hash because terminal normalization can change `currentPlayer`, `status`, or
+`pendingJump` after the immediate victory probe. That exception is part of the
+correctness boundary, not an unoptimized oversight.
 
 ## Strategic Analysis Layer
 
@@ -658,7 +756,7 @@ The repository code does not embed a formal bibliography, so the list below shou
 | Iterative deepening under bounded search budgets                                 | Richard E. Korf, "Depth-first Iterative-Deepening: An Optimal Admissible Tree Search," _Artificial Intelligence_ 27(1), 1985. DOI: `10.1016/0004-3702(85)90084-0`.                                  |
 | Null-window / principal-variation-style search refinement                        | Murray Campbell and Tony Marsland, "A Comparison of Minimax Tree Search Algorithms," _Artificial Intelligence_ 20(4), 1983. DOI: `10.1016/0004-3702(83)90037-5`.                                    |
 | Quiescence search to stabilize tactical leaves                                   | Larry Harris, "The Heuristic Search and the Game of Chess: A Study of Quiescence, Sacrifices, and Plan Oriented Play," _IJCAI 1975_.                                                                |
-| History heuristic family of move-ordering improvements                           | Jonathan Schaeffer, "The History Heuristic and Alpha-Beta Search Enhancements in Practice," _IEEE Transactions on Pattern Analysis and Machine Intelligence_ 11(11), 1989. DOI: `10.1109/34.42847`. |
+| History heuristic family of move-ordering improvements                           | Jonathan Schaeffer, "The History Heuristic and Alpha-Beta Search Enhancements in Practice," _IEEE Transactions on Pattern Analysis and Machine Intelligence_ 11(11), 1989. DOI: `10.1109/34.42858`. |
 | Policy/value self-play guidance as conceptual lineage for the offline model path | David Silver et al., "Mastering the game of Go without human knowledge," _Nature_ 550, 2017. DOI: `10.1038/nature24270`.                                                                            |
 | Residual network architecture used in the training script                        | Kaiming He, Xiangyu Zhang, Shaoqing Ren, and Jian Sun, "Deep Residual Learning for Image Recognition," _CVPR 2016_.                                                                                 |
 
@@ -706,29 +804,48 @@ The variety tooling checks that the engine remains strategically broad enough an
 
 The trace layer also records `behaviorProfileId` and `riskMode` per ply, so later diagnostics can distinguish "the engine found a risky line" from "the engine happened to play differently for unrelated reasons."
 
-That distinction matters even more away from the literal opening. The stage report replays the same fixed `opening`, `turn50`, `turn100`, and `turn200` benchmark states used by the perf harness, then measures the same diversity metrics plus `riskMode` activation shares. Because the shipped threefold rule would otherwise make those imported late positions terminal, the harness rebuilds them into playable continuation states by keeping only the recent history window and reconstructing repetition counts from that window. In practice, that report answers a different question than the aggregate suite: not just "is self-play varied in general?" but "when the engine enters a known flat or late position, does the risk system actually engage, and does that engagement reduce repetition or increase decisiveness?"
+That distinction matters even more away from the literal opening. The stage
+report uses the same six scenarios as the current perf harness:
+
+- `opening`;
+- seeded realistic positions `midgame20` and `midgame40`;
+- deterministic loop-pressure positions `loopPressure50` and
+  `loopPressure100`;
+- the sparse late loop position `lateSparse200`.
+
+The seeded midgames preserve a typical amount of material and branching, while
+the loop-derived fixtures deliberately exercise repetition, draw aversion, and
+late-risk behavior. For continuation analysis, the stage harness keeps the six
+most recent history records, rebuilds repetition counts from that retained
+window, and resets terminal status. This is necessary because the shipped
+threefold rule can otherwise make an imported loop fixture terminal before the
+AI is evaluated. In practice, the report asks not just "is self-play varied in
+general?" but "from a known realistic or loop-pressured stage, does risk mode
+engage without collapsing participation and variety?"
 
 The metric vocabulary in [`test/metrics.ts`](./test/metrics.ts) is intentionally broader than win rate alone:
 
-| Metric                     | Meaning                                                                                                                  |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------ |
-| `decisiveResultShare`      | share of games that end in a non-draw terminal result                                                                    |
-| `openingEntropy`           | entropy of the first-move distribution across self-play traces                                                           |
-| `openingSimpsonDiversity`  | complementary diversity score for the opening distribution; higher means openings are less concentrated                  |
-| `openingJsDivergence`      | Jensen-Shannon divergence against the checked-in baseline opening distribution                                           |
-| `uniqueOpeningLineShare`   | share of distinct first-ten-ply openings across traces                                                                   |
-| `sourceFamilyOpeningHhi`   | concentration of opening moves into the same checker family; lower means broader material usage                          |
-| `twoPlyUndoRate`           | rate of quiet self-undo behavior across plies                                                                            |
-| `repetitionPlyShare`       | share of plies that revisit an already seen full position                                                                |
-| `stagnationWindowRate`     | share of sliding windows whose displacement, mobility, and progress stay too flat                                        |
-| `normalizedLempelZiv`      | normalized Lempel-Ziv complexity of move-kind sequences; higher means the trace keeps producing new symbolic motifs      |
-| `decompressionSlope`       | average slope of empty-cell growth over the opening window                                                               |
-| `mobilityReleaseSlope`     | average slope of legal-move count growth over the same window                                                            |
-| `meanBoardDisplacement`    | average number of changed cells per ply                                                                                  |
-| `drama`                    | mean absolute score swing between consecutive plies                                                                      |
-| `tension`                  | average closeness of normalized scores to zero                                                                           |
-| `compositeInterestingness` | target-band composite built from opening diversity, repetition pressure, decompression, drama, and decisive-result share |
-| `behaviorSpaceCoverage`    | fraction of coarse behavior bins actually occupied by the trace set                                                      |
+| Metric                          | Meaning                                                                                                                                     |
+| ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- |
+| `decisiveResultShare`           | share of games that end in a non-draw terminal result                                                                                       |
+| `openingEntropy`                | entropy of the first-move distribution across self-play traces                                                                              |
+| `openingSimpsonDiversity`       | complementary diversity score for the opening distribution; higher means openings are less concentrated                                     |
+| `openingJsDivergence`           | Jensen-Shannon divergence against the checked-in baseline opening distribution                                                              |
+| `uniqueOpeningLineShare`        | share of distinct first-ten-ply openings across traces                                                                                      |
+| `sourceFamilyOpeningHhi`        | concentration of opening moves into the same checker family; lower means broader material usage                                             |
+| `twoPlyUndoRate`                | rate of quiet self-undo behavior across plies                                                                                               |
+| `repetitionPlyShare`            | share of plies that revisit an already seen full position                                                                                   |
+| `stagnationWindowRate`          | share of sliding windows whose displacement, mobility, and progress stay too flat                                                           |
+| `normalizedLempelZiv`           | normalized Lempel-Ziv complexity of move-kind sequences; higher means the trace keeps producing new symbolic motifs                         |
+| `decompressionSlope`            | average slope of empty-cell growth over the opening window                                                                                  |
+| `mobilityReleaseSlope`          | average slope of legal-move count growth over the same window                                                                               |
+| `meanBoardDisplacement`         | average number of changed cells per ply                                                                                                     |
+| `meanParticipationDelta`        | mean signed contribution of the chosen moves' participation profiles; preserves the actual heuristic signal, not merely move diversity      |
+| `positiveParticipationPlyShare` | share of plies whose chosen move has `participationDelta > 0`; guards against broad averages hiding consistently non-positive participation |
+| `drama`                         | mean absolute score swing between consecutive plies                                                                                         |
+| `tension`                       | average closeness of normalized scores to zero                                                                                              |
+| `compositeInterestingness`      | target-band composite built from opening diversity, repetition pressure, decompression, drama, and decisive-result share                    |
+| `behaviorSpaceCoverage`         | fraction of coarse behavior bins actually occupied by the trace set                                                                         |
 
 The newer nonlinear metrics in [`test/advancedMetrics.ts`](./test/advancedMetrics.ts) answer a different question: not "did the engine vary?" but "what kind of dynamical system did the trace behave like?" Those metrics are used by the loop, threat, cross-play, and position-bucket reports:
 
@@ -766,7 +883,9 @@ The performance tooling checks that browser-side search and domain operations st
 The report pipeline measures two complementary surfaces:
 
 - domain microbenchmarks such as hashing, legal-action generation, and root-ordering reuse;
-- shipped-browser interaction and AI timings, including imported-session hard-AI replies on the deterministic `opening`, `turn50`, `turn100`, and `turn200` fixtures from [`scripts/lateGamePerfFixtures.ts`](../../scripts/lateGamePerfFixtures.ts).
+- shipped-browser interaction and AI timings, including hard-AI replies on the
+  six `opening`, seeded-midgame, loop-pressure, and sparse-late fixtures from
+  [`scripts/lateGamePerfFixtures.ts`](../../scripts/lateGamePerfFixtures.ts).
 
 For a keep/reject decision between two implementations, use the separate immutable-revision A/B runner instead of comparing one-off report files:
 
@@ -775,6 +894,55 @@ pnpm perf:ab --baseline=main --candidate=<candidate-ref>
 ```
 
 It counterbalances run order, validates build/test and workload identity for both revisions, and uses hard-mode nodes per second as the default decision metric while guarding legal-action fixtures and completed search depth. The full contract, bootstrap method, artifact layout, and limits of inference are documented in [`docs/performance-ab-testing.md`](../../docs/performance-ab-testing.md).
+
+### Measured optimization ledger
+
+The table below records the latest search/domain round so that implementation
+status is not reconstructed from commit messages or remembered as stronger
+than the evidence. Percentages are median paired changes in hard-mode nodes per
+second; intervals are paired 95% bootstrap intervals. The runner's default
+materiality boundary is `5%`, and its normal decision minimum is ten pairs.
+
+| Workstream                                   | Revisions and pairs                       | Measured result                                                                        | Current status                                                                                                                                                                             |
+| -------------------------------------------- | ----------------------------------------- | -------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| staged quiescence scoring                    | `f5226fc -> 78fbd1f`, 10 pairs            | `+72.3066%` (`+70.5932%..+74.0097%`)                                                   | independently confirmed; retained                                                                                                                                                          |
+| direct quiescence action scan                | `78fbd1f -> 625bdee`, 4 exploratory pairs | `-2.1913%` (`-3.2388%..+0.1108%`)                                                      | no evidence of benefit; reverted by `97c141e`                                                                                                                                              |
+| sibling feature-invariant hoist              | `97c141e -> 1fe9439`, 4 exploratory pairs | `+0.4879%` (`-1.1908%..+2.5282%`)                                                      | noise-dominated; reverted by `5ab2e62`                                                                                                                                                     |
+| generated-transition and victory-hash reuse  | `5ab2e62 -> bc3fd58`, 10 pairs            | `+6.9857%` (`+5.3276%..+7.9961%`)                                                      | independently confirmed; retained                                                                                                                                                          |
+| incremental rolling participation update     | `bc3fd58 -> 9568b65`, 4 exploratory pairs | `-1.4092%` (`-2.0734%..+0.4694%`)                                                      | no evidence of benefit; reverted by `7192f8d`                                                                                                                                              |
+| persistent repetition overlay alone          | `66c41b8 -> 5fcfbee`, 4 exploratory pairs | `+3.3784%` (`+2.1347%..+4.1613%`)                                                      | positive exploratory signal below materiality; retained and re-tested only as part of the combined bundle                                                                                  |
+| existence-only legality alone                | `7192f8d -> 1af2b07`, 4 exploratory pairs | `+2.5103%` (`+1.9624%..+3.7365%`)                                                      | positive exploratory signal below materiality; first reverted, then restored in the combined bundle                                                                                        |
+| repetition overlay + existence-only legality | `66c41b8 -> e39a408`, 10 pairs            | `+5.9320%` (`+4.5715%..+6.8268%`)                                                      | interval excludes regression but crosses the `5%` decision boundary; runner verdict `inconclusive`, retained under the documented smaller-positive policy after equivalence/quality checks |
+| direct participation quality observability   | commit `a18e6f8`                          | adds `meanParticipationDelta` and `positiveParticipationPlyShare`; no throughput claim | retained test/report infrastructure                                                                                                                                                        |
+| fused victory checker counting               | `a18e6f8 -> d898ab1`, 10 pairs            | `+2.0350%` (`+0.8185%..+2.8840%`)                                                      | runner verdict `null-result`; retained as a small positive, low-complexity change after equivalence/quality checks                                                                         |
+| cumulative retained round                    | `f5226fc -> d898ab1`, 10 pairs            | `1783.81 -> 3526.52` nodes/s; `+97.7212%` (`+83.2119%..+99.5551%`)                     | confirmed for `domain-ai-v1`; legal fixtures and completed depth passed all pairs                                                                                                          |
+
+Raw `output/perf-ab/` runs are intentionally ignored by Git because each run
+contains worktrees' logs and per-pair JSON. The immutable commit ids, workload,
+and procedure above are the durable rerun coordinates; the exact artifact
+layout and interpretation rules live in
+[`docs/performance-ab-testing.md`](../../docs/performance-ab-testing.md).
+
+The final retained set was also compared with the instrumented aggregate
+variety suite and the six stage fixtures. Those comparisons include opening
+entropy, persona coverage, repetition/undo rates, composite interestingness,
+`meanParticipationDelta`, and `positiveParticipationPlyShare`. A throughput
+result is not considered a behavior-equivalence proof; those separate reports
+are the reason the participation metrics were added explicitly.
+
+### Ideas deliberately not shipped
+
+- A direct quiescence scanner, sibling-invariant hoist, and incremental rolling
+  participation updater were implemented as isolated experiments and reverted
+  after the measurements above.
+- A changed-cell/dependency-halo incremental evaluator was considered but was
+  not implemented in the current tree and has no committed A/B result. The
+  current implementation continues to use whole-position analysis plus keyed
+  reuse. Any future attempt needs a versioned dependency map and an exact
+  whole-position oracle before it can make a performance claim.
+- These null, inconclusive, and deferred outcomes are retained here because
+  they narrow future research. They must not be described as shipped
+  optimizations or folded into the cumulative result.
 
 ## File-by-File Summary
 
@@ -810,27 +978,31 @@ The design target is a strong, explainable, bounded browser opponent.
 
 The repository is not a direct reproduction of any single paper. The table below maps visibly implemented techniques to the closest primary references and the files where they appear.
 
-| Implemented technique                                                                                        | Repo surface                                                                                                                               | Reference                                                                                                                                                                                                                                                                                                                              |
-| ------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Alpha-beta / negamax zero-sum search                                                                         | [`search/negamax.ts`](./search/negamax.ts)                                                                                                 | Donald E. Knuth and Ronald W. Moore, "An Analysis of Alpha-Beta Pruning," _Artificial Intelligence_ 6(4), 1975. DOI: `10.1016/0004-3702(75)90019-3`                                                                                                                                                                                    |
-| Iterative deepening under fixed budgets                                                                      | [`search/rootSearch.ts`](./search/rootSearch.ts)                                                                                           | Richard E. Korf, "Depth-first Iterative-Deepening: An Optimal Admissible Tree Search," _Artificial Intelligence_ 27(1), 1985. DOI: `10.1016/0004-3702(85)90084-0`                                                                                                                                                                      |
-| Principal variation / null-window re-search                                                                  | [`search/negamax.ts`](./search/negamax.ts), [`search/rootSearch.ts`](./search/rootSearch.ts)                                               | Murray Campbell and Tony Marsland, "A Comparison of Minimax Tree Search Algorithms," _Artificial Intelligence_ 20(4), 1983. DOI: `10.1016/0004-3702(83)90037-5`                                                                                                                                                                        |
-| Quiescence search                                                                                            | [`search/quiescence.ts`](./search/quiescence.ts)                                                                                           | Larry Harris, "The Heuristic Search and the Game of Chess: A Study of Quiescence, Sacrifices, and Plan Oriented Play," _IJCAI 1975_                                                                                                                                                                                                    |
-| History heuristic family                                                                                     | [`search/heuristics.ts`](./search/heuristics.ts)                                                                                           | Jonathan Schaeffer, "The History Heuristic and Alpha-Beta Search Enhancements in Practice," _IEEE TPAMI_ 11(11), 1989. DOI: `10.1109/34.42847`                                                                                                                                                                                         |
-| Residual network trunk for policy/value guidance                                                             | [`training/train_policy_value.py`](../../training/train_policy_value.py)                                                                   | Kaiming He et al., "Deep Residual Learning for Image Recognition," _CVPR 2016_                                                                                                                                                                                                                                                         |
-| Self-play policy/value conceptual lineage                                                                    | [`scripts/ai-selfplay-dataset.ts`](../../scripts/ai-selfplay-dataset.ts), [`model/guidance.ts`](./model/guidance.ts)                       | David Silver et al., "Mastering the game of Go without human knowledge," _Nature_ 550, 2017. DOI: `10.1038/nature24270`                                                                                                                                                                                                                |
-| Recurrence plots and recurrence quantification for loop/stall analysis                                       | [`test/advancedMetrics.ts`](./test/advancedMetrics.ts), [`scripts/ai-loop-benchmark.report.ts`](../../scripts/ai-loop-benchmark.report.ts) | J.-P. Eckmann, S. O. Kamphorst, and D. Ruelle, "Recurrence Plots of Dynamical Systems," _Europhysics Letters_ 4(9), 1987. DOI: `10.1209/0295-5075/4/9/004`; Charles L. Webber Jr. and Joseph P. Zbilut, "Dynamical assessment of physiological systems and states using recurrence plot strategies," _J. Appl. Physiology_ 76(2), 1994 |
-| Sample entropy for score-series irregularity                                                                 | [`test/advancedMetrics.ts`](./test/advancedMetrics.ts)                                                                                     | Joshua S. Richman and J. Randall Moorman, "Physiological time-series analysis using approximate entropy and sample entropy," _AJP Heart and Circulatory Physiology_ 278(6), 2000. DOI: `10.1152/ajpheart.2000.278.6.H2039`                                                                                                             |
-| Permutation entropy for ordinal score complexity                                                             | [`test/advancedMetrics.ts`](./test/advancedMetrics.ts)                                                                                     | Christoph Bandt and Bernd Pompe, "Permutation entropy: a natural complexity measure for time series," _Physical Review Letters_ 88(17), 2002. DOI: `10.1103/PhysRevLett.88.174102`                                                                                                                                                     |
-| Procedural personas / diverse competitive play-styles as the design basis for hidden personas and cross-play | [`behavior.ts`](./behavior.ts), [`scripts/ai-crossplay.report.ts`](../../scripts/ai-crossplay.report.ts)                                   | Antonios Liapis, Julian Togelius, and Georgios N. Yannakakis, "Procedural Personas as Critics for Dungeon Generation," _EvoApplications 2015_; Diego Perez-Liebana et al., "Generating Diverse and Competitive Play-Styles for Strategy Games," 2021                                                                                   |
+| Implemented technique                                                                                                      | Repo surface                                                                                                                               | Reference                                                                                                                                                                                                                                                                                                                              |
+| -------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Alpha-beta / negamax zero-sum search                                                                                       | [`search/negamax.ts`](./search/negamax.ts)                                                                                                 | Donald E. Knuth and Ronald W. Moore, "An Analysis of Alpha-Beta Pruning," _Artificial Intelligence_ 6(4), 1975. DOI: `10.1016/0004-3702(75)90019-3`                                                                                                                                                                                    |
+| Iterative deepening under fixed budgets                                                                                    | [`search/rootSearch.ts`](./search/rootSearch.ts)                                                                                           | Richard E. Korf, "Depth-first Iterative-Deepening: An Optimal Admissible Tree Search," _Artificial Intelligence_ 27(1), 1985. DOI: `10.1016/0004-3702(85)90084-0`                                                                                                                                                                      |
+| Principal variation / null-window re-search                                                                                | [`search/negamax.ts`](./search/negamax.ts), [`search/rootSearch.ts`](./search/rootSearch.ts)                                               | Murray Campbell and Tony Marsland, "A Comparison of Minimax Tree Search Algorithms," _Artificial Intelligence_ 20(4), 1983. DOI: `10.1016/0004-3702(83)90037-5`                                                                                                                                                                        |
+| Quiescence search                                                                                                          | [`search/quiescence.ts`](./search/quiescence.ts)                                                                                           | Larry Harris, "The Heuristic Search and the Game of Chess: A Study of Quiescence, Sacrifices, and Plan Oriented Play," _IJCAI 1975_                                                                                                                                                                                                    |
+| History heuristic family                                                                                                   | [`search/heuristics.ts`](./search/heuristics.ts)                                                                                           | Jonathan Schaeffer, "The History Heuristic and Alpha-Beta Search Enhancements in Practice," _IEEE TPAMI_ 11(11), 1989. DOI: `10.1109/34.42858`; YOUI's exact divide-by-four aging schedule is implementation-specific                                                                                                                  |
+| Search-local repetition overlays; conceptual persistent-version lineage, not a reproduction of the paper's data structures | [`moveOrdering.ts`](./moveOrdering.ts), [`../domain/reducers/engineTransition.ts`](../domain/reducers/engineTransition.ts)                 | James R. Driscoll, Neil Sarnak, Daniel D. Sleator, and Robert E. Tarjan, "Making Data Structures Persistent," _Journal of Computer and System Sciences_ 38(1), 1989. DOI: `10.1016/0022-0000(89)90034-2`                                                                                                                               |
+| Paired repeated-run measurement with uncertainty rather than best-of-N timing                                              | [`../../scripts/perf-ab.mjs`](../../scripts/perf-ab.mjs), [`../../scripts/perf-ab-core.mjs`](../../scripts/perf-ab-core.mjs)               | Andy Georges, Dries Buytaert, and Lieven Eeckhout, "Statistically Rigorous Java Performance Evaluation," _OOPSLA 2007_. DOI: `10.1145/1297105.1297033`; the repository adapts the repeated-run principle to its Node/browser workload rather than claiming to reproduce the paper's exact Java protocol                                |
+| Residual network trunk for policy/value guidance                                                                           | [`training/train_policy_value.py`](../../training/train_policy_value.py)                                                                   | Kaiming He et al., "Deep Residual Learning for Image Recognition," _CVPR 2016_                                                                                                                                                                                                                                                         |
+| Self-play policy/value conceptual lineage                                                                                  | [`scripts/ai-selfplay-dataset.ts`](../../scripts/ai-selfplay-dataset.ts), [`model/guidance.ts`](./model/guidance.ts)                       | David Silver et al., "Mastering the game of Go without human knowledge," _Nature_ 550, 2017. DOI: `10.1038/nature24270`                                                                                                                                                                                                                |
+| Recurrence plots and recurrence quantification for loop/stall analysis                                                     | [`test/advancedMetrics.ts`](./test/advancedMetrics.ts), [`scripts/ai-loop-benchmark.report.ts`](../../scripts/ai-loop-benchmark.report.ts) | J.-P. Eckmann, S. O. Kamphorst, and D. Ruelle, "Recurrence Plots of Dynamical Systems," _Europhysics Letters_ 4(9), 1987. DOI: `10.1209/0295-5075/4/9/004`; Charles L. Webber Jr. and Joseph P. Zbilut, "Dynamical assessment of physiological systems and states using recurrence plot strategies," _J. Appl. Physiology_ 76(2), 1994 |
+| Sample entropy for score-series irregularity                                                                               | [`test/advancedMetrics.ts`](./test/advancedMetrics.ts)                                                                                     | Joshua S. Richman and J. Randall Moorman, "Physiological time-series analysis using approximate entropy and sample entropy," _AJP Heart and Circulatory Physiology_ 278(6), 2000. DOI: `10.1152/ajpheart.2000.278.6.H2039`                                                                                                             |
+| Permutation entropy for ordinal score complexity                                                                           | [`test/advancedMetrics.ts`](./test/advancedMetrics.ts)                                                                                     | Christoph Bandt and Bernd Pompe, "Permutation entropy: a natural complexity measure for time series," _Physical Review Letters_ 88(17), 2002. DOI: `10.1103/PhysRevLett.88.174102`                                                                                                                                                     |
+| Procedural personas / diverse competitive play-styles as the design basis for hidden personas and cross-play               | [`behavior.ts`](./behavior.ts), [`scripts/ai-crossplay.report.ts`](../../scripts/ai-crossplay.report.ts)                                   | Antonios Liapis, Julian Togelius, and Georgios N. Yannakakis, "Procedural Personas as Critics for Dungeon Generation," _EvoApplications 2015_; Diego Perez-Liebana et al., "Generating Diverse and Competitive Play-Styles for Strategy Games," 2021                                                                                   |
 
 ## References
 
 - [Knuth and Moore 1975](https://charlesames.net/references/DonaldKnuth/alpha-beta.html)
 - [Korf 1985](https://doi.org/10.1016/0004-3702%2885%2990084-0)
 - [Campbell and Marsland 1983](https://doi.org/10.1016/0004-3702%2883%2990037-5)
-- [Harris 1975](https://www.ijcai.org/Proceedings/75-1/Papers/059.pdf)
-- [Schaeffer 1989](https://doi.org/10.1109/34.42847)
+- [Harris 1975](https://www.ijcai.org/Proceedings/75/Papers/048.pdf)
+- [Schaeffer 1989](https://doi.org/10.1109/34.42858)
+- [Driscoll et al. 1989](https://doi.org/10.1016/0022-0000%2889%2990034-2)
+- [Georges, Buytaert, and Eeckhout 2007](https://doi.org/10.1145/1297105.1297033)
 - [Silver et al. 2017](https://www.nature.com/articles/nature24270)
 - [He et al. 2016](https://www.cv-foundation.org/openaccess/content_cvpr_2016/html/He_Deep_Residual_Learning_CVPR_2016_paper.html)
 - [Eckmann et al. 1987](https://doi.org/10.1209/0295-5075/4/9/004)

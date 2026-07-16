@@ -54,8 +54,8 @@ rule states or different workloads.
 - Smaller positive changes may still be retained when the interval excludes
   regression, exact-equivalence tests pass, game-quality reports do not move,
   and the implementation removes a demonstrated cost without disproportionate
-  complexity. They remain `null-result` rather than being described as a
-  material or confirmed win.
+  complexity. They retain the runner's `null-result` or `inconclusive` label
+  rather than being described as a material or confirmed win.
 - Correctness invariants: both revisions build and pass the non-benchmark test
   suite; fixture labels and legal-action counts must match.
 - Quality guardrail: median completed search depth must not decrease for any

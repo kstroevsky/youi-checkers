@@ -222,8 +222,43 @@ flowchart TD
 - `getLegalActionsForCell()`
 - `getLegalTargetsForCell()`
 - `getLegalActions()`
+- `hasLegalAction()`
 
 The discovery path respects `pendingJump`: when a jump continuation exists, only the coordinate in `pendingJump.source` may act this turn.
+
+#### Existence-only legality
+
+Pass and stalemate resolution ask an existential question—"does this player
+have at least one legal action?"—rather than needing the complete action union.
+[`hasLegalAction()`](./rules/moveGeneration/targetDiscovery.ts) therefore:
+
+1. returns `false` immediately for a terminal state;
+2. checks only `pendingJump.source` when the turn is constrained;
+3. otherwise visits coordinates in the same canonical order as full
+   generation;
+4. delegates to `hasGeneratedActionForCell()` and returns after the first
+   action-producing handler.
+
+```mermaid
+flowchart TD
+  Start["hasLegalAction(state, rules)"] --> Terminal{"game over?"}
+  Terminal -- "yes" --> False["false"]
+  Terminal -- "no" --> Forced{"pending-jump source?"}
+  Forced -- "yes" --> One["probe that coordinate"]
+  Forced -- "no" --> Scan["scan coordinates in canonical order"]
+  Scan --> Probe["probe action kinds in canonical order"]
+  Probe --> Found{"one generated action?"}
+  Found -- "yes" --> True["true; stop"]
+  Found -- "no" --> Scan
+  One --> Found
+```
+
+The worst case is still a complete scan when no move exists. Individual action
+handlers may also allocate their own small result arrays. The optimization is
+the expected-case early exit and the absence of one accumulated whole-board
+action list; it is not a claim of zero-allocation move generation. Exact tests
+compare this boolean answer with `getLegalActions(...).length > 0` across
+representative and seeded legal states for both players.
 
 ### `targetMap.ts`
 
@@ -350,6 +385,48 @@ repetition-resolution logic. It is not a general public fast path: UI, network,
 import, and other external commands must continue through the validating
 transition.
 
+#### Generated transition metadata and repetition storage
+
+[`advanceGeneratedEngineTransition()`](./reducers/gameReducer.ts) returns the
+same resolved transition object used internally by the domain command engine:
+the next state, canonical final position hash, actor, auto-passes, and an empty
+event list. AI move ordering uses that richer form because it needs both the
+successor and its key; callers that need only a state may continue to use
+`advanceGeneratedEngineState()`.
+
+```mermaid
+flowchart TD
+  Generated["action generated for this exact state/rules"] --> Fast["runGeneratedEngineCommand"]
+  External["UI / network / import / arbitrary action"] --> Public["runEngineCommand"]
+  Public --> Validate["validateAction"]
+  Validate --> Core["shared resolveEngineCommand"]
+  Fast --> Core
+  Core --> Apply["applyValidatedAction"]
+  Apply --> Immediate["immediate victory + pass/stalemate probe"]
+  Immediate --> Hash["canonical final position hash"]
+  Hash --> Counts{"repetition storage mode"}
+  Counts -- "public: copy" --> Copy["plain copied positionCounts record"]
+  Counts -- "search: overlay" --> Overlay["Object.create(parentCounts) + one own count"]
+  Copy --> Repetition["threefold resolution"]
+  Overlay --> Repetition
+```
+
+The `overlay` mode is requested explicitly by AI move ordering. It performs one
+own-property write on an object whose prototype is the parent's count table.
+Reading `positionCounts[key]` still returns the newest visible count through
+normal property lookup, while the parent and sibling versions remain
+unchanged. Relative to copying a record with `h` historical keys for every
+child, creation changes from work proportional to `h` to constant-size work;
+lookup can traverse the bounded prototype ancestry in the worst case. This is
+search-local structural sharing inspired by persistent data structures, not a
+general persistent-map implementation.
+
+The public default remains `copy`. That distinction matters because object
+spread, JSON serialization, persistence, and network payloads enumerate own
+properties and must never observe an inherited search overlay. Optimization
+tests compare copied and overlay transitions, including inherited repetition
+counts and the third-occurrence terminal outcome.
+
 ### `applyAction()`
 
 Full runtime transition with history append, auto-pass handling, terminal checks, and repetition tracking.
@@ -416,6 +493,32 @@ Terminal logic is effectively checked twice in the reducer pipeline:
 2. after auto-pass and repetition updates, to catch stalemate and threefold outcomes that become visible only after the move has been fully integrated into match state.
 
 `getDrawTiebreakMetricsByKey()` plays the same role for tiebreak snapshots that `getScoreSummaryByKey()` plays for informational scoring: it lets the AI reuse a known position hash while still asking the domain layer for the canonical tiebreak computation.
+
+### Single-pass checker accounting and position-hash reuse
+
+The immediate victory path needs each player's total checker count before it
+can prove a `homeField` win. The older shape called a per-player counter twice;
+that counter used `filter()` for each cell, creating temporary arrays while
+walking the board once per player.
+
+`checkVictoryWithPositionHashResolved()` now performs one nested coordinate /
+checker loop and increments `{ white, black }` counters in the same pass. Those
+two counts are passed into `checkPlayerVictoryWithCount()`, so the home-field
+test does not rescan the board for totals. `countCheckersForPlayer()` was also
+rewritten as a direct loop for public one-player callers.
+
+The asymptotic bound remains linear in board cells plus checkers; the gain is
+loop fusion, half as many total-count board passes, and removal of per-cell
+`filter()` arrays. One two-counter object is still created, so "allocation-free
+victory checking" would be inaccurate.
+
+When threefold resolution is active and no structural win exists,
+`checkVictoryWithPositionHashResolved()` returns the canonical hash it already
+needed. `resolveEngineCommand()` reuses that hash if the final state is still
+the immediate active state. It hashes again after a direct win, auto-pass, or
+other normalization that changes hashed state fields. The AI then carries the
+active successor hash into its keyed summary bundle instead of independently
+hashing the same successor again.
 
 ## Invariants And Validation
 
@@ -523,11 +626,22 @@ The engine is written as a pure layer, but it is not naive about cost.
 
 - structural sharing in board application avoids cloning untouched cells on every move;
 - fixed-board coordinate lookup tables avoid repeated string parsing and array searches for adjacency and jump geometry;
-- `hasLegalAction()` lets transition code answer pass/stalemate questions without allocating the whole legal-action list when it only needs an existence result;
-- compact helpers for coordinates, hashing, and validation keep the AI search path usable in a browser worker.
+- `hasLegalAction()` lets transition code answer pass/stalemate questions without accumulating the whole legal-action list when it only needs an existence result;
+- generated transitions carry their final active-state hash to move ordering instead of forcing a second whole-position hash;
+- search-only repetition overlays share historical count records while public transitions retain plain copied objects;
+- victory checking fuses both players' total-count pass and removes per-cell filtering arrays;
+- compact helpers for coordinates, hashing, and validation keep the AI search path usable in a browser worker;
 - keyed pure-summary helpers such as `getScoreSummaryByKey()` and `getDrawTiebreakMetricsByKey()` let higher layers reuse canonical hashes instead of recomputing identical read-only summaries through multiple call paths.
 
 These changes preserve domain truth: they do not alter action unions, validation conditions, or reducer outcomes, and the canonical hash continues to encode the complete state facts required for identity. Performance reports for these paths are generated separately and documented in [`../../docs/INFRASTRUCTURE.md`](../../docs/INFRASTRUCTURE.md); paired keep/reject methodology is documented in [`../../docs/performance-ab-testing.md`](../../docs/performance-ab-testing.md).
+
+The board's copy-on-write cells and the repetition-count prototype overlays are
+two different forms of structural sharing. Their conceptual lineage is the
+persistent-version principle described by Driscoll, Sarnak, Sleator, and Tarjan
+in [“Making Data Structures Persistent”](https://doi.org/10.1016/0022-0000%2889%2990034-2),
+but the implementation here is purpose-built for a small bounded search tree
+and does not claim the paper's general data-structure transformation or its
+formal bounds.
 
 ## Test Coverage As Documentation
 
@@ -539,6 +653,8 @@ Representative files:
 - [`rules/gameEngine.moves.test.ts`](./rules/gameEngine.moves.test.ts): freeze/thaw behavior, same-turn continuation, and landing-revisit-versus-checker-identity semantics
 - [`rules/gameEngine.session.test.ts`](./rules/gameEngine.session.test.ts): threefold and stalemate tiebreak resolution, serialization, migration, normalization, and restore flows
 - [`performanceHelpers.test.ts`](./performanceHelpers.test.ts): helper and hash assumptions used by performance-sensitive code
+- [`reducers/engineTransition.optimization.test.ts`](./reducers/engineTransition.optimization.test.ts): generated-versus-validated transition identity, active hash reuse, copied-versus-overlay repetition semantics, third-occurrence resolution, and boolean legality equivalence on seeded positions
+- [`rules/victory.optimization.test.ts`](./rules/victory.optimization.test.ts): fused checker-count equivalence and public helper parity against a frozen legacy player-victory oracle across seeded positions
 
 ## What This Layer Deliberately Does Not Do
 

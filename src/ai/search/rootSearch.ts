@@ -525,9 +525,8 @@ export function chooseComputerAction({
   ): RootRankedAction[] => {
     const ranked: RootRankedAction[] = [];
     const orderedMoves = buildRootOrdering(rootPvMoveId);
-    // Pre-allocated fixed-size stack: length never changes during the search,
-    // which lets V8 keep the backing store as a stable "packed fast-elements"
-    // array and apply stronger JIT optimisations than a growing/shrinking one.
+    // Fixed-capacity stack: length never changes during the search, so the
+    // recursive path does not grow, shrink, or replace the backing container.
     const stack: SearchStack = {
       entries: new Array(preset.maxDepth + MAX_QUIESCENCE_DEPTH + 4),
       depth: 0,
@@ -743,10 +742,10 @@ export function chooseComputerAction({
 
     rootPvMoveId = actionId(bestAction);
 
-    // History aging (Schaeffer, 1989): shift scores right by 2 (÷4) so that
-    // cutoff moves learned at shallow depths do not dominate ordering at the
-    // next, deeper iteration.  Without aging, the history table converges on
-    // the same move order regardless of depth, reducing variety across games.
+    // Repository-specific history aging: shift scores right by 2 (÷4) so
+    // shallow cutoff evidence fades and values stay away from saturation.
+    // Schaeffer (1989) is the lineage for the underlying history heuristic,
+    // not for this exact aging schedule.
     for (let i = 0; i < context.historyScores.length; i += 1) {
       context.historyScores[i] >>= 2;
     }
