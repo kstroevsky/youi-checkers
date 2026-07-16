@@ -1,5 +1,5 @@
 import {
-  advanceEngineState,
+  advanceGeneratedEngineState,
   type EngineState,
   type Player,
   type RuleConfig,
@@ -21,16 +21,26 @@ import {
   type ParticipationState,
   type SourceRegion,
 } from '@/ai/participation';
-import { getRiskCandidateAdjustment, getTiebreakPressureProfile } from '@/ai/risk';
+import {
+  getRiskCandidateAdjustment,
+  getTiebreakPressureProfile,
+} from '@/ai/risk';
 import {
   getActionStrategicProfileFromAnalysis,
   getNoveltyPenalty,
 } from '@/ai/strategy';
-import { AI_MODEL_ACTION_COUNT, encodeActionIndex } from '@/ai/model/actionSpace';
+import {
+  AI_MODEL_ACTION_COUNT,
+  encodeActionIndex,
+} from '@/ai/model/actionSpace';
 import { throwIfTimedOut } from '@/ai/search/shared';
 import { getCellHeight, getTopChecker } from '@/domain/model/board';
 import { FRONT_HOME_ROW, HOME_ROWS } from '@/domain/model/constants';
-import { getAdjacentCoord, getJumpDirection, parseCoord } from '@/domain/model/coordinates';
+import {
+  getAdjacentCoord,
+  getJumpDirection,
+  parseCoord,
+} from '@/domain/model/coordinates';
 import type {
   AiDifficultyPreset,
   AiRiskMode,
@@ -74,7 +84,7 @@ export type OrderedAction = {
   winsImmediately: boolean;
 };
 
-export type PrecomputedOrderedAction = Omit<OrderedAction, 'score'> & {
+export type PrecomputedOrderedAction = OrderedAction & {
   staticScore: number;
 };
 
@@ -113,7 +123,10 @@ export type OrderMovesOptions = {
  * simulates every legal move. This keeps timeout semantics aligned with the
  * main search rather than letting ordering overrun the allocated time.
  */
-function throwIfMoveOrderingTimedOut(deadline?: number, now?: () => number): void {
+function throwIfMoveOrderingTimedOut(
+  deadline?: number,
+  now?: () => number,
+): void {
   if (deadline === undefined || !now) {
     return;
   }
@@ -121,7 +134,10 @@ function throwIfMoveOrderingTimedOut(deadline?: number, now?: () => number): voi
   throwIfTimedOut(now, deadline);
 }
 
-function getRepeatedPositionCountByKey(state: EngineState, positionKey: string): number {
+function getRepeatedPositionCountByKey(
+  state: EngineState,
+  positionKey: string,
+): number {
   return state.positionCounts[positionKey] ?? 0;
 }
 
@@ -197,8 +213,13 @@ function isDirectSelfUndo(
     return false;
   }
 
-  if (action.type === 'jumpSequence' || previousOwnAction.type === 'jumpSequence') {
-    return current.source === previous.target && current.target === previous.source;
+  if (
+    action.type === 'jumpSequence' ||
+    previousOwnAction.type === 'jumpSequence'
+  ) {
+    return (
+      current.source === previous.target && current.target === previous.source
+    );
   }
 
   return true;
@@ -215,7 +236,8 @@ function growsFrontRowStack(
     return false;
   }
 
-  const target = action.type === 'jumpSequence' ? action.path.at(-1) : action.target;
+  const target =
+    action.type === 'jumpSequence' ? action.path.at(-1) : action.target;
 
   if (!target) {
     return false;
@@ -227,7 +249,9 @@ function growsFrontRowStack(
     return false;
   }
 
-  return getCellHeight(nextState.board, target) > getCellHeight(state.board, target);
+  return (
+    getCellHeight(nextState.board, target) > getCellHeight(state.board, target)
+  );
 }
 
 /** Flags moves that push material into a player's home field. */
@@ -236,7 +260,8 @@ function improvesHomeField(action: TurnAction, player: Player): boolean {
     return false;
   }
 
-  const target = action.type === 'jumpSequence' ? action.path.at(-1) : action.target;
+  const target =
+    action.type === 'jumpSequence' ? action.path.at(-1) : action.target;
 
   if (!target) {
     return false;
@@ -248,14 +273,20 @@ function improvesHomeField(action: TurnAction, player: Player): boolean {
 }
 
 /** Returns a small positive bonus when the jump freezes an enemy or thaws an own frozen single. */
-function getFreezeSwingBonus(state: EngineState, action: TurnAction, player: Player): number {
+function getFreezeSwingBonus(
+  state: EngineState,
+  action: TurnAction,
+  player: Player,
+): number {
   if (action.type !== 'jumpSequence') {
     return 0;
   }
 
   const landing = action.path[0];
   const direction = landing ? getJumpDirection(action.source, landing) : null;
-  const jumpedCoord = direction ? getAdjacentCoord(action.source, direction) : null;
+  const jumpedCoord = direction
+    ? getAdjacentCoord(action.source, direction)
+    : null;
 
   if (!jumpedCoord) {
     return 0;
@@ -291,7 +322,12 @@ function getDynamicScore(
     ttMoveId,
   }: Pick<
     OrderMovesOptions,
-    'continuationScores' | 'historyScores' | 'killerIds' | 'previousActionId' | 'pvMoveId' | 'ttMoveId'
+    | 'continuationScores'
+    | 'historyScores'
+    | 'killerIds'
+    | 'previousActionId'
+    | 'pvMoveId'
+    | 'ttMoveId'
   >,
 ): number {
   const id = entry.actionId;
@@ -299,7 +335,9 @@ function getDynamicScore(
   const continuationScore =
     previousActionId === null || id < 0
       ? 0
-      : (continuationScores?.get(previousActionId * AI_MODEL_ACTION_COUNT + id) ?? 0);
+      : (continuationScores?.get(
+          previousActionId * AI_MODEL_ACTION_COUNT + id,
+        ) ?? 0);
   const killerScore = id >= 0 && killerIds.includes(id) ? 9_000 : 0;
   let score = 0;
 
@@ -388,9 +426,12 @@ export function precomputeOrderedActions(
 ): PrecomputedOrderedAction[] {
   const basePerfBundle = getStatePerfBundle(state, ruleConfig, perfCache);
   const actor = state.currentPlayer;
-  const candidateActions = actions ?? getCachedLegalActions(state, ruleConfig, basePerfBundle.positionKey);
+  const candidateActions =
+    actions ??
+    getCachedLegalActions(state, ruleConfig, basePerfBundle.positionKey);
   const computeRiskSignals =
-    riskMode !== 'normal' || candidateActions.some((action) => action.type === 'manualUnfreeze');
+    riskMode !== 'normal' ||
+    candidateActions.some((action) => action.type === 'manualUnfreeze');
   const baseStructureScore = evaluateStructureState(state, actor, ruleConfig, {
     behaviorProfile,
     diagnostics,
@@ -398,47 +439,64 @@ export function precomputeOrderedActions(
     preset,
     riskMode,
   });
-  const baseProgress = computeRiskSignals ? getPerfProgressSnapshot(basePerfBundle, state) : null;
+  const baseAnalysis = getPerfAnalysis(basePerfBundle, state);
+  const behaviorProfileId = behaviorProfile?.id ?? null;
+  const behaviorSeed = behaviorProfile?.seed ?? null;
+  const useOpeningGeometryBias = state.moveNumber <= 6;
+  const baseProgress = computeRiskSignals
+    ? getPerfProgressSnapshot(basePerfBundle, state)
+    : null;
   const baseLegalMoveCount = computeRiskSignals
     ? getPerfLegalActionCount(basePerfBundle, state, ruleConfig)
     : 0;
-  const baseEmptyCells = computeRiskSignals ? getPerfEmptyCellCount(basePerfBundle, state) : 0;
+  const baseEmptyCells = computeRiskSignals
+    ? getPerfEmptyCellCount(basePerfBundle, state)
+    : 0;
   return candidateActions.map<PrecomputedOrderedAction>((action) => {
     throwIfMoveOrderingTimedOut(deadline, now);
 
-    const nextState = advanceEngineState(state, action, ruleConfig);
+    const nextState = advanceGeneratedEngineState(state, action, ruleConfig);
     const nextPerfBundle = getStatePerfBundle(nextState, ruleConfig, perfCache);
+    const nextAnalysis = getPerfAnalysis(nextPerfBundle, nextState);
     const nextPositionKey = nextPerfBundle.positionKey;
     const winsImmediately =
       nextState.status === 'gameOver' &&
       'winner' in nextState.victory &&
       nextState.victory.winner === actor;
-    const repeatedPositionCount = getRepeatedPositionCountByKey(nextState, nextPositionKey);
+    const repeatedPositionCount = getRepeatedPositionCountByKey(
+      nextState,
+      nextPositionKey,
+    );
     const frontRowGrowth = growsFrontRowStack(state, action, nextState, actor);
     const homeProgress = improvesHomeField(action, actor);
     const freezeSwingBonus = getFreezeSwingBonus(state, action, actor);
-    const nextProgress = computeRiskSignals ? getPerfProgressSnapshot(nextPerfBundle, nextState) : null;
+    const nextProgress = computeRiskSignals
+      ? getPerfProgressSnapshot(nextPerfBundle, nextState)
+      : null;
     const mobilityDelta = computeRiskSignals
-      ? getPerfLegalActionCount(nextPerfBundle, nextState, ruleConfig) - baseLegalMoveCount
+      ? getPerfLegalActionCount(nextPerfBundle, nextState, ruleConfig) -
+        baseLegalMoveCount
       : 0;
     const emptyCellsDelta = computeRiskSignals
       ? getPerfEmptyCellCount(nextPerfBundle, nextState) - baseEmptyCells
       : 0;
     const homeFieldDelta =
       computeRiskSignals && nextProgress && baseProgress
-        ? nextProgress.homeFieldProgress[actor] - baseProgress.homeFieldProgress[actor]
+        ? nextProgress.homeFieldProgress[actor] -
+          baseProgress.homeFieldProgress[actor]
         : 0;
     const sixStackDelta =
       computeRiskSignals && nextProgress && baseProgress
-        ? nextProgress.sixStackProgress[actor] - baseProgress.sixStackProgress[actor]
+        ? nextProgress.sixStackProgress[actor] -
+          baseProgress.sixStackProgress[actor]
         : 0;
     const strategicProfile = getActionStrategicProfileFromAnalysis(
       state,
       action,
       nextState,
       actor,
-      getPerfAnalysis(basePerfBundle, state),
-      getPerfAnalysis(nextPerfBundle, nextState),
+      baseAnalysis,
+      nextAnalysis,
     );
     const staticPromise =
       evaluateStructureState(nextState, actor, ruleConfig, {
@@ -449,10 +507,14 @@ export function precomputeOrderedActions(
         riskMode,
       }) - baseStructureScore;
     const currentActionId = encodeActionIndex(action) ?? -1;
-    const policyPrior = policyPriors && currentActionId >= 0 ? (policyPriors[currentActionId] ?? 0) : 0;
+    const policyPrior =
+      policyPriors && currentActionId >= 0
+        ? (policyPriors[currentActionId] ?? 0)
+        : 0;
     const isRepetition = repeatedPositionCount > 1;
     const isSelfUndo =
-      (grandparentPositionKey !== null && nextPositionKey === grandparentPositionKey) ||
+      (grandparentPositionKey !== null &&
+        nextPositionKey === grandparentPositionKey) ||
       isDirectSelfUndo(action, samePlayerPreviousAction);
     const meaningfulUnfreeze =
       action.type === 'manualUnfreeze' &&
@@ -468,21 +530,28 @@ export function precomputeOrderedActions(
       meaningfulUnfreeze ||
       freezeSwingBonus > 0 ||
       strategicProfile.tags.includes('freezeBlock') ||
-      (strategicProfile.tags.includes('rescue') && action.type !== 'manualUnfreeze');
-    const tiebreakProfile = getTiebreakPressureProfile(nextState, actor, riskMode, {
-      emptyCellsDelta,
-      freezeSwingBonus,
-      homeFieldDelta,
-      isForced: winsImmediately || nextState.status === 'gameOver',
-      isManualUnfreeze: action.type === 'manualUnfreeze',
-      isRepetition,
-      isSelfUndo,
-      isTactical,
-      mobilityDelta,
-      repeatedPositionCount,
-      sixStackDelta,
-      tags: strategicProfile.tags,
-    }, nextPerfBundle);
+      (strategicProfile.tags.includes('rescue') &&
+        action.type !== 'manualUnfreeze');
+    const tiebreakProfile = getTiebreakPressureProfile(
+      nextState,
+      actor,
+      riskMode,
+      {
+        emptyCellsDelta,
+        freezeSwingBonus,
+        homeFieldDelta,
+        isForced: winsImmediately || nextState.status === 'gameOver',
+        isManualUnfreeze: action.type === 'manualUnfreeze',
+        isRepetition,
+        isSelfUndo,
+        isTactical,
+        mobilityDelta,
+        repeatedPositionCount,
+        sixStackDelta,
+        tags: strategicProfile.tags,
+      },
+      nextPerfBundle,
+    );
     const participationProfile = getActionParticipationProfileFromAnalysis(
       state,
       action,
@@ -494,10 +563,13 @@ export function precomputeOrderedActions(
         isTactical,
         winsImmediately,
       },
-      getPerfAnalysis(basePerfBundle, state),
-      getPerfAnalysis(nextPerfBundle, nextState),
+      baseAnalysis,
+      nextAnalysis,
     );
-    const noveltyPenalty = getNoveltyPenalty(strategicProfile.tags, previousStrategicTags);
+    const noveltyPenalty = getNoveltyPenalty(
+      strategicProfile.tags,
+      previousStrategicTags,
+    );
     let staticScore = 0;
 
     if (winsImmediately) {
@@ -526,13 +598,16 @@ export function precomputeOrderedActions(
     // larger deltas, and capping them too tightly would negate the variety gains.
     staticScore += clampScore(participationProfile.participationDelta, 4_000);
     staticScore += strategicProfile.policyBias;
-    staticScore += getBehaviorActionBias(behaviorProfile?.id ?? null, strategicProfile.tags);
-    if (state.moveNumber <= 6) {
+    staticScore += getBehaviorActionBias(
+      behaviorProfileId,
+      strategicProfile.tags,
+    );
+    if (useOpeningGeometryBias) {
       staticScore += Math.round(
         getBehaviorGeometryBias(
-          behaviorProfile?.id ?? null,
+          behaviorProfileId,
           action,
-          behaviorProfile?.seed ?? null,
+          behaviorSeed,
         ) * 6,
       );
     }
@@ -548,7 +623,9 @@ export function precomputeOrderedActions(
     }
 
     if (tiebreakProfile.drawTrapRisk > 0 && !isForced) {
-      staticScore -= Math.round((200 + preset.riskLoopPenalty * 0.5) * tiebreakProfile.drawTrapRisk);
+      staticScore -= Math.round(
+        (200 + preset.riskLoopPenalty * 0.5) * tiebreakProfile.drawTrapRisk,
+      );
 
       if (diagnostics) {
         diagnostics.adverseDrawTrapPenalties += 1;
@@ -601,6 +678,7 @@ export function precomputeOrderedActions(
       repeatedPositionCount,
       repeatsSourceFamily: participationProfile.repeatsSourceFamily,
       repeatsSourceRegion: participationProfile.repeatsSourceRegion,
+      score: staticScore,
       sourceFamily: participationProfile.sourceFamily,
       sourceRegion: participationProfile.sourceRegion,
       sixStackDelta,
@@ -639,25 +717,25 @@ export function orderPrecomputedMoves(
     | 'ttMoveId'
   > = {},
 ): OrderedAction[] {
-  const ordered = precomputedActions.map<OrderedAction>((entry) => {
+  for (const entry of precomputedActions) {
     throwIfMoveOrderingTimedOut(deadline, now);
+    entry.score =
+      entry.staticScore +
+      getDynamicScore(entry, {
+        continuationScores,
+        historyScores,
+        killerIds,
+        previousActionId,
+        pvMoveId,
+        ttMoveId,
+      });
+  }
 
-    return {
-      ...entry,
-      score:
-        entry.staticScore +
-        getDynamicScore(entry, {
-          continuationScores,
-          historyScores,
-          killerIds,
-          previousActionId,
-          pvMoveId,
-          ttMoveId,
-        }),
-    };
-  });
-
-  return finalizeOrderedActions(ordered, preset, includeAllQuietMoves);
+  return finalizeOrderedActions(
+    precomputedActions,
+    preset,
+    includeAllQuietMoves,
+  );
 }
 
 /** Orders moves for alpha-beta search and prunes quiet moves by preset breadth. */

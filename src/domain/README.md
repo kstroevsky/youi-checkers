@@ -19,11 +19,11 @@ That is the most important architectural fact in the repository:
 
 Three artifacts define the truth this layer preserves:
 
-| Source | Role |
-| --- | --- |
-| [`docs/instruction.md`](../../docs/instruction.md) / [`docs/instruction.ru.md`](../../docs/instruction.ru.md) | human-facing rulebook |
-| [`model/types.ts`](./model/types.ts) | type-level contract for state, actions, history, and victory |
-| Domain tests under [`rules/`](./rules/) | executable behavior contract |
+| Source                                                                                                        | Role                                                         |
+| ------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [`docs/instruction.md`](../../docs/instruction.md) / [`docs/instruction.ru.md`](../../docs/instruction.ru.md) | human-facing rulebook                                        |
+| [`model/types.ts`](./model/types.ts)                                                                          | type-level contract for state, actions, history, and victory |
+| Domain tests under [`rules/`](./rules/)                                                                       | executable behavior contract                                 |
 
 The rulebook explains the game. The domain code decides its precise operational semantics.
 
@@ -38,17 +38,17 @@ The separation from the app, UI, and AI layers solves four concrete problems:
 
 ## Core State Vocabulary
 
-| Type | Meaning |
-| --- | --- |
-| `Checker` | one physical piece with stable `id`, `owner`, and `frozen` flag |
-| `Cell` | stack-ordered list of checkers from bottom to top |
-| `Board` | fixed `Record<Coord, Cell>` over all `A1..F6` coordinates |
-| `TurnAction` | canonical action union used by UI, history, AI, and serialization |
-| `PendingJump` | same-turn continuation lock anchored at one source coordinate |
-| `StateSnapshot` | history-safe snapshot without live `positionCounts` or `history` |
-| `EngineState` | snapshot plus repetition counts |
-| `GameState` | engine state plus committed `history` |
-| `TurnRecord` | committed action plus before/after snapshots and the canonical post-move hash |
+| Type            | Meaning                                                                       |
+| --------------- | ----------------------------------------------------------------------------- |
+| `Checker`       | one physical piece with stable `id`, `owner`, and `frozen` flag               |
+| `Cell`          | stack-ordered list of checkers from bottom to top                             |
+| `Board`         | fixed `Record<Coord, Cell>` over all `A1..F6` coordinates                     |
+| `TurnAction`    | canonical action union used by UI, history, AI, and serialization             |
+| `PendingJump`   | same-turn continuation lock anchored at one source coordinate                 |
+| `StateSnapshot` | history-safe snapshot without live `positionCounts` or `history`              |
+| `EngineState`   | snapshot plus repetition counts                                               |
+| `GameState`     | engine state plus committed `history`                                         |
+| `TurnRecord`    | committed action plus before/after snapshots and the canonical post-move hash |
 
 Stable checker ids are not incidental. They allow jump-continuation tracking, deterministic tests, reproducible history, and model-training data generation.
 
@@ -56,14 +56,14 @@ Stable checker ids are not incidental. They allow jump-continuation tracking, de
 
 The engine uses an explicit action union rather than a generic `{ source, target }` move payload.
 
-| Action | Meaning |
-| --- | --- |
-| `manualUnfreeze` | spend the turn thawing one own frozen single |
-| `jumpSequence` | execute one jump segment to an empty landing cell |
-| `climbOne` | move one checker onto an adjacent occupied active cell |
-| `moveSingleToEmpty` | move an active single, or an entire controlled stack, one cell to an adjacent empty cell |
-| `splitOneFromStack` | peel the top checker from a controlled stack to an adjacent empty or legal occupied cell |
-| `splitTwoFromStack` | peel the top two checkers together to an adjacent empty or legal occupied cell |
+| Action                  | Meaning                                                                                                                                                                     |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `manualUnfreeze`        | spend the turn thawing one own frozen single                                                                                                                                |
+| `jumpSequence`          | execute one jump segment to an empty landing cell                                                                                                                           |
+| `climbOne`              | move one checker onto an adjacent occupied active cell                                                                                                                      |
+| `moveSingleToEmpty`     | move an active single, or an entire controlled stack, one cell to an adjacent empty cell                                                                                    |
+| `splitOneFromStack`     | peel the top checker from a controlled stack to an adjacent empty or legal occupied cell                                                                                    |
+| `splitTwoFromStack`     | peel the top two checkers together to an adjacent empty or legal occupied cell                                                                                              |
 | `friendlyStackTransfer` | configurable, default-enabled transfer of one checker to a controlled stack; the source may be controlled or may hold a friendly checker beneath an opponent-controlled top |
 
 This explicit action language keeps legality, serialization, and AI move ordering aligned around the same semantic vocabulary.
@@ -80,38 +80,39 @@ With `TurnAction`, the engine commits early to the meaning of the move:
 
 ![Legal action vocabulary illustration](../../docs/img/legal-actions.jpeg)
 
-*This illustration is intentionally attached to the action-union discussion rather than to the UI layer. Its purpose is to visualize that the engine does not think in raw coordinate pairs; it thinks in semantically distinct action classes whose legality depends on ownership, stack shape, landing occupancy, and active jump context.*
+_This illustration is intentionally attached to the action-union discussion rather than to the UI layer. Its purpose is to visualize that the engine does not think in raw coordinate pairs; it thinks in semantically distinct action classes whose legality depends on ownership, stack shape, landing occupancy, and active jump context._
 
 ## Folder Structure
 
-| Path | Responsibility |
-| --- | --- |
-| [`model/`](./model/) | core types, constants, coordinates, hashing, board helpers |
-| [`generators/`](./generators/) | initial board and initial state construction |
-| [`validators/`](./validators/) | structural and ownership invariants |
-| [`rules/moveGeneration/`](./rules/moveGeneration/) | legal-action discovery, validation, and application |
-| [`rules/scoring.ts`](./rules/scoring.ts) | informational scoreboard summary |
-| [`rules/victory.ts`](./rules/victory.ts) | terminal state detection and tiebreak logic |
-| [`reducers/`](./reducers/) | immutable engine transitions |
-| [`serialization/`](./serialization/) | session guards, migrations, normalization, import/export |
+| Path                                               | Responsibility                                             |
+| -------------------------------------------------- | ---------------------------------------------------------- |
+| [`model/`](./model/)                               | core types, constants, coordinates, hashing, board helpers |
+| [`generators/`](./generators/)                     | initial board and initial state construction               |
+| [`validators/`](./validators/)                     | structural and ownership invariants                        |
+| [`rules/moveGeneration/`](./rules/moveGeneration/) | legal-action discovery, validation, and application        |
+| [`rules/scoring.ts`](./rules/scoring.ts)           | informational scoreboard summary                           |
+| [`rules/victory.ts`](./rules/victory.ts)           | terminal state detection and tiebreak logic                |
+| [`reducers/`](./reducers/)                         | immutable engine transitions                               |
+| [`serialization/`](./serialization/)               | session guards, migrations, normalization, import/export   |
 
 ## Public API Surface
 
 The barrel file [`index.ts`](./index.ts) exposes the stable engine API used by the rest of the repository.
 
-| Function | Role |
-| --- | --- |
-| `createInitialBoard()` / `createInitialState()` | deterministic opening-state construction |
-| `getLegalActions()` | exhaustive turn-level action generation |
-| `getLegalActionsForCell()` / `getLegalTargetsForCell()` | per-cell legality for UI and tests |
-| `validateAction()` | authoritative check for one candidate action |
-| `applyActionToBoard()` / `applyValidatedAction()` | board or board-plus-continuation application |
-| `advanceEngineState()` | history-free forward simulation used by AI and replay logic |
-| `applyAction()` | full state transition with history append |
-| `checkVictory()` | standalone terminal-condition evaluation |
-| `getScoreSummary()` | informational scoreboard summary |
-| `createUndoFrame()` / `restoreGameState()` | lightweight history framing and runtime rehydration |
-| `serializeSession()` / `deserializeSession()` | session import/export boundary |
+| Function                                                | Role                                                                                                |
+| ------------------------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| `createInitialBoard()` / `createInitialState()`         | deterministic opening-state construction                                                            |
+| `getLegalActions()`                                     | exhaustive turn-level action generation                                                             |
+| `getLegalActionsForCell()` / `getLegalTargetsForCell()` | per-cell legality for UI and tests                                                                  |
+| `validateAction()`                                      | authoritative check for one candidate action                                                        |
+| `applyActionToBoard()` / `applyValidatedAction()`       | board or board-plus-continuation application                                                        |
+| `advanceEngineState()`                                  | history-free forward simulation used by AI and replay logic                                         |
+| `advanceGeneratedEngineState()`                         | search-only transition for an action already generated from this exact state and rule configuration |
+| `applyAction()`                                         | full state transition with history append                                                           |
+| `checkVictory()`                                        | standalone terminal-condition evaluation                                                            |
+| `getScoreSummary()`                                     | informational scoreboard summary                                                                    |
+| `createUndoFrame()` / `restoreGameState()`              | lightweight history framing and runtime rehydration                                                 |
+| `serializeSession()` / `deserializeSession()`           | session import/export boundary                                                                      |
 
 ## State Construction
 
@@ -128,9 +129,9 @@ The helpers under [`model/`](./model/) exist to keep rule files declarative rath
 
 ### `constants.ts` and `ruleConfig.ts`
 
-| File | Why it matters |
-| --- | --- |
-| [`constants.ts`](./model/constants.ts) | centralizes the board dimensions, direction vectors, and home-row landmarks used by rules, hashing, and evaluation |
+| File                                     | Why it matters                                                                                                          |
+| ---------------------------------------- | ----------------------------------------------------------------------------------------------------------------------- |
+| [`constants.ts`](./model/constants.ts)   | centralizes the board dimensions, direction vectors, and home-row landmarks used by rules, hashing, and evaluation      |
 | [`ruleConfig.ts`](./model/ruleConfig.ts) | defines `RULE_DEFAULTS`, `RULE_TOGGLE_DESCRIPTORS`, and `withRuleDefaults()` so every caller sees a total configuration |
 
 ### `types.ts`
@@ -152,6 +153,8 @@ Typed coordinate arithmetic stays in [`coordinates.ts`](./model/coordinates.ts):
 
 That file exists because geometry bugs are easy to introduce when vector logic is scattered across reducers and validators.
 
+The board is permanently `6 x 6`, so the module also precomputes the immutable geometry relation for that finite lattice: coordinate-to-index lookup, direction lookup, adjacent cells, and jump-landings. Hot move generation can therefore perform table reads rather than repeatedly parsing a coordinate and searching the column/row arrays. This is a representation optimization only: `createCoord()`, `parseCoord()`, `getAdjacentCoord()`, and `getJumpLandingCoord()` retain the same public semantics and out-of-board behavior.
+
 ### `board.ts`
 
 [`board.ts`](./model/board.ts) keeps the rest of the engine talking in board concepts rather than array surgery:
@@ -172,9 +175,10 @@ That file exists because geometry bugs are easy to introduce when vector logic i
 
 - side to move;
 - the `pendingJump` source and trail;
+- during a pending jump, the board locations of the already-jumped checker identities;
 - the board layout.
 
-That is necessary because two boards that look identical can still have different legal futures when one of them is in the middle of a same-turn jump continuation.
+That is necessary because two boards that look identical can still have different legal futures when one of them is in the middle of a same-turn jump continuation. In particular, continuation legality forbids jumping the same checker identity twice; a source/trail-only key would conflate states whose jumped checkers occupy different cells after stack movement.
 
 ## Validation Layer
 
@@ -242,10 +246,10 @@ That design is intentionally redundant in CPU terms and conservative in correctn
 
 Important application exports:
 
-| Function | Role |
-| --- | --- |
-| `applyActionToBoard()` | validate then apply when a caller only needs the next board |
-| `applyValidatedAction()` | return the next board plus next `pendingJump` payload |
+| Function                        | Role                                                                                       |
+| ------------------------------- | ------------------------------------------------------------------------------------------ |
+| `applyActionToBoard()`          | validate then apply when a caller only needs the next board                                |
+| `applyValidatedAction()`        | return the next board plus next `pendingJump` payload                                      |
 | `applyValidatedActionToBoard()` | board-only projection of a previously validated action while preserving structural sharing |
 
 ### Jump-chain semantics and identity-based loop prevention
@@ -263,11 +267,11 @@ That design allows a chain to revisit a landing square, including the starting s
 
 Additional jump-specific exports matter outside the reducer itself:
 
-| Function | Role |
-| --- | --- |
-| `createJumpStateKey()` | board-sensitive jump-context key used by tests and performance helpers |
+| Function                       | Role                                                                                                         |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------ |
+| `createJumpStateKey()`         | board-sensitive jump-context key used by tests and performance helpers                                       |
 | `getVisitedJumpedCheckerIds()` | reconstructs the same-chain checker-identity trail from `pendingJump`, committed history, or legacy payloads |
-| `getJumpContinuationTargets()` | computes next legal jump landings after an optional drafted path |
+| `getJumpContinuationTargets()` | computes next legal jump landings after an optional drafted path                                             |
 
 ## Jump Semantics
 
@@ -326,7 +330,7 @@ Legacy session payloads may still contain `visitedCoords` or `visitedStateKeys`,
 
 ![Jump continuation and loop-prevention illustration](../../docs/img/jump-loop.jpeg)
 
-*This illustration belongs here because the subtlety is not geometric reachability alone. The important rule is that a continuation chain may revisit a landing coordinate if it crosses different physical checkers; what is forbidden is re-jumping the same checker identity.*
+_This illustration belongs here because the subtlety is not geometric reachability alone. The important rule is that a continuation chain may revisit a landing coordinate if it crosses different physical checkers; what is forbidden is re-jumping the same checker identity._
 
 ## Reducer Pipeline
 
@@ -334,11 +338,17 @@ The reducers in [`reducers/`](./reducers/) turn local action legality into full 
 
 ### `advanceEngineState()`
 
-History-free forward simulation used by:
+History-free forward simulation used by replay helpers, benchmark tooling, and
+other callers with an arbitrary action. It validates that action before
+applying it.
 
-- AI search
-- replay helpers
-- benchmark and reporting scripts
+Candidate actions emitted by `getLegalActions()` for the exact same state and
+rule configuration take the separate `advanceGeneratedEngineState()` path in
+the AI ordering/search hot path. That path skips duplicate public-command
+validation, but still runs the same application, turn, pass, victory, hash, and
+repetition-resolution logic. It is not a general public fast path: UI, network,
+import, and other external commands must continue through the validating
+transition.
 
 ### `applyAction()`
 
@@ -458,13 +468,13 @@ flowchart TD
 
 ### File map
 
-| File | Responsibility |
-| --- | --- |
-| [`serialization/session.ts`](./serialization/session.ts) | public serialization entry points |
-| [`serialization/session/deserialization.ts`](./serialization/session/deserialization.ts) | guard validation and migration to `v4` |
-| [`serialization/session/guards.ts`](./serialization/session/guards.ts) | runtime validation of nested payload fragments |
-| [`serialization/session/normalization.ts`](./serialization/session/normalization.ts) | canonical turn-log and frame normalization |
-| [`serialization/session/frames.ts`](./serialization/session/frames.ts) | `UndoFrame` creation and runtime restoration |
+| File                                                                                     | Responsibility                                 |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------- |
+| [`serialization/session.ts`](./serialization/session.ts)                                 | public serialization entry points              |
+| [`serialization/session/deserialization.ts`](./serialization/session/deserialization.ts) | guard validation and migration to `v4`         |
+| [`serialization/session/guards.ts`](./serialization/session/guards.ts)                   | runtime validation of nested payload fragments |
+| [`serialization/session/normalization.ts`](./serialization/session/normalization.ts)     | canonical turn-log and frame normalization     |
+| [`serialization/session/frames.ts`](./serialization/session/frames.ts)                   | `UndoFrame` creation and runtime restoration   |
 
 ### Session versions
 
@@ -491,7 +501,8 @@ The engine preserves immutable public state without deep-cloning the entire boar
 2. `ensureMutableCell()` deep-clones a cell only when a move path touches it;
 3. untouched cells remain referentially shared.
 
-That trade-off matters especially in AI search, where `advanceEngineState()` may be called recursively thousands of times.
+That trade-off matters especially in AI search, where generated state
+transitions may be called recursively thousands of times.
 
 ### GC and search-path implications
 
@@ -511,10 +522,12 @@ flowchart LR
 The engine is written as a pure layer, but it is not naive about cost.
 
 - structural sharing in board application avoids cloning untouched cells on every move;
+- fixed-board coordinate lookup tables avoid repeated string parsing and array searches for adjacency and jump geometry;
+- `hasLegalAction()` lets transition code answer pass/stalemate questions without allocating the whole legal-action list when it only needs an existence result;
 - compact helpers for coordinates, hashing, and validation keep the AI search path usable in a browser worker.
 - keyed pure-summary helpers such as `getScoreSummaryByKey()` and `getDrawTiebreakMetricsByKey()` let higher layers reuse canonical hashes instead of recomputing identical read-only summaries through multiple call paths.
 
-Performance reports for these paths are generated separately and documented in [`../../docs/INFRASTRUCTURE.md`](../../docs/INFRASTRUCTURE.md).
+These changes preserve domain truth: they do not alter action unions, validation conditions, or reducer outcomes, and the canonical hash continues to encode the complete state facts required for identity. Performance reports for these paths are generated separately and documented in [`../../docs/INFRASTRUCTURE.md`](../../docs/INFRASTRUCTURE.md); paired keep/reject methodology is documented in [`../../docs/performance-ab-testing.md`](../../docs/performance-ab-testing.md).
 
 ## Test Coverage As Documentation
 

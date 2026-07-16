@@ -19,5 +19,6 @@ export {
   getLegalActions,
   getLegalActionsForCell,
   getLegalTargetsForCell,
+  hasLegalAction,
 } from '@/domain/rules/moveGeneration/targetDiscovery';
 export { validateAction } from '@/domain/rules/moveGeneration/validation';

@@ -371,13 +371,15 @@ function getParticipationProfile(
   state: EngineState,
   player: Player,
   playerState: PlayerParticipationState,
+  analysis?: PositionAnalysis,
 ): ParticipationProfile {
   const activeCheckerIds = new Set(playerState.activeCheckerIds);
 
   return {
     activeCheckerCount: activeCheckerIds.size,
     distinctFamilyCount: playerState.distinctFamilies,
-    frontierWidth: getFrontierWidth(state, player),
+    frontierWidth:
+      analysis?.players[player].frontierWidth ?? getFrontierWidth(state, player),
     hotRegionConcentration: getConcentration(playerState.hotRegionCounts),
     hotSourceConcentration: getConcentration(playerState.hotSourceCounts),
     idleReserveMass: getIdleReserveMass(state, player, activeCheckerIds),
@@ -392,15 +394,11 @@ function getParticipationProfile(
  * The objective is not randomness. It is to reward broader, more legible use of
  * available material when the position does not demand narrow tactical reuse.
  */
-function getPlayerParticipationScore(
-  state: EngineState,
-  player: Player,
-  playerState: PlayerParticipationState,
+function getParticipationScoreFromProfile(
+  profile: ParticipationProfile,
   preset: AiDifficultyPreset,
-  phaseScale = getPhaseScale(state),
+  phaseScale: number,
 ): number {
-  const profile = getParticipationProfile(state, player, playerState);
-
   // Same-family streak penalty escalates super-linearly: each additional
   // consecutive reuse of the same piece family is more expensive than the last.
   // This is grounded in diversity-seeking search theory (Browne et al., 2012):
@@ -424,6 +422,20 @@ function getPlayerParticipationScore(
     profile.hotRegionConcentration * preset.familyVarietyWeight * 0.75 * phaseScale -
     familyStreakPenalty -
     regionStreakPenalty
+  );
+}
+
+function getPlayerParticipationScore(
+  state: EngineState,
+  player: Player,
+  playerState: PlayerParticipationState,
+  preset: AiDifficultyPreset,
+  phaseScale = getPhaseScale(state),
+): number {
+  return getParticipationScoreFromProfile(
+    getParticipationProfile(state, player, playerState),
+    preset,
+    phaseScale,
   );
 }
 
@@ -527,23 +539,25 @@ export function getActionParticipationProfileFromAnalysis(
   const playerState = currentParticipationState.players[actor];
   const entry = createParticipationEntry(state, action, actor);
   const nextParticipationState = withPlayerEntry(currentParticipationState, actor, entry);
-  const beforeProfile = getParticipationProfile(state, actor, playerState);
+  const beforeProfile = getParticipationProfile(
+    state,
+    actor,
+    playerState,
+    baseAnalysis,
+  );
   const afterProfile = getParticipationProfile(
     nextState,
     actor,
     nextParticipationState.players[actor],
+    nextAnalysis,
   );
-  const beforeScore = getPlayerParticipationScore(
-    state,
-    actor,
-    playerState,
+  const beforeScore = getParticipationScoreFromProfile(
+    beforeProfile,
     preset,
     getPhaseScaleFromAnalysis(baseAnalysis),
   );
-  const afterScore = getPlayerParticipationScore(
-    nextState,
-    actor,
-    nextParticipationState.players[actor],
+  const afterScore = getParticipationScoreFromProfile(
+    afterProfile,
     preset,
     getPhaseScaleFromAnalysis(nextAnalysis),
   );

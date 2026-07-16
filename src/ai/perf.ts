@@ -17,7 +17,7 @@ import {
   getStrategicScoreFromAnalysis,
   type PositionAnalysis,
 } from '@/ai/strategy';
-import type { AiRiskMode, AiTiebreakEdgeKind } from '@/ai/types';
+import type { AiTiebreakEdgeKind } from '@/ai/types';
 
 const PERF_CACHE_LIMIT = 50_000;
 const LEGAL_ACTIONS_CACHE_LIMIT = 8_000;
@@ -29,7 +29,9 @@ export type CachedProgressSnapshot = {
   sixStackProgress: Record<Player, number>;
 };
 
-export type CachedDrawTiebreakMetrics = ReturnType<typeof getDrawTiebreakMetricsByKey>;
+export type CachedDrawTiebreakMetrics = ReturnType<
+  typeof getDrawTiebreakMetricsByKey
+>;
 
 export type CachedTiebreakPressureBase = {
   drawPressure: number;
@@ -46,9 +48,11 @@ export type StatePerfBundle = {
   positionKey: string;
   progressSnapshot?: CachedProgressSnapshot;
   scoreSummary?: ScoreSummary;
-  strategicIntents: Partial<Record<Player, ReturnType<typeof getStrategicIntentFromAnalysis>>>;
+  strategicIntents: Partial<
+    Record<Player, ReturnType<typeof getStrategicIntentFromAnalysis>>
+  >;
   strategicScores: Partial<Record<Player, number>>;
-  tiebreakPressureBase: Partial<Record<Player, Partial<Record<AiRiskMode, CachedTiebreakPressureBase>>>>;
+  tiebreakPressureBase: Map<string, CachedTiebreakPressureBase>;
 };
 
 export type SearchPerfCache = {
@@ -59,7 +63,9 @@ function getRuleConfigCacheKey(ruleConfig: RuleConfig): string {
   return `${ruleConfig.allowNonAdjacentFriendlyStackTransfer ? 1 : 0}:${ruleConfig.drawRule}:${ruleConfig.scoringMode}`;
 }
 
-function buildProgressSnapshot(scoreSummary: ScoreSummary): CachedProgressSnapshot {
+function buildProgressSnapshot(
+  scoreSummary: ScoreSummary,
+): CachedProgressSnapshot {
   return {
     frozenSingles: {
       white: scoreSummary.frozenEnemySingles.black,
@@ -104,7 +110,10 @@ function rememberBundle(
   return bundle;
 }
 
-function rememberLegalActions(key: string, actions: TurnAction[]): TurnAction[] {
+function rememberLegalActions(
+  key: string,
+  actions: TurnAction[],
+): TurnAction[] {
   if (legalActionsCache.size >= LEGAL_ACTIONS_CACHE_LIMIT) {
     const oldestKey = legalActionsCache.keys().next().value;
 
@@ -140,7 +149,7 @@ export function getStatePerfBundle(
     positionKey,
     strategicIntents: {},
     strategicScores: {},
-    tiebreakPressureBase: {},
+    tiebreakPressureBase: new Map<string, CachedTiebreakPressureBase>(),
   };
 
   return rememberBundle(perfCache, positionKey, bundle);
@@ -184,7 +193,10 @@ export function getPerfDrawTiebreakMetrics(
   state: EngineState,
 ): CachedDrawTiebreakMetrics {
   if (!bundle.drawTiebreakMetrics) {
-    bundle.drawTiebreakMetrics = getDrawTiebreakMetricsByKey(state, bundle.positionKey);
+    bundle.drawTiebreakMetrics = getDrawTiebreakMetricsByKey(
+      state,
+      bundle.positionKey,
+    );
   }
 
   return bundle.drawTiebreakMetrics;
@@ -208,7 +220,9 @@ export function getPerfProgressSnapshot(
   state: EngineState,
 ): CachedProgressSnapshot {
   if (!bundle.progressSnapshot) {
-    bundle.progressSnapshot = buildProgressSnapshot(getPerfScoreSummary(bundle, state));
+    bundle.progressSnapshot = buildProgressSnapshot(
+      getPerfScoreSummary(bundle, state),
+    );
   }
 
   return bundle.progressSnapshot;
@@ -234,7 +248,9 @@ export function getPerfLegalActionCount(
 ): number {
   if (bundle.legalActionCount === undefined) {
     bundle.legalActionCount =
-      state.status === 'gameOver' ? 0 : getCachedLegalActions(state, ruleConfig, bundle.positionKey).length;
+      state.status === 'gameOver'
+        ? 0
+        : getCachedLegalActions(state, ruleConfig, bundle.positionKey).length;
   }
 
   return bundle.legalActionCount;
@@ -252,7 +268,10 @@ export function getPerfStrategicScore(
     return cached;
   }
 
-  const score = getStrategicScoreFromAnalysis(getPerfAnalysis(bundle, state), player);
+  const score = getStrategicScoreFromAnalysis(
+    getPerfAnalysis(bundle, state),
+    player,
+  );
   bundle.strategicScores[player] = score;
   return score;
 }
@@ -269,7 +288,10 @@ export function getPerfStrategicIntent(
     return cached;
   }
 
-  const intent = getStrategicIntentFromAnalysis(getPerfAnalysis(bundle, state), player);
+  const intent = getStrategicIntentFromAnalysis(
+    getPerfAnalysis(bundle, state),
+    player,
+  );
   bundle.strategicIntents[player] = intent;
   return intent;
 }

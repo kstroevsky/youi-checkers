@@ -32,45 +32,45 @@ The goal of this document is precision. All constants below are taken from sourc
 
 `analyzePosition()` runs one cached board scan and builds a `PositionAnalysis` with per-player features:
 
-| Feature | Meaning |
-| --- | --- |
-| `buriedDebt` | Cost of own material trapped under stacks, weighted more harshly when the stack is enemy-controlled |
-| `controlledStacks` | Number of stacks currently controlled by the player |
-| `controlledEnemyStacks` | Controlled stacks that contain enemy material |
-| `emptyAdjacency` | Count of empty neighboring cells around active movers |
-| `frontRowControlledHeight` | Total stack height the player controls on the front home row |
-| `frontRowFullStacks` | Count of fully owned height-3 stacks on the front home row |
-| `frontRowOwnedTwoStacks` | Count of fully owned height-2 stacks on the front home row |
-| `frozenSingles` | Count of frozen single checkers |
-| `frozenCriticalSingles` | Frozen singles on either the player's home rows or front home row |
-| `homeSingles` | Number of own single checkers already on own home rows |
-| `jumpLanes` | Cheap structural estimate of jump-ready lanes |
-| `laneOpenness` | `emptyAdjacency * 2 + jumpLanes * 3` |
-| `movableUnits` | Active singles plus controlled stacks that can contribute to mobility |
-| `totalDistanceToHome` | Aggregate distance remaining for all checkers to reach own home rows |
-| `transportValue` | Aggregate value of stack transport and active mobility potential |
+| Feature                    | Meaning                                                                                             |
+| -------------------------- | --------------------------------------------------------------------------------------------------- |
+| `buriedDebt`               | Cost of own material trapped under stacks, weighted more harshly when the stack is enemy-controlled |
+| `controlledStacks`         | Number of stacks currently controlled by the player                                                 |
+| `controlledEnemyStacks`    | Controlled stacks that contain enemy material                                                       |
+| `emptyAdjacency`           | Count of empty neighboring cells around active movers                                               |
+| `frontRowControlledHeight` | Total stack height the player controls on the front home row                                        |
+| `frontRowFullStacks`       | Count of fully owned height-3 stacks on the front home row                                          |
+| `frontRowOwnedTwoStacks`   | Count of fully owned height-2 stacks on the front home row                                          |
+| `frozenSingles`            | Count of frozen single checkers                                                                     |
+| `frozenCriticalSingles`    | Frozen singles on either the player's home rows or front home row                                   |
+| `homeSingles`              | Number of own single checkers already on own home rows                                              |
+| `jumpLanes`                | Cheap structural estimate of jump-ready lanes                                                       |
+| `laneOpenness`             | `emptyAdjacency * 2 + jumpLanes * 3`                                                                |
+| `movableUnits`             | Active singles plus controlled stacks that can contribute to mobility                               |
+| `totalDistanceToHome`      | Aggregate distance remaining for all checkers to reach own home rows                                |
+| `transportValue`           | Aggregate value of stack transport and active mobility potential                                    |
 
 The analysis also derives a coarse macro phase:
 
-| Phase | Trigger |
-| --- | --- |
+| Phase        | Trigger                                                       |
+| ------------ | ------------------------------------------------------------- |
 | `conversion` | High home-row saturation or obvious stack-conversion progress |
-| `opening` | Very few empty cells remain |
-| `transport` | Everything between those two extremes |
+| `opening`    | Very few empty cells remain                                   |
+| `transport`  | Everything between those two extremes                         |
 
 ![Spatial strategic-analysis illustration](../../docs/img/spatial-score-analysis.jpeg)
 
-*This image belongs in the strategic-analysis section because the underlying scan is spatial before it is numeric. The formulas later in the file are built on top of board features such as lane openness, front-row mass, buried debt, and frozen critical singles.*
+_This image belongs in the strategic-analysis section because the underlying scan is spatial before it is numeric. The formulas later in the file are built on top of board features such as lane openness, front-row mass, buried debt, and frozen critical singles._
 
 ### Phase weights
 
 `getPhaseWeights()` reweights the same raw features depending on the inferred phase:
 
-| Phase | `home` | `lane` | `stack` | `transport` |
-| --- | ---: | ---: | ---: | ---: |
-| `opening` | `0.85` | `1.3` | `0.9` | `1.1` |
-| `transport` | `1` | `1.05` | `1.05` | `1.2` |
-| `conversion` | `1.35` | `0.8` | `1.3` | `0.95` |
+| Phase        | `home` | `lane` | `stack` | `transport` |
+| ------------ | -----: | -----: | ------: | ----------: |
+| `opening`    | `0.85` |  `1.3` |   `0.9` |       `1.1` |
+| `transport`  |    `1` | `1.05` |  `1.05` |       `1.2` |
+| `conversion` | `1.35` |  `0.8` |   `1.3` |      `0.95` |
 
 These weights do not replace the base terms; they selectively amplify or suppress them depending on whether the game still needs space creation, mass transport, or terminal conversion.
 
@@ -202,7 +202,7 @@ Important distinction:
 
 ![Strategic-advantage formula illustration](../../docs/img/strategic-advantage.jpeg)
 
-*The point of this illustration is not to replace the formulas above. It is to show, on one board, that strategic evaluation is aggregating visibly different kinds of structure: progress toward home conversion, front-row construction, and liabilities such as buried debt or frozen critical material.*
+_The point of this illustration is not to replace the formulas above. It is to show, on one board, that strategic evaluation is aggregating visibly different kinds of structure: progress toward home conversion, front-row construction, and liabilities such as buried debt or frozen critical material._
 
 ## 4. Static Evaluation (`evaluation.ts`)
 
@@ -297,11 +297,11 @@ Model `valueEstimate` is surfaced in `AiModelGuidance` for diagnostics and tests
 
 Hidden personas bias equal quiet states differently:
 
-| Persona | State-bias terms |
-| --- | --- |
-| `expander` | `emptyCells * 16 + laneOpenness delta * 34 + jumpLanes delta * 52` |
-| `hunter` | `opponent frozenSingles delta * 90 + opponent frozenCriticalSingles delta * 120 + jumpLanes delta * 44 + controlledEnemyStacks delta * 70` |
-| `builder` | `frontRowControlledHeight delta * 92 + frontRowOwnedTwoStacks delta * 280 + frontRowFullStacks delta * 850 + controlledStacks delta * 44` |
+| Persona    | State-bias terms                                                                                                                           |
+| ---------- | ------------------------------------------------------------------------------------------------------------------------------------------ |
+| `expander` | `emptyCells * 16 + laneOpenness delta * 34 + jumpLanes delta * 52`                                                                         |
+| `hunter`   | `opponent frozenSingles delta * 90 + opponent frozenCriticalSingles delta * 120 + jumpLanes delta * 44 + controlledEnemyStacks delta * 70` |
+| `builder`  | `frontRowControlledHeight delta * 92 + frontRowOwnedTwoStacks delta * 280 + frontRowFullStacks delta * 850 + controlledStacks delta * 44`  |
 
 These are style biases, not tactical overrides.
 
@@ -326,7 +326,7 @@ flowchart LR
 
 ![Evaluation heatmap illustration](../../docs/img/score-heatmap.jpeg)
 
-*This kind of illustration is useful because evaluation terms are globally summed but locally caused. A board heatmap communicates where structural bonuses and liabilities are coming from without pretending that the runtime literally computes one independent score per square.*
+_This kind of illustration is useful because evaluation terms are globally summed but locally caused. A board heatmap communicates where structural bonuses and liabilities are coming from without pretending that the runtime literally computes one independent score per square._
 
 ## 5. Move Ordering (`moveOrdering.ts`)
 
@@ -349,24 +349,24 @@ staticPromise =
 
 Then it builds `staticScore` from the following exact terms:
 
-| Term | Value |
-| --- | ---: |
-| immediate win | `+100_000` |
-| jump action | `+7_500` |
-| manual unfreeze | `+5_500` |
-| front-row stack growth | `+5_000` |
-| move ending in own home field | `+2_500` |
-| freeze swing | `freezeSwingBonus * 1_200` |
-| structure delta | `clamp(staticPromise, 8_000)` |
-| strategic delta | `clamp(intentDelta, 6_000)` |
-| participation delta | `clamp(participationDelta, 4_000)` |
-| semantic policy bias | `+policyBias` |
-| behavior action bias | `+getBehaviorActionBias(profileId, tags)` |
-| opening geometry bias | `round(getBehaviorGeometryBias(profileId, action, behaviorSeed) * 6)` while `moveNumber <= 6` |
-| model prior | `round(policyPrior * policyPriorWeight)` |
-| novelty penalty | `-noveltyPenalty` |
-| repetition penalty | `-repetitionPenalty * (repeatedPositionCount - 1)` |
-| self-undo penalty | `-selfUndoPenalty` when `isSelfUndo && !isForced` |
+| Term                          |                                                                                         Value |
+| ----------------------------- | --------------------------------------------------------------------------------------------: |
+| immediate win                 |                                                                                    `+100_000` |
+| jump action                   |                                                                                      `+7_500` |
+| manual unfreeze               |                                                                                      `+5_500` |
+| front-row stack growth        |                                                                                      `+5_000` |
+| move ending in own home field |                                                                                      `+2_500` |
+| freeze swing                  |                                                                    `freezeSwingBonus * 1_200` |
+| structure delta               |                                                                 `clamp(staticPromise, 8_000)` |
+| strategic delta               |                                                                   `clamp(intentDelta, 6_000)` |
+| participation delta           |                                                            `clamp(participationDelta, 4_000)` |
+| semantic policy bias          |                                                                                 `+policyBias` |
+| behavior action bias          |                                                     `+getBehaviorActionBias(profileId, tags)` |
+| opening geometry bias         | `round(getBehaviorGeometryBias(profileId, action, behaviorSeed) * 6)` while `moveNumber <= 6` |
+| model prior                   |                                                      `round(policyPrior * policyPriorWeight)` |
+| novelty penalty               |                                                                             `-noveltyPenalty` |
+| repetition penalty            |                                            `-repetitionPenalty * (repeatedPositionCount - 1)` |
+| self-undo penalty             |                                             `-selfUndoPenalty` when `isSelfUndo && !isForced` |
 
 `clamp(value, limit)` bounds each signed term to `[-limit, limit]`.
 
@@ -374,13 +374,13 @@ Then it builds `staticScore` from the following exact terms:
 
 `orderPrecomputedMoves()` adds the search-table bonuses that evolve during the search:
 
-| Term | Value |
-| --- | ---: |
-| transposition-table move (`ttMove`) | `+200_000` |
-| principal-variation move (`pvMove`) | `+150_000` |
-| history heuristic | capped at `+12_000` |
-| continuation heuristic | capped at `+8_000` |
-| killer move | `+9_000` |
+| Term                                |               Value |
+| ----------------------------------- | ------------------: |
+| transposition-table move (`ttMove`) |          `+200_000` |
+| principal-variation move (`pvMove`) |          `+150_000` |
+| history heuristic                   | capped at `+12_000` |
+| continuation heuristic              |  capped at `+8_000` |
+| killer move                         |            `+9_000` |
 
 The final ordering score is:
 
@@ -392,11 +392,11 @@ score = staticScore + dynamicScore
 
 `getBehaviorActionBias()` converts strategic tags into profile-specific ordering pressure:
 
-| Persona | Tag weights |
-| --- | --- |
-| `expander` | `advanceMass = 80`, `decompress = 180`, `openLane = 220` |
-| `hunter` | `captureControl = 180`, `freezeBlock = 240`, `rescue = 90` |
-| `builder` | `advanceMass = 120`, `frontBuild = 260`, `rescue = 110` |
+| Persona    | Tag weights                                                |
+| ---------- | ---------------------------------------------------------- |
+| `expander` | `advanceMass = 80`, `decompress = 180`, `openLane = 220`   |
+| `hunter`   | `captureControl = 180`, `freezeBlock = 240`, `rescue = 90` |
+| `builder`  | `advanceMass = 120`, `frontBuild = 260`, `rescue = 110`    |
 
 ### Persona geometry bias (`behavior.ts`)
 
@@ -415,11 +415,11 @@ Each persona chooses one seeded ordering of those bands and scores them:
 
 Current seeded order pools are:
 
-| Persona | Possible seeded band orders |
-| --- | --- |
+| Persona    | Possible seeded band orders                                               |
+| ---------- | ------------------------------------------------------------------------- |
 | `expander` | `center > inner > edge`, `center > edge > inner`, `inner > center > edge` |
-| `hunter` | `inner > edge > center`, `edge > inner > center`, `inner > center > edge` |
-| `builder` | `edge > inner > center`, `edge > center > inner`, `inner > edge > center` |
+| `hunter`   | `inner > edge > center`, `edge > inner > center`, `inner > center > edge` |
+| `builder`  | `edge > inner > center`, `edge > center > inner`, `inner > edge > center` |
 
 During the first six plies, `precomputeOrderedActions()` multiplies that geometry
 bias by `6` and adds it directly into `staticScore`. This is what lets hidden
@@ -502,13 +502,13 @@ flowchart TD
 
 `moveOrdering.ts` also computes the boolean classification used elsewhere in the search:
 
-| Field | Meaning |
-| --- | --- |
-| `winsImmediately` | `nextState` is terminal and wins for the actor |
-| `isForced` | immediate win or any terminal child |
-| `isRepetition` | post-move position count exceeds one |
-| `isSelfUndo` | action recreates the root grandparent position or directly reverses the player's previous action |
-| `isTactical` | immediate win, jump, manual unfreeze, positive freeze swing, or semantic `freezeBlock` / `rescue` tag |
+| Field             | Meaning                                                                                               |
+| ----------------- | ----------------------------------------------------------------------------------------------------- |
+| `winsImmediately` | `nextState` is terminal and wins for the actor                                                        |
+| `isForced`        | immediate win or any terminal child                                                                   |
+| `isRepetition`    | post-move position count exceeds one                                                                  |
+| `isSelfUndo`      | action recreates the root grandparent position or directly reverses the player's previous action      |
+| `isTactical`      | immediate win, jump, manual unfreeze, positive freeze swing, or semantic `freezeBlock` / `rescue` tag |
 
 `isTactical` is still used for preservation and participation shaping, but it no
 longer gives blanket immunity from anti-loop penalties. Only `isForced` bypasses
@@ -641,15 +641,15 @@ protected.
 
 ### Tag conditions
 
-| Tag | Trigger |
-| --- | --- |
-| `openLane` | empty-cell count increases or own lane openness increases |
-| `advanceMass` | own total distance to home decreases or own home singles increase |
-| `freezeBlock` | opponent frozen singles or frozen critical singles increase |
-| `rescue` | own frozen singles decrease or own buried debt decreases |
-| `frontBuild` | own front-row controlled height, owned two-stacks, or full stacks increase |
-| `captureControl` | target controller changes from non-player to player |
-| `decompress` | own controlled stacks decrease, own buried debt decreases, or a stack move releases mass from a taller source into a lower target |
+| Tag              | Trigger                                                                                                                           |
+| ---------------- | --------------------------------------------------------------------------------------------------------------------------------- |
+| `openLane`       | empty-cell count increases or own lane openness increases                                                                         |
+| `advanceMass`    | own total distance to home decreases or own home singles increase                                                                 |
+| `freezeBlock`    | opponent frozen singles or frozen critical singles increase                                                                       |
+| `rescue`         | own frozen singles decrease or own buried debt decreases                                                                          |
+| `frontBuild`     | own front-row controlled height, owned two-stacks, or full stacks increase                                                        |
+| `captureControl` | target controller changes from non-player to player                                                                               |
+| `decompress`     | own controlled stacks decrease, own buried debt decreases, or a stack move releases mass from a taller source into a lower target |
 
 The returned `intentDelta` is:
 
@@ -661,29 +661,29 @@ getIntentScore(nextIntent) - getIntentScore(baseIntent)
 
 The semantic tags are also converted into a scalar bias:
 
-| Tag | Bias |
-| --- | ---: |
-| `frontBuild` | `+260` |
-| `advanceMass` | `+180` |
-| `freezeBlock` | `+150` |
-| `openLane` | `+120` |
-| `captureControl` | `+90` |
-| `rescue` | `+80` |
-| `decompress` | `+60` |
+| Tag              |   Bias |
+| ---------------- | -----: |
+| `frontBuild`     | `+260` |
+| `advanceMass`    | `+180` |
+| `freezeBlock`    | `+150` |
+| `openLane`       | `+120` |
+| `captureControl` |  `+90` |
+| `rescue`         |  `+80` |
+| `decompress`     |  `+60` |
 
 When multiple tags apply, the biases are summed.
 
 ### Compact glossary
 
-| Tag | Short reading |
-| --- | --- |
-| `advanceMass` | move material closer to the home-field objective |
+| Tag              | Short reading                                                  |
+| ---------------- | -------------------------------------------------------------- |
+| `advanceMass`    | move material closer to the home-field objective               |
 | `captureControl` | finish the move with control of a previously foreign structure |
-| `decompress` | release material from cramped stack geometry |
-| `freezeBlock` | increase frozen obstruction on the opponent's side |
-| `frontBuild` | improve front-row stack scaffolding |
-| `openLane` | create space or jump-ready geometry |
-| `rescue` | reduce own frozen or buried liabilities |
+| `decompress`     | release material from cramped stack geometry                   |
+| `freezeBlock`    | increase frozen obstruction on the opponent's side             |
+| `frontBuild`     | improve front-row stack scaffolding                            |
+| `openLane`       | create space or jump-ready geometry                            |
+| `rescue`         | reduce own frozen or buried liabilities                        |
 
 ## 8. Participation (`participation.ts`)
 
@@ -702,19 +702,19 @@ For each side, the rolling state records:
 The current window length is preset-dependent:
 
 | Difficulty | `participationWindow` |
-| --- | ---: |
-| `easy` | `5` |
-| `medium` | `8` |
-| `hard` | `10` |
+| ---------- | --------------------: |
+| `easy`     |                   `5` |
+| `medium`   |                   `8` |
+| `hard`     |                  `10` |
 
 ### Phase scaling
 
 Participation pressure depends on the strategic phase:
 
-| Phase | Scale |
-| --- | ---: |
-| `opening` | `1.25` |
-| `transport` | `1` |
+| Phase        |  Scale |
+| ------------ | -----: |
+| `opening`    | `1.25` |
+| `transport`  |    `1` |
 | `conversion` | `0.45` |
 
 The engine pushes variety hardest when the board is still congested and eases off once the position becomes a concrete conversion race.
@@ -743,6 +743,12 @@ Where:
 - `frontierWidth` is the number of files occupied by movable material;
 - `idleReserveMass` is own reserve material not touched recently;
 - `hotSourceConcentration` and `hotRegionConcentration` count repeated reuse beyond the first touch.
+
+### Execution and reuse boundary
+
+The formula above is the semantic definition; its hot-path implementation does not re-scan the board merely to rediscover it. `strategy.ts` computes `frontierWidth` while it builds `PositionAnalysis`: for each player it records a file once when the coordinate is a movable single or a controlled stack. `getActionParticipationProfileFromAnalysis()` receives the already-computed analysis for the current and successor states, builds the corresponding before/after participation profiles once, and passes those profiles to `getParticipationScoreFromProfile()`.
+
+This is an implementation reuse, not a heuristic change. The same formula, phase scale, tactical floor, and frontier predicate apply. The profile helper retains a direct-scan fallback for callers that do not have a `PositionAnalysis`, but move ordering uses the analysis-backed path. See [`README.md`](./README.md#participation-layer) for the data-flow diagram and [`../../docs/performance-ab-testing.md`](../../docs/performance-ab-testing.md) for the evidence protocol used to accept such changes.
 
 The board-level participation term used in evaluation is:
 
@@ -801,29 +807,29 @@ This is the mechanism that lets the engine keep anti-loop pressure on quiet turn
 
 ![Participation anti-oscillation mechanics](../../docs/img/participation-anti-oscillation.jpeg)
 
-*The participation layer distinguishes healthy tactical reuse from narrow quiet cycling by tracking families, regions, and frontier breadth over recent turns.*
+_The participation layer distinguishes healthy tactical reuse from narrow quiet cycling by tracking families, regions, and frontier breadth over recent turns._
 
 ## 9. Preset-Supplied Coefficients
 
 Some heuristic formulas are not hard-coded in the evaluator itself; they are supplied by the difficulty preset.
 
 | Difficulty | `policyPriorWeight` | `repetitionPenalty` | `selfUndoPenalty` | `drawAversionAhead` | `drawAversionBehindRelief` | `riskLoopPenalty` | `riskProgressBonus` | `riskTacticalBonus` |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `easy` | `80` | `160` | `220` | `220` | `70` | `260` | `420` | `280` |
-| `medium` | `140` | `240` | `320` | `220` | `60` | `280` | `360` | `240` |
-| `hard` | `220` | `400` | `460` | `200` | `50` | `320` | `280` | `200` |
+| ---------- | ------------------: | ------------------: | ----------------: | ------------------: | -------------------------: | ----------------: | ------------------: | ------------------: |
+| `easy`     |                `80` |               `160` |             `220` |               `220` |                       `70` |             `260` |               `420` |               `280` |
+| `medium`   |               `140` |               `240` |             `320` |               `220` |                       `60` |             `280` |               `360` |               `240` |
+| `hard`     |               `220` |               `400` |             `460` |               `200` |                       `50` |             `320` |               `280` |               `200` |
 
 | Difficulty | `participationBias` | `familyVarietyWeight` | `sourceReusePenalty` | `frontierWidthWeight` | `riskBandWidening` | `riskPolicyPriorScale` | `stagnationThreshold` |
-| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
-| `easy` | `14` | `30` | `90` | `20` | `0.08` | `0.45` | `0.42` |
-| `medium` | `18` | `42` | `130` | `28` | `0.06` | `0.6` | `0.46` |
-| `hard` | `24` | `56` | `180` | `36` | `0.04` | `0.72` | `0.5` |
+| ---------- | ------------------: | --------------------: | -------------------: | --------------------: | -----------------: | ---------------------: | --------------------: |
+| `easy`     |                `14` |                  `30` |                 `90` |                  `20` |             `0.08` |                 `0.45` |                `0.42` |
+| `medium`   |                `18` |                  `42` |                `130` |                  `28` |             `0.06` |                  `0.6` |                `0.46` |
+| `hard`     |                `24` |                  `56` |                `180` |                  `36` |             `0.04` |                 `0.72` |                 `0.5` |
 
 | Difficulty | `stagnationRepetitionWeight` | `stagnationSelfUndoWeight` | `stagnationDisplacementWeight` | `stagnationMobilityWeight` | `stagnationProgressWeight` |
-| --- | ---: | ---: | ---: | ---: | ---: |
-| `easy` | `20` | `24` | `16` | `14` | `26` |
-| `medium` | `20` | `20` | `15` | `14` | `24` |
-| `hard` | `18` | `18` | `14` | `14` | `22` |
+| ---------- | ---------------------------: | -------------------------: | -----------------------------: | -------------------------: | -------------------------: |
+| `easy`     |                         `20` |                       `24` |                           `16` |                       `14` |                       `26` |
+| `medium`   |                         `20` |                       `20` |                           `15` |                       `14` |                       `24` |
+| `hard`     |                         `18` |                       `18` |                           `14` |                       `14` |                       `22` |
 
 These are exact runtime values from [`presets.ts`](./presets.ts).
 

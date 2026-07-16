@@ -111,7 +111,9 @@ function isQuietAction(action: TurnAction): boolean {
   return action.type !== 'jumpSequence' && action.type !== 'manualUnfreeze';
 }
 
-function getActionGeometry(action: TurnAction): { source: string; target: string } | null {
+function getActionGeometry(
+  action: TurnAction,
+): { source: string; target: string } | null {
   switch (action.type) {
     case 'manualUnfreeze':
       return null;
@@ -175,7 +177,9 @@ export function createProgressSnapshot(
   };
 }
 
-export function getEmptyCellCount(state: Pick<GameState | EngineState | StateSnapshot, 'board'>): number {
+export function getEmptyCellCount(
+  state: Pick<GameState | EngineState | StateSnapshot, 'board'>,
+): number {
   return allCoords().reduce(
     (sum, coord) => sum + (getCellHeight(state.board, coord) === 0 ? 1 : 0),
     0,
@@ -198,7 +202,10 @@ function getBaseTiebreakPressureProfile(
   riskMode: AiRiskMode,
   perfBundle: StatePerfBundle | null = null,
 ): CachedTiebreakPressureBase {
-  const cached = perfBundle?.tiebreakPressureBase[perspectivePlayer]?.[riskMode];
+  const positionKey = perfBundle?.positionKey ?? hashPosition(state);
+  const repeatedPositionCount = state.positionCounts[positionKey] ?? 1;
+  const cacheKey = `${perspectivePlayer}:${riskMode}:${state.moveNumber}:${repeatedPositionCount}`;
+  const cached = perfBundle?.tiebreakPressureBase.get(cacheKey);
 
   if (cached) {
     return cached;
@@ -207,9 +214,9 @@ function getBaseTiebreakPressureProfile(
   const metrics = perfBundle
     ? getPerfDrawTiebreakMetrics(perfBundle, state)
     : getDrawTiebreakMetrics(state);
-  const positionKey = perfBundle?.positionKey ?? hashPosition(state);
   const tiebreakCheckerEdge =
-    metrics.ownFieldCheckers[perspectivePlayer] - metrics.ownFieldCheckers[getOpponent(perspectivePlayer)];
+    metrics.ownFieldCheckers[perspectivePlayer] -
+    metrics.ownFieldCheckers[getOpponent(perspectivePlayer)];
   const tiebreakStackEdge =
     metrics.completedHomeStacks[perspectivePlayer] -
     metrics.completedHomeStacks[getOpponent(perspectivePlayer)];
@@ -223,17 +230,25 @@ function getBaseTiebreakPressureProfile(
           : tiebreakStackEdge < 0
             ? 'behind'
             : 'tied';
-  const repetitionPressure = clamp(((state.positionCounts[positionKey] ?? 1) - 1) / 2, 0, 1);
+  const repetitionPressure = clamp((repeatedPositionCount - 1) / 2, 0, 1);
   const structuralFlatness = clamp(
-    (420 - Math.abs(getCachedStrategicScore(state, perspectivePlayer, perfBundle))) / 420,
+    (420 -
+      Math.abs(getCachedStrategicScore(state, perspectivePlayer, perfBundle))) /
+      420,
     0,
     1,
   );
   const movePressure = clamp((state.moveNumber - 24) / 46, 0, 1);
-  const riskFloor = riskMode === 'late' ? 0.45 : riskMode === 'stagnation' ? 0.25 : 0;
+  const riskFloor =
+    riskMode === 'late' ? 0.45 : riskMode === 'stagnation' ? 0.25 : 0;
   const baseProfile: CachedTiebreakPressureBase = {
     drawPressure: clamp(
-      Math.max(riskFloor, repetitionPressure * 0.5 + structuralFlatness * 0.3 + movePressure * 0.2),
+      Math.max(
+        riskFloor,
+        repetitionPressure * 0.5 +
+          structuralFlatness * 0.3 +
+          movePressure * 0.2,
+      ),
       0,
       1,
     ),
@@ -243,9 +258,7 @@ function getBaseTiebreakPressureProfile(
   };
 
   if (perfBundle) {
-    const playerCache = perfBundle.tiebreakPressureBase[perspectivePlayer] ?? {};
-    playerCache[riskMode] = baseProfile;
-    perfBundle.tiebreakPressureBase[perspectivePlayer] = playerCache;
+    perfBundle.tiebreakPressureBase.set(cacheKey, baseProfile);
   }
 
   return baseProfile;
@@ -255,7 +268,10 @@ export function getTiebreakPressureProfile(
   state: EngineState,
   perspectivePlayer: Player,
   riskMode: AiRiskMode,
-  candidate: Omit<RiskCandidateSignal, 'drawTrapRisk' | 'tiebreakEdgeKind'> | null = null,
+  candidate: Omit<
+    RiskCandidateSignal,
+    'drawTrapRisk' | 'tiebreakEdgeKind'
+  > | null = null,
   perfBundle: StatePerfBundle | null = null,
 ): TiebreakPressureProfile {
   const baseProfile = getBaseTiebreakPressureProfile(
@@ -335,8 +351,16 @@ export function getRiskProfile(
     };
   }
 
-  if (!('history' in state) || !Array.isArray(state.history) || state.history.length < 2) {
-    const repetitionPressure = clamp(((state.positionCounts[hashPosition(state)] ?? 1) - 1) / 2, 0, 1);
+  if (
+    !('history' in state) ||
+    !Array.isArray(state.history) ||
+    state.history.length < 2
+  ) {
+    const repetitionPressure = clamp(
+      ((state.positionCounts[hashPosition(state)] ?? 1) - 1) / 2,
+      0,
+      1,
+    );
     const structuralFlatness = clamp(
       (360 - Math.abs(getStrategicScore(state, state.currentPlayer))) / 360,
       0,
@@ -344,7 +368,9 @@ export function getRiskProfile(
     );
     const movePressure = clamp((state.moveNumber - 24) / 30, 0, 1);
     const fallbackIndex = clamp(
-      repetitionPressure * 0.45 + structuralFlatness * 0.35 + movePressure * 0.2,
+      repetitionPressure * 0.45 +
+        structuralFlatness * 0.35 +
+        movePressure * 0.2,
       0,
       1,
     );
@@ -354,43 +380,76 @@ export function getRiskProfile(
     }
 
     return {
-      riskMode: fallbackIndex >= preset.stagnationThreshold ? 'stagnation' : 'normal',
+      riskMode:
+        fallbackIndex >= preset.stagnationThreshold ? 'stagnation' : 'normal',
       stagnationIndex: fallbackIndex,
     };
   }
 
   const recent = state.history.slice(-STAGNATION_WINDOW);
   const startProgress = createProgressSnapshot(recent[0].beforeState);
-  const endProgress = createProgressSnapshot(recent.at(-1)?.afterState ?? recent[0].afterState);
+  const endProgress = createProgressSnapshot(
+    recent.at(-1)?.afterState ?? recent[0].afterState,
+  );
   const repetitionPressure =
     recent.reduce(
       (sum, record) =>
         sum +
-        ((state.positionCounts[hashPosition(toEngineState(record.afterState, state.positionCounts))] ?? 0) > 1
+        ((state.positionCounts[
+          hashPosition(toEngineState(record.afterState, state.positionCounts))
+        ] ?? 0) > 1
           ? 1
           : 0),
       0,
     ) / recent.length;
   const averageDisplacement =
-    recent.reduce((sum, record) => sum + countChangedCells(record.beforeState, record.afterState), 0) /
+    recent.reduce(
+      (sum, record) =>
+        sum + countChangedCells(record.beforeState, record.afterState),
+      0,
+    ) /
     recent.length /
     36;
   const displacementPressure = clamp((0.16 - averageDisplacement) / 0.16, 0, 1);
   const mobilityPressure =
     recent.reduce((sum, record) => {
-      const beforeState = toEngineState(record.beforeState, state.positionCounts);
+      const beforeState = toEngineState(
+        record.beforeState,
+        state.positionCounts,
+      );
       const afterState = toEngineState(record.afterState, state.positionCounts);
-      const beforeMobility = getCachedLegalActions(beforeState, ruleConfig).length;
-      const afterMobility = getCachedLegalActions(afterState, ruleConfig).length;
+      const beforeMobility = getCachedLegalActions(
+        beforeState,
+        ruleConfig,
+      ).length;
+      const afterMobility = getCachedLegalActions(
+        afterState,
+        ruleConfig,
+      ).length;
 
-      return sum + clamp((1.5 - Math.abs(afterMobility - beforeMobility)) / 1.5, 0, 1);
+      return (
+        sum +
+        clamp((1.5 - Math.abs(afterMobility - beforeMobility)) / 1.5, 0, 1)
+      );
     }, 0) / recent.length;
   const homeProgressDelta =
-    Math.max(endProgress.homeFieldProgress.white, endProgress.homeFieldProgress.black) -
-    Math.max(startProgress.homeFieldProgress.white, startProgress.homeFieldProgress.black);
+    Math.max(
+      endProgress.homeFieldProgress.white,
+      endProgress.homeFieldProgress.black,
+    ) -
+    Math.max(
+      startProgress.homeFieldProgress.white,
+      startProgress.homeFieldProgress.black,
+    );
   const sixStackDelta =
-    Math.max(endProgress.sixStackProgress.white, endProgress.sixStackProgress.black) -
-    Math.max(startProgress.sixStackProgress.white, startProgress.sixStackProgress.black);
+    Math.max(
+      endProgress.sixStackProgress.white,
+      endProgress.sixStackProgress.black,
+    ) -
+    Math.max(
+      startProgress.sixStackProgress.white,
+      startProgress.sixStackProgress.black,
+    );
   const progressPressure =
     homeProgressDelta <= 0.01 && sixStackDelta <= 0.01
       ? 1
@@ -404,12 +463,15 @@ export function getRiskProfile(
   }
 
   const selfUndoPairs = [...sameActorHistory.values()].flatMap((records) =>
-    records.slice(1).map((record, index) =>
-      isQuietSelfUndo(record.action, records[index].action) ? 1 : 0,
-    ),
+    records
+      .slice(1)
+      .map((record, index) =>
+        isQuietSelfUndo(record.action, records[index].action) ? 1 : 0,
+      ),
   );
   const selfUndoPressure = selfUndoPairs.length
-    ? selfUndoPairs.reduce<number>((sum, value) => sum + value, 0) / selfUndoPairs.length
+    ? selfUndoPairs.reduce<number>((sum, value) => sum + value, 0) /
+      selfUndoPairs.length
     : 0;
   const totalWeight =
     preset.stagnationRepetitionWeight +
@@ -418,13 +480,12 @@ export function getRiskProfile(
     preset.stagnationMobilityWeight +
     preset.stagnationProgressWeight;
   const stagnationIndex = clamp(
-    (
-      repetitionPressure * preset.stagnationRepetitionWeight +
+    (repetitionPressure * preset.stagnationRepetitionWeight +
       selfUndoPressure * preset.stagnationSelfUndoWeight +
       displacementPressure * preset.stagnationDisplacementWeight +
       mobilityPressure * preset.stagnationMobilityWeight +
-      progressPressure * preset.stagnationProgressWeight
-    ) / Math.max(1, totalWeight),
+      progressPressure * preset.stagnationProgressWeight) /
+      Math.max(1, totalWeight),
     0,
     1,
   );
@@ -434,7 +495,8 @@ export function getRiskProfile(
   }
 
   return {
-    riskMode: stagnationIndex >= preset.stagnationThreshold ? 'stagnation' : 'normal',
+    riskMode:
+      stagnationIndex >= preset.stagnationThreshold ? 'stagnation' : 'normal',
     stagnationIndex,
   };
 }
@@ -454,12 +516,21 @@ export function getDynamicDrawScore(
     return 0;
   }
 
-  const structuralScore = getCachedStrategicScore(state, perspectivePlayer, perfBundle);
+  const structuralScore = getCachedStrategicScore(
+    state,
+    perspectivePlayer,
+    perfBundle,
+  );
   const aheadness = clamp(structuralScore / 600, -1, 1);
-  const aheadPenalty = drawPreset.drawAversionAhead * Math.max(0, aheadness + 0.15);
-  const behindRelief = drawPreset.drawAversionBehindRelief * Math.max(0, -aheadness - 0.35);
-  const escalationMultiplier = riskMode === 'late' ? 1.65 : riskMode === 'stagnation' ? 1.25 : 1;
-  const drawScore = Math.round(-aheadPenalty * escalationMultiplier + behindRelief);
+  const aheadPenalty =
+    drawPreset.drawAversionAhead * Math.max(0, aheadness + 0.15);
+  const behindRelief =
+    drawPreset.drawAversionBehindRelief * Math.max(0, -aheadness - 0.35);
+  const escalationMultiplier =
+    riskMode === 'late' ? 1.65 : riskMode === 'stagnation' ? 1.25 : 1;
+  const drawScore = Math.round(
+    -aheadPenalty * escalationMultiplier + behindRelief,
+  );
 
   if (drawScore !== 0 && diagnostics) {
     diagnostics.drawAversionApplications += 1;
@@ -498,8 +569,14 @@ export function getNonterminalDrawTrapBias(
         ? 1
         : 0.6
       : 0.45;
-  const escalationMultiplier = riskMode === 'late' ? 1.5 : riskMode === 'stagnation' ? 1.2 : 1;
-  const penalty = Math.round(-preset.drawAversionAhead * severity * profile.drawPressure * escalationMultiplier);
+  const escalationMultiplier =
+    riskMode === 'late' ? 1.5 : riskMode === 'stagnation' ? 1.2 : 1;
+  const penalty = Math.round(
+    -preset.drawAversionAhead *
+      severity *
+      profile.drawPressure *
+      escalationMultiplier,
+  );
 
   if (penalty !== 0 && diagnostics) {
     diagnostics.adverseDrawTrapPenalties += 1;
@@ -514,10 +591,13 @@ export function getNonterminalDrawTrapBias(
  * This keeps the engine from spending its extra "be decisive" budget on quiet
  * loops that look active in the tree but leave the position structurally flat.
  */
-export function hasCertifiedRiskProgress(candidate: RiskCandidateSignal): boolean {
+export function hasCertifiedRiskProgress(
+  candidate: RiskCandidateSignal,
+): boolean {
   const planProgress = candidate.homeFieldDelta + candidate.sixStackDelta;
   const laneProgress =
-    (candidate.tags.includes('decompress') || candidate.tags.includes('openLane')) &&
+    (candidate.tags.includes('decompress') ||
+      candidate.tags.includes('openLane')) &&
     (candidate.emptyCellsDelta > 0 || candidate.mobilityDelta > 0);
 
   return (
@@ -560,22 +640,32 @@ export function getRiskCandidateAdjustment(
     (candidate.tags.includes('openLane') && candidate.mobilityDelta > 0
       ? preset.riskProgressBonus * 0.35
       : 0) +
-    (candidate.tags.includes('captureControl') ? preset.riskTacticalBonus * 0.2 : 0) +
-    (candidate.tags.includes('freezeBlock') ? preset.riskTacticalBonus * 0.18 : 0);
+    (candidate.tags.includes('captureControl')
+      ? preset.riskTacticalBonus * 0.2
+      : 0) +
+    (candidate.tags.includes('freezeBlock')
+      ? preset.riskTacticalBonus * 0.18
+      : 0);
 
   if (!progressCertified && !candidate.isForced) {
     adjustment -= Math.round(preset.riskLoopPenalty * 0.85);
   }
 
   if (candidate.isRepetition && !candidate.isForced) {
-    adjustment -= preset.riskLoopPenalty * Math.max(1, (candidate.repeatedPositionCount ?? 2) - 1);
+    adjustment -=
+      preset.riskLoopPenalty *
+      Math.max(1, (candidate.repeatedPositionCount ?? 2) - 1);
   }
 
   if (candidate.isSelfUndo && !candidate.isForced) {
     adjustment -= Math.round(preset.riskLoopPenalty * 1.15);
   }
 
-  if ((candidate.drawTrapRisk ?? 0) > 0 && candidate.tiebreakEdgeKind === 'behind' && !candidate.isForced) {
+  if (
+    (candidate.drawTrapRisk ?? 0) > 0 &&
+    candidate.tiebreakEdgeKind === 'behind' &&
+    !candidate.isForced
+  ) {
     adjustment -= Math.round(
       preset.riskLoopPenalty *
         (riskMode === 'late' ? 1.5 : 1.25) *
@@ -596,12 +686,13 @@ export function getRiskStateBias(
     return 0;
   }
 
-  const own =
-    perfBundle
-      ? getPerfProgressSnapshot(perfBundle, state)
-      : createProgressSnapshot(state);
+  const own = perfBundle
+    ? getPerfProgressSnapshot(perfBundle, state)
+    : createProgressSnapshot(state);
   const opponent = getOpponent(player);
-  const emptyCells = perfBundle ? getPerfEmptyCellCount(perfBundle, state) : getEmptyCellCount(state);
+  const emptyCells = perfBundle
+    ? getPerfEmptyCellCount(perfBundle, state)
+    : getEmptyCellCount(state);
   const strategicPressure =
     getCachedStrategicScore(state, player, perfBundle) -
     getCachedStrategicScore(state, opponent, perfBundle);
@@ -610,5 +701,8 @@ export function getRiskStateBias(
     Math.max(own.homeFieldProgress[opponent], own.sixStackProgress[opponent]);
   const multiplier = riskMode === 'late' ? 1.3 : 1;
 
-  return Math.round((emptyCells * 10 + progressEdge * 260 + strategicPressure * 0.08) * multiplier);
+  return Math.round(
+    (emptyCells * 10 + progressEdge * 260 + strategicPressure * 0.08) *
+      multiplier,
+  );
 }

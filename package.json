@@ -29,6 +29,7 @@
     "e2e:multiplayer": "tsx scripts/multiplayer.e2e.ts",
     "preview": "vite preview",
     "perf:charts": "node scripts/perf-charts.mjs",
+    "perf:ab": "node scripts/perf-ab.mjs",
     "perf:compare": "node scripts/compare-perf-reports.mjs",
     "perf:compare:git": "node scripts/run-git-report-compare.mjs --pipeline=perf-report",
     "perf:report": "npm run build && node scripts/perf-report.mjs",

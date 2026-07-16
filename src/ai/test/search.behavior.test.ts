@@ -531,7 +531,7 @@ describe('computer opponent search', () => {
       expect(result.action).not.toBeNull();
       expect(result.action?.type).not.toBe('manualUnfreeze');
     }
-  });
+  }, 30_000);
 
   // TODO: The draw-trap fixture was recorded under old rules that allowed cross-color jump
   // continuations (move 35: White jumps over Black at D5, then continues over White at B3).

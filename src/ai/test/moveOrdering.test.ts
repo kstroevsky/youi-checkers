@@ -100,6 +100,10 @@ describe('move ordering precomputation', () => {
     );
     const rescored = orderPrecomputedMoves(precomputed, preset, orderingOptions);
 
+    expect(rescored.every((entry) => precomputed.includes(entry as never))).toBe(
+      true,
+    );
+
     expect(
       rescored.map((entry) => ({
         action: actionKey(entry.action),
