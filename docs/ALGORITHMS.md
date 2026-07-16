@@ -204,7 +204,7 @@ Implementation notes:
 - Bounded TT entries are stored as `exact`, `lower`, or `upper`, not just raw scores.
 - When the TT reaches its `50_000`-entry cap, YOUI evicts the oldest inserted entry before storing the new one. The replacement policy is therefore simple FIFO-by-insertion-order, not depth-preferred replacement.
 - Move penalties are applied after child search, which keeps tactical truth primary but lets repetition and self-undo still matter.
-- The search passes a `SearchStack` — a pre-allocated fixed-size backing array plus a mutable depth cursor — through every call frame. Before each recursive call, the entry is written at `stack.entries[stack.depth]` and the cursor is incremented; a `try/finally` block decrements it on return or timeout. This mirrors Stockfish's `Stack ss[MAX_PLY]` pass-by-pointer idiom. The key V8 benefit is that `Array.length` never changes after initialization, so V8 keeps the array in its "packed fast-elements" representation throughout the search. Dynamic `Array.push` / `Array.pop` would force the "generic property write" slow path on every ply of a tight recursive loop. The backing array is sized once at root-search startup to `preset.maxDepth + MAX_QUIESCENCE_DEPTH + 4` and never reallocated. This also avoids any heap allocation in the hot per-node path.
+- The search passes a `SearchStack`—a fixed-capacity backing array plus a mutable depth cursor—through every call frame. Before each recursive call, the entry is written at `stack.entries[stack.depth]` and the cursor is incremented; a `try/finally` block decrements it on return or timeout. The backing array is created once at root-search startup with capacity `preset.maxDepth + MAX_QUIESCENCE_DEPTH + 4`, so the recursive path does not grow, shrink, or replace the container. `new Array(capacity)` is holey in V8, so no packed-elements or generic-write claim is made. Per-edge `SearchLineEntry` objects are still allocated; the optimization is container reuse and stable capacity, not an allocation-free node path.
 
 Trade-offs:
 
@@ -597,7 +597,7 @@ Step by step:
 
 Implementation notes:
 
-- This is Schaeffer's (1989) history-aging technique, described in "The History Heuristic and Alpha-Beta Search Enhancements in Practice."
+- Schaeffer (1989) is the lineage for history-based cutoff move ordering. The exact right-shift-by-two aging schedule is YOUI's bounded forgetting policy, not a formula attributed to that paper.
 - The right-shift is applied unconditionally to all 2 736 entries in one tight loop. At this size (≈11 KB), the loop fits in L1 cache and completes in well under 1 µs.
 - Integer right-shift (`>>= 2`) preserves sign on two's-complement Int32Array values, which is the correct behavior for negative history entries.
 - Without aging, a move that caused many beta-cutoffs at depth 2 can still crowd out plausibly better moves at depth 6, because the credit was earned at a shorter search horizon.
@@ -1895,16 +1895,31 @@ external action ───────► advanceEngineState()
 Step by step:
 
 1. Generate legal candidates from the current state and its active rules.
-2. For one of those exact candidates, call `advanceGeneratedEngineState()`.
+2. For one of those exact candidates, call `advanceGeneratedEngineTransition()`
+   when the search also needs the already-derived position hash.
 3. The transition skips only `validateAction()`; it still applies the action and
    resolves continuation, turn/pass, victory, hash, and repetition state.
-4. For UI input, network payloads, imports, or any action from another position
+4. Search move ordering stores the new repetition count in an immutable
+   one-entry overlay whose prototype is the parent count table. This persistent
+   structural sharing preserves keyed lookup semantics while avoiding a copy of
+   the complete game-history count record for every simulated child.
+5. Public and state-only transition calls retain ordinary copied records, so
+   persistence and serialization never observe the search-only overlay.
+6. The hot path checks legal-action availability without accumulating every
+   action kind after the first viable kind, and victory evaluation counts both
+   players in one fused pass while reusing the resolved rule config. The fused
+   pass removes per-cell `filter()` arrays and a duplicate total-count scan, but
+   it still creates one `{ white, black }` counter object.
+7. For UI input, network payloads, imports, or any action from another position
    or ruleset, call the validating `advanceEngineState()` instead.
 
 Trade-offs:
 
 - Removes duplicate legality work from recursive candidate evaluation without
   changing the resulting game state.
+- Persistent repetition overlays are immutable and search-local. Exact tests
+  compare every inherited count and force a third-occurrence draw against the
+  copied-record implementation.
 - The faster path is deliberately narrow. Treating untrusted or stale actions
   as generated candidates would bypass the engine's public validation boundary.
 

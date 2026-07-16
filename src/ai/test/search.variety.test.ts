@@ -290,6 +290,36 @@ describe('AI variety guardrails', () => {
     expect(trace.terminalType).toBe('threefoldTiebreakWin');
   });
 
+  it('reports participation aggregates directly from traced candidate deltas', () => {
+    const trace = getOpeningTrace();
+    const summary = summarizeAiVariety([trace], {
+      difficulty: 'hard',
+      maxTurns: trace.maxTurns,
+      pairCount: 1,
+      stableCalls: 12,
+    });
+    const participationDeltaSum = trace.plies.reduce(
+      (sum, ply) => sum + ply.participationDelta,
+      0,
+    );
+    const positiveParticipationCount = trace.plies.filter(
+      (ply) => ply.participationDelta > 0,
+    ).length;
+
+    expect(summary.metrics.meanParticipationDelta).toBe(
+      Number(
+        (participationDeltaSum / Math.max(1, trace.totalPlies)).toFixed(6),
+      ),
+    );
+    expect(summary.metrics.positiveParticipationPlyShare).toBe(
+      Number(
+        (positiveParticipationCount / Math.max(1, trace.totalPlies)).toFixed(
+          6,
+        ),
+      ),
+    );
+  });
+
   it('keeps hard at least as strong as medium on loop and variety metrics', () => {
     const hard = getSummary('hard');
     const medium = getSummary('medium');

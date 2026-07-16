@@ -40,9 +40,25 @@ const drawTiebreakMetricsCache = new Map<string, DrawTiebreakMetrics>();
 
 type DrawSource = 'threefold' | 'stalemate';
 
+function countCheckersByPlayer(state: EngineState): Record<Player, number> {
+  const counts: Record<Player, number> = { black: 0, white: 0 };
+
+  for (const coord of allCoords()) {
+    for (const checker of state.board[coord].checkers) {
+      counts[checker.owner] += 1;
+    }
+  }
+
+  return counts;
+}
+
 /** True when all 18 player checkers are singles inside that player's home rows. */
-function hasHomeFieldWin(state: EngineState, player: Player): boolean {
-  if (countCheckersForPlayer(state.board, player) !== 18) {
+function hasHomeFieldWin(
+  state: EngineState,
+  player: Player,
+  checkerCount = countCheckersForPlayer(state.board, player),
+): boolean {
+  if (checkerCount !== 18) {
     return false;
   }
 
@@ -160,7 +176,16 @@ export function resolveDrawOutcome(
   state: EngineState,
   source: DrawSource,
 ): Victory {
-  const metrics = getDrawTiebreakMetrics(state);
+  return resolveDrawOutcomeByKey(state, source, hashPosition(state));
+}
+
+/** Resolves a draw without hashing again when the repetition key is known. */
+function resolveDrawOutcomeByKey(
+  state: EngineState,
+  source: DrawSource,
+  positionHash: string,
+): Victory {
+  const metrics = getDrawTiebreakMetricsByKey(state, positionHash);
   const whiteCheckers = metrics.ownFieldCheckers.white;
   const blackCheckers = metrics.ownFieldCheckers.black;
 
@@ -193,7 +218,19 @@ export function checkPlayerVictory(
   state: EngineState,
   player: Player,
 ): Victory {
-  if (hasHomeFieldWin(state, player)) {
+  return checkPlayerVictoryWithCount(
+    state,
+    player,
+    countCheckersForPlayer(state.board, player),
+  );
+}
+
+function checkPlayerVictoryWithCount(
+  state: EngineState,
+  player: Player,
+  checkerCount: number,
+): Victory {
+  if (hasHomeFieldWin(state, player, checkerCount)) {
     return { type: 'homeField', winner: player };
   }
 
@@ -204,28 +241,69 @@ export function checkPlayerVictory(
   return { type: 'none' };
 }
 
+/** Checks only the repetition rule using a caller-supplied canonical key. */
+export function checkRepetitionVictoryByKey(
+  state: EngineState,
+  config: RuleConfig,
+  positionHash: string,
+): Victory {
+  if (
+    config.drawRule === 'threefold' &&
+    (state.positionCounts[positionHash] ?? 0) >= 3
+  ) {
+    return resolveDrawOutcomeByKey(state, 'threefold', positionHash);
+  }
+
+  return { type: 'none' };
+}
+
+/**
+ * Evaluates terminal status and returns the repetition hash it already needed.
+ * Structural wins return no key because their finalized state can change the
+ * current player or pending-jump fields before position counting.
+ */
+export function checkVictoryWithPositionHash(
+  state: EngineState,
+  config: Partial<RuleConfig> = {},
+): { positionHash: string | null; victory: Victory } {
+  return checkVictoryWithPositionHashResolved(state, withRuleDefaults(config));
+}
+
+/** Hot-path variant for callers that already hold a complete rule configuration. */
+export function checkVictoryWithPositionHashResolved(
+  state: EngineState,
+  config: RuleConfig,
+): { positionHash: string | null; victory: Victory } {
+  const checkerCounts = countCheckersByPlayer(state);
+
+  for (const player of ['white', 'black'] as const) {
+    const victory = checkPlayerVictoryWithCount(
+      state,
+      player,
+      checkerCounts[player],
+    );
+
+    if (victory.type !== 'none') {
+      return { positionHash: null, victory };
+    }
+  }
+
+  if (config.drawRule === 'threefold') {
+    const positionHash = hashPosition(state);
+
+    return {
+      positionHash,
+      victory: checkRepetitionVictoryByKey(state, config, positionHash),
+    };
+  }
+
+  return { positionHash: null, victory: { type: 'none' } };
+}
+
 /** Evaluates deterministic terminal status for current state under provided rules. */
 export function checkVictory(
   state: EngineState,
   config: Partial<RuleConfig> = {},
 ): Victory {
-  const resolvedConfig = withRuleDefaults(config);
-
-  for (const player of ['white', 'black'] as const) {
-    const victory = checkPlayerVictory(state, player);
-
-    if (victory.type !== 'none') {
-      return victory;
-    }
-  }
-
-  if (resolvedConfig.drawRule === 'threefold') {
-    const positionHash = hashPosition(state);
-
-    if ((state.positionCounts[positionHash] ?? 0) >= 3) {
-      return resolveDrawOutcome(state, 'threefold');
-    }
-  }
-
-  return { type: 'none' };
+  return checkVictoryWithPositionHash(state, config).victory;
 }

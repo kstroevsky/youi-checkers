@@ -162,6 +162,69 @@ The repository now has three algorithmically important layers, each documented i
 
 That split is intentional. The project does not have one monolithic "algorithm" document because rule semantics, browser search, and offline model training solve different problems with different constraints.
 
+## Performance Architecture And Evidence Boundary
+
+The optimization work in this repository is deliberately below the game-policy
+boundary. It changes when a pure fact is calculated, how an immutable search
+child shares data with its parent, and whether an existence query stops early;
+it does not change action legality, heuristic coefficients, quiet-move
+admission, persona selection, or terminal rules.
+
+```mermaid
+flowchart LR
+  Position["EngineState + RuleConfig"] --> Legal["canonical legal actions"]
+  Legal --> QFilter["quiescence retention prefilter"]
+  QFilter --> Survivors["surviving forcing actions"]
+  Survivors --> FullScore["full strategy + participation + risk scoring"]
+  Legal --> Transition["generated-action transition"]
+  Transition --> Metadata["next state + canonical position hash"]
+  Metadata --> Bundle["lazy keyed StatePerfBundle"]
+  Metadata --> Overlay["search-only repetition-count overlay"]
+  Bundle --> FullScore
+  Overlay --> FullScore
+```
+
+The main implemented mechanisms are:
+
+| Mechanism                      | Removed work                                                                                                                            | Exact safety boundary                                                                                                                                                           |
+| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| staged quiescence scoring      | avoids full strategic, participation, and tiebreak profiling for quiet candidates that the existing forcing-move predicate will discard | jump sequences and manual unfreezes still receive full scoring; the legacy single-candidate exception and final retained action sequence are covered by an oracle test          |
+| transition metadata reuse      | carries the canonical position hash already computed during transition resolution into move ordering                                    | only active generated successors reuse the hash; terminal successors are re-hashed because terminal normalization may change hashed fields                                      |
+| persistent repetition overlays | replaces a copied history-count record per speculative child with `Object.create(parentCounts)` plus one own property                   | enabled only by `advanceGeneratedEngineTransition(..., { positionCountStorage: 'overlay' })`; public, persisted, network, and eventful transitions keep ordinary copied records |
+| existence-only legality        | stops pass/stalemate probing after the first legal action kind and coordinate                                                           | it uses the same rule predicates and canonical handler order; it avoids whole-list accumulation but does not claim that every handler is allocation-free                        |
+| fused victory accounting       | counts both players in one board traversal and removes per-cell `filter()` arrays                                                       | it still creates one two-counter object; the optimization is fewer traversals and temporary arrays, not literal zero allocation                                                 |
+| lazy summary and feature reuse | shares canonical hashes, position analysis, frontier width, score summaries, progress snapshots, and legal-action results               | keys include the position identity and, where legality depends on it, the resolved rule configuration; cache reuse never changes formulas                                       |
+
+These techniques are instances of selective computation, common-subexpression
+elimination, early termination of an existential query, loop fusion, and
+search-local structural sharing. Their value is governed by
+[Amdahl's law](https://doi.org/10.1145/1465482.1465560): a local speedup matters
+only in proportion to how often the bounded search pays that cost. This is why
+locally plausible changes are not accepted from source inspection alone.
+
+The current measured round compares `f5226fc` with `d898ab1` under the
+versioned `domain-ai-v1` workload. Ten counterbalanced pairs changed hard-mode
+throughput from `1783.81` to `3526.52` nodes/s: median paired improvement
+`+97.7212%`, paired 95% bootstrap interval `+83.2119%..+99.5551%`. Legal-action
+fixture identity and completed-depth guardrails passed in all ten pairs. This
+is a result for those revisions, fixtures, runtime, and machine—not a universal
+hardware claim and not, by itself, a playing-strength claim.
+
+The large cumulative result is not assigned equally to every retained change.
+Staged quiescence scoring was independently confirmed at `+72.3066%`
+(`+70.5932%..+74.0097%`), and transition/hash reuse at `+6.9857%`
+(`+5.3276%..+7.9961%`). Smaller positive changes retain the runner's
+`null-result` or `inconclusive` label when they do not clear the default `5%`
+materiality boundary; they may remain only when exact-equivalence and AI
+quality checks pass and their complexity is proportionate. Rejected or
+deferred experiments remain documented in [`src/ai/README.md`](./src/ai/README.md)
+so a source-level idea is not later misremembered as a measured win.
+
+The complete measurement contract—including counterbalanced scheduling,
+paired bootstrap intervals, immutable revisions, quality guardrails, and the
+fact that raw `output/perf-ab/` runs are intentionally Git-ignored—lives in
+[`docs/performance-ab-testing.md`](./docs/performance-ab-testing.md).
+
 ## Persistence Snapshot
 
 The runtime persistence contract has two layers with different version numbers:

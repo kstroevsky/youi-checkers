@@ -17,7 +17,8 @@ import {
 } from '@/domain/rules/moveGeneration';
 import {
   checkPlayerVictory,
-  checkVictory,
+  checkRepetitionVictoryByKey,
+  checkVictoryWithPositionHashResolved,
   resolveDrawOutcome,
 } from '@/domain/rules/victory';
 
@@ -99,9 +100,10 @@ function playerHasLegalAction(
 ): boolean {
   return hasLegalAction(
     {
-      ...state,
+      board: state.board,
       currentPlayer: player,
       pendingJump: null,
+      status: state.status,
     },
     config,
   );
@@ -171,6 +173,30 @@ type ResolvedEngineTransition = {
   state: EngineState;
 };
 
+type PositionCountStorage = 'copy' | 'overlay';
+
+/** Adds one immutable repetition count, optionally sharing the unchanged parent table. */
+function incrementPositionCount(
+  positionCounts: EngineState['positionCounts'],
+  positionHash: string,
+  storage: PositionCountStorage,
+): EngineState['positionCounts'] {
+  const count = (positionCounts[positionHash] ?? 0) + 1;
+
+  if (storage === 'copy') {
+    return {
+      ...positionCounts,
+      [positionHash]: count,
+    };
+  }
+
+  const overlay = Object.create(
+    positionCounts,
+  ) as EngineState['positionCounts'];
+  overlay[positionHash] = count;
+  return overlay;
+}
+
 /** Shared engine transition core used by both state-only and eventful command paths. */
 function resolveEngineCommand(
   state: EngineState,
@@ -178,6 +204,7 @@ function resolveEngineCommand(
   config: Partial<RuleConfig> = {},
   options: EngineTransitionOptions = {},
   actionAlreadyValidated = false,
+  positionCountStorage: PositionCountStorage = 'copy',
 ): ResolvedEngineTransition {
   const resolvedConfig = withRuleDefaults(config);
   if (!actionAlreadyValidated) {
@@ -213,11 +240,17 @@ function resolveEngineCommand(
     options.drawResolution === 'disabled'
       ? { ...resolvedConfig, drawRule: 'none' as const }
       : resolvedConfig;
-  const evaluateVictory = (candidate: EngineState): Victory =>
+  const evaluateVictory = (
+    candidate: EngineState,
+  ): { positionHash: string | null; victory: Victory } =>
     options.victoryPlayer
-      ? checkPlayerVictory(candidate, options.victoryPlayer)
-      : checkVictory(candidate, victoryConfig);
-  const winAfterMove = evaluateVictory(immediateState);
+      ? {
+          positionHash: null,
+          victory: checkPlayerVictory(candidate, options.victoryPlayer),
+        }
+      : checkVictoryWithPositionHashResolved(candidate, victoryConfig);
+  const immediateVictory = evaluateVictory(immediateState);
+  const winAfterMove = immediateVictory.victory;
   const autoPasses: Player[] = [];
   let finalState = immediateState;
 
@@ -261,17 +294,23 @@ function resolveEngineCommand(
     }
   }
 
-  const positionHash = hashPosition(finalState);
+  const positionHash =
+    finalState === immediateState && immediateVictory.positionHash !== null
+      ? immediateVictory.positionHash
+      : hashPosition(finalState);
   finalState = {
     ...finalState,
-    positionCounts: {
-      ...finalState.positionCounts,
-      [positionHash]: (finalState.positionCounts[positionHash] ?? 0) + 1,
-    },
+    positionCounts: incrementPositionCount(
+      finalState.positionCounts,
+      positionHash,
+      positionCountStorage,
+    ),
   };
 
   if (finalState.status !== 'gameOver') {
-    const finalVictory = evaluateVictory(finalState);
+    const finalVictory = options.victoryPlayer
+      ? ({ type: 'none' } as const)
+      : checkRepetitionVictoryByKey(finalState, victoryConfig, positionHash);
 
     if (finalVictory.type !== 'none') {
       finalState = {
@@ -328,6 +367,7 @@ export function runGeneratedEngineCommand(
   state: EngineState,
   command: EngineCommand,
   config: Partial<RuleConfig> = {},
+  positionCountStorage: PositionCountStorage = 'copy',
 ): EngineTransitionResult {
   const result = resolveEngineCommand(
     state,
@@ -335,6 +375,7 @@ export function runGeneratedEngineCommand(
     config,
     { emitEvents: false },
     true,
+    positionCountStorage,
   );
 
   return {

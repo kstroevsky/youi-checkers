@@ -136,7 +136,7 @@ The harness covers more than one cold-load number. The browser side measures:
 - imported late-game hard-AI replies from serialized sessions.
 - telemetry-attributed long tasks, requests during interactions, pending queue size, and startup heap delta.
 
-The imported-session fixtures are deterministic and come from [`scripts/lateGamePerfFixtures.ts`](../scripts/lateGamePerfFixtures.ts). The current labels are `opening`, `turn50`, `turn100`, and `turn200`.
+The domain/AI fixtures come from [`scripts/lateGamePerfFixtures.ts`](../scripts/lateGamePerfFixtures.ts). The current labels are `opening`, seeded realistic `midgame20` and `midgame40`, deterministic `loopPressure50` and `loopPressure100`, and `lateSparse200`. The seeded midgames retain typical material and branching; the loop-derived fixtures intentionally stress repetition and late-risk behavior.
 
 The domain-side report merged into the same JSON also measures root-ordering reuse on those fixtures by comparing a baseline full reordering loop against the optimized `precomputeOrderedActions()` plus `orderPrecomputedMoves()` path.
 
@@ -159,7 +159,7 @@ flowchart TD
   Summary --> Artifacts["experiment.json, report.md, logs, warmups, raw samples"]
 ```
 
-The default `domain` pipeline makes hard-mode AI nodes per second the decision metric. It treats per-fixture legal-action counts and completed depth as guardrails; selected legal moves are observations rather than an identity requirement because a faster time-bounded search can legitimately complete more work. The `full` pipeline additionally normalizes browser, mobile-profile, and delivered-artifact metrics.
+The default `domain` pipeline makes hard-mode AI nodes per second the decision metric. It treats per-fixture legal-action counts and completed depth as guardrails; selected legal moves are observations rather than an identity requirement because a faster time-bounded search can legitimately complete more work. A lower 95% confidence bound of at least 5% earns the material `confirmed-win` label. A smaller interval that remains above zero may be retained as a non-material improvement only after exact-equivalence and AI-quality comparisons pass. The `full` pipeline additionally normalizes browser, mobile-profile, and delivered-artifact metrics.
 
 Run it with two immutable refs:
 
@@ -211,9 +211,9 @@ The current harness intentionally exercises the same product behavior that ships
 - each search trace records the returned `behaviorProfileId` and `riskMode`;
 - late or stagnating games therefore show up in the report as deliberate style/risk changes rather than as unexplained variance.
 
-The Markdown summary is intentionally opinionated rather than exhaustive. It now foregrounds decisive-play health through `decisiveResultShare` alongside repetition, stagnation, decompression, mobility release, tension, and composite interestingness.
+The Markdown summary is intentionally opinionated rather than exhaustive. It now foregrounds decisive-play health through `decisiveResultShare` alongside repetition, stagnation, decompression, mobility release, tension, and composite interestingness. Participation is guarded directly through `meanParticipationDelta` and `positiveParticipationPlyShare`; these values are aggregated from every traced selected candidate and are checked against the versioned baseline.
 
-The complementary stage report exists because the aggregate suite can hide where a behavioral change really helps or hurts. `npm run ai:stage-variety` reruns the same mirrored self-play metrics from four fixed starting positions: the normal opening plus the deterministic `turn50`, `turn100`, and `turn200` imported states used by the performance harness. Those late fixtures are replayed with draws disabled and then normalized into playable continuation states by keeping only the recent history window and rebuilding repetition counts for that window; otherwise the shipped threefold rule would make those imported positions terminal before the AI can be evaluated. The report also summarizes `riskMode` activation shares, so a late-game latency increase can be interpreted alongside the amount of actual stagnation/late-risk behavior being exercised. Because the normalization intentionally discards long-range repetition memory, early `stagnation` activation can look weaker there than on the raw full-history perf fixtures; the stage report and perf fixtures should therefore be read together.
+The complementary stage report exists because the aggregate suite can hide where a behavioral change really helps or hurts. `npm run ai:stage-variety` reruns the same mirrored self-play metrics from all six performance scenarios: the normal opening, two seeded realistic midgames, two deterministic loop-pressure positions, and one sparse late loop position. Each fixture is generated with draws disabled and then normalized into a playable continuation state by keeping the six most recent history records, rebuilding repetition counts from that window, and clearing terminal status; otherwise the shipped threefold rule can make a loop-derived imported position terminal before the AI is evaluated. The report also summarizes `riskMode` activation shares, so a latency change can be interpreted alongside the amount of actual stagnation/late-risk behavior being exercised. Because the normalization intentionally discards long-range repetition memory, early `stagnation` activation can look weaker there than on raw full-history loop fixtures; the stage report and perf fixtures should therefore be read together.
 
 The wider report family exists because "interestingness" is not one scalar:
 

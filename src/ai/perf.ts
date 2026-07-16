@@ -137,8 +137,8 @@ export function getStatePerfBundle(
   state: EngineState,
   _ruleConfig: RuleConfig,
   perfCache: SearchPerfCache | null | undefined = null,
+  positionKey = hashPosition(state),
 ): StatePerfBundle {
-  const positionKey = hashPosition(state);
   const cached = perfCache?.states.get(positionKey);
 
   if (cached) {

@@ -49,8 +49,13 @@ rule states or different workloads.
 
 - Decision: keep, reject, or investigate a performance change.
 - Default decision metric: hard-mode AI nodes per second.
-- Material improvement: the lower bound of the paired 95% bootstrap interval
-  must be at least 5%.
+- Material improvement label: the lower bound of the paired 95% bootstrap
+  interval must be at least 5%.
+- Smaller positive changes may still be retained when the interval excludes
+  regression, exact-equivalence tests pass, game-quality reports do not move,
+  and the implementation removes a demonstrated cost without disproportionate
+  complexity. They retain the runner's `null-result` or `inconclusive` label
+  rather than being described as a material or confirmed win.
 - Correctness invariants: both revisions build and pass the non-benchmark test
   suite; fixture labels and legal-action counts must match.
 - Quality guardrail: median completed search depth must not decrease for any
@@ -75,6 +80,12 @@ tests them separately:
    work. Hard-mode nodes per second is the default decision metric.
 3. **Safety:** the candidate still receives the same legal-action workload and
    does not reduce the completed search depth on a recorded fixture.
+
+For AI changes, safety also includes the offline behavior surface. A throughput
+gain is not sufficient when variety, participation, repetition, persona share,
+or composite interestingness regresses. Use the immutable-revision variety and
+stage-variety comparisons for this check; direct participation aggregates are
+`meanParticipationDelta` and `positiveParticipationPlyShare`.
 
 The separation prevents a fast microbenchmark from being mistaken for a faster
 AI. Amdahl's law applies: even a large speedup in move ordering can yield a much

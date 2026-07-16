@@ -11,6 +11,7 @@ export {
 export {
   advanceEngineState,
   advanceGeneratedEngineState,
+  advanceGeneratedEngineTransition,
   advanceFinishingEngineState,
   applyAction,
 } from '@/domain/reducers/gameReducer';
@@ -67,3 +68,4 @@ export type {
   EngineTransitionResult,
   GameTransitionResult,
 } from '@/domain/reducers/engineTransition';
+export type { GeneratedEngineTransitionOptions } from '@/domain/reducers/gameReducer';
