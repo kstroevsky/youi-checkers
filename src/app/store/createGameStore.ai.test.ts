@@ -7,7 +7,7 @@ import {
   AI_SLOW_DEVICE_BUFFER_MS,
 } from '@/app/store/createGameStore/aiController';
 import {
-  AI_MOVE_REVEAL_MS,
+  AI_JUMP_STEP_REVEAL_MS,
   AI_WATCHDOG_BUFFER_MS,
 } from '@/app/store/createGameStore/constants';
 import {
@@ -75,7 +75,9 @@ describe('createGameStore AI integration', () => {
     vi.useRealTimers();
   });
 
-  it('requests finishing search while the computer completes a series game', async () => {
+  it('requests finishing search and immediately schedules ordinary completion moves', async () => {
+    vi.useFakeTimers();
+
     const worker = new FakeAiWorker();
     const matchSettings: MatchSettings = {
       opponentMode: 'computer',
@@ -110,6 +112,17 @@ describe('createGameStore AI integration', () => {
 
     expect(worker.requests).toHaveLength(1);
     expect(worker.requests[0]?.searchMode).toBe('finishing');
+
+    const action = getLegalActions(
+      worker.requests[0]!.state,
+      worker.requests[0]!.ruleConfig,
+    )[0];
+
+    expect(action).toBeDefined();
+    worker.reply(createAiResult({ action }));
+
+    expect(worker.requests).toHaveLength(2);
+    expect(worker.requests[1]?.searchMode).toBe('finishing');
   });
 
   it('keeps the computer turn flow alive when local storage quota is exceeded on a new game', () => {
@@ -514,7 +527,7 @@ describe('createGameStore AI integration', () => {
 
     expect(worker.requests).toHaveLength(1);
 
-    vi.advanceTimersByTime(AI_MOVE_REVEAL_MS - 1);
+    vi.advanceTimersByTime(AI_JUMP_STEP_REVEAL_MS - 1);
 
     expect(worker.requests).toHaveLength(1);
 
@@ -565,7 +578,7 @@ describe('createGameStore AI integration', () => {
       }),
     );
 
-    vi.advanceTimersByTime(AI_MOVE_REVEAL_MS);
+    vi.advanceTimersByTime(AI_JUMP_STEP_REVEAL_MS);
 
     expect(worker.requests).toHaveLength(2);
     expect(worker.requests[1]?.state.pendingJump?.source).toBe('C3');
@@ -580,7 +593,7 @@ describe('createGameStore AI integration', () => {
       }),
     );
 
-    vi.advanceTimersByTime(AI_MOVE_REVEAL_MS);
+    vi.advanceTimersByTime(AI_JUMP_STEP_REVEAL_MS);
 
     expect(worker.requests).toHaveLength(3);
     expect(worker.requests[2]?.state.currentPlayer).toBe('white');

@@ -2,7 +2,7 @@ import { AI_DIFFICULTY_PRESETS, type AiSearchResult } from '@/ai';
 import type { TurnAction } from '@/domain';
 
 import {
-  AI_MOVE_REVEAL_MS,
+  AI_JUMP_STEP_REVEAL_MS,
   AI_WATCHDOG_BUFFER_MS,
 } from '@/app/store/createGameStore/constants';
 import {
@@ -64,7 +64,8 @@ export function createAiController({
 }: AiControllerOptions) {
   let aiWorker: AiWorkerLike | null = null;
   let aiWatchdogId: ReturnType<typeof globalThis.setTimeout> | null = null;
-  let aiRevealTimeoutId: ReturnType<typeof globalThis.setTimeout> | null = null;
+  let aiJumpRevealTimeoutId: ReturnType<typeof globalThis.setTimeout> | null =
+    null;
   let aiWorkerIsWarm = false;
   let nextAiRequestId = 1;
 
@@ -86,18 +87,18 @@ export function createAiController({
     aiWatchdogId = null;
   }
 
-  function clearAiRevealTimeout(): void {
-    if (aiRevealTimeoutId === null) {
+  function clearAiJumpRevealTimeout(): void {
+    if (aiJumpRevealTimeoutId === null) {
       return;
     }
 
-    globalThis.clearTimeout(aiRevealTimeoutId);
-    aiRevealTimeoutId = null;
+    globalThis.clearTimeout(aiJumpRevealTimeoutId);
+    aiJumpRevealTimeoutId = null;
   }
 
   function disposeAiWorker(): void {
     clearAiWatchdog();
-    clearAiRevealTimeout();
+    clearAiJumpRevealTimeout();
 
     if (!aiWorker) {
       return;
@@ -182,13 +183,13 @@ export function createAiController({
     );
   }
 
-  function scheduleAiRevealSync(): void {
-    clearAiRevealTimeout();
+  function scheduleAiJumpRevealSync(): void {
+    clearAiJumpRevealTimeout();
 
-    aiRevealTimeoutId = globalThis.setTimeout(() => {
-      aiRevealTimeoutId = null;
+    aiJumpRevealTimeoutId = globalThis.setTimeout(() => {
+      aiJumpRevealTimeoutId = null;
       syncComputerTurn();
-    }, AI_MOVE_REVEAL_MS);
+    }, AI_JUMP_STEP_REVEAL_MS);
   }
 
   function getAiWorker(): AiWorkerLike | null {
@@ -330,7 +331,7 @@ export function createAiController({
   }
 
   function syncComputerTurn(): void {
-    clearAiRevealTimeout();
+    clearAiJumpRevealTimeout();
 
     const state = get();
 
@@ -402,7 +403,7 @@ export function createAiController({
   return {
     disposeAiWorker,
     resetAiState,
-    scheduleAiRevealSync,
+    scheduleAiJumpRevealSync,
     syncComputerTurn,
   };
 }

@@ -1,7 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { createGameStore } from '@/app/store/createGameStore';
-import { AI_MOVE_REVEAL_MS } from '@/app/store/createGameStore/constants';
 import {
   beginSeriesGameResolution,
   createSeriesState,
@@ -194,7 +193,6 @@ describe('game store telemetry', () => {
           timedOut: true,
         }),
       );
-      vi.advanceTimersByTime(AI_MOVE_REVEAL_MS);
     }
 
     expect(telemetry.context).toHaveBeenCalledWith(

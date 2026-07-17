@@ -69,7 +69,7 @@ type StoreTransitionsOptions = {
     gameState: GameStoreState['gameState'],
     ruleConfig: GameStoreState['ruleConfig'],
   ) => BoardDerivation;
-  scheduleAiRevealSync: () => void;
+  scheduleAiJumpRevealSync: () => void;
   persistRuntimeSession: (
     session: SerializableSession,
     options?: {
@@ -94,7 +94,7 @@ export function createStoreTransitions({
   disposeAiWorker,
   get,
   getBoardDerivation,
-  scheduleAiRevealSync,
+  scheduleAiJumpRevealSync,
   persistRuntimeSession,
   random,
   resetAiState,
@@ -300,10 +300,11 @@ export function createStoreTransitions({
     }
     if (
       aiDecision &&
+      jumpFollowUp &&
       nextGameState.status === 'active' &&
       isComputerTurn(nextGameState, nextMatchSettings)
     ) {
-      scheduleAiRevealSync();
+      scheduleAiJumpRevealSync();
     } else {
       syncComputerTurn();
     }

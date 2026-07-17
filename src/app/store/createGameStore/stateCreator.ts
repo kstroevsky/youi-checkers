@@ -196,7 +196,7 @@ export function createGameStoreStateRuntime({
       disposeAiWorker: aiController.disposeAiWorker,
       get,
       getBoardDerivation,
-      scheduleAiRevealSync: aiController.scheduleAiRevealSync,
+      scheduleAiJumpRevealSync: aiController.scheduleAiJumpRevealSync,
       persistRuntimeSession: persistenceRuntime.persistRuntimeSession,
       random: options.random ?? Math.random,
       resetAiState: aiController.resetAiState,

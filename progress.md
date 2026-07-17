@@ -534,3 +534,21 @@ Verification 2026-07-17 (after-win finishing AI liveness repair):
 - The multi-game E2E harness now disables diagnostics in its isolated Vite contexts so expected missing Worker telemetry routes do not become unrelated 404 console failures.
 - `WRANGLER_LOG_PATH=/tmp/youi-wrangler.log pnpm exec wrangler deploy --dry-run` — assets, `MatchRoom`, D1, and both rate limiters bundled successfully.
 - Bundled web-game Playwright client selected computer mode against the production build; reviewed `/tmp/youi-after-win-client-4/shot-0.png` and `state-0.json` with no console error artifact.
+
+Update 2026-07-17 (AI move reveal and board highlights, implementation):
+
+- Replaced the generic post-AI reveal delay with `AI_JUMP_STEP_REVEAL_MS`; the 300 ms pause is now scheduled only when the committed AI jump leaves a forced continuation.
+- Ordinary consecutive AI moves, including after-win finishing moves, schedule the next search immediately. Search computation remains asynchronous in the worker and still locks player input during a computer turn.
+- Added canonical turn-action endpoint projection for regular moves, jump sequences, and manual unfreezes.
+- The board now derives the last committed action from the current history cursor and marks its source and final destination with restrained olive overlays; the destination is slightly stronger, matching the supplied chess reference without obscuring checkers or legal-target feedback.
+- Added the same endpoint projection to `render_game_to_text` as `lastMove`, and disabled the cell transition under reduced-motion preferences.
+- TDD coverage confirms ordinary finishing follow-ups are immediate, jump continuations retain the pause, and jump source/destination cells expose the expected highlight state.
+
+Verification 2026-07-17 (AI move reveal and board highlights):
+
+- `pnpm test:run` — 57 files, 315 passing tests, one intentional skip.
+- `pnpm build` and `pnpm lint`.
+- `pnpm e2e:multi` — the multi-game browser scenario passed.
+- `WRANGLER_LOG_PATH=/tmp/youi-wrangler.log pnpm exec wrangler deploy --dry-run` — assets, `MatchRoom`, D1, and both rate limiters bundled successfully.
+- The bundled web-game Playwright client rendered the production preview without console errors. A follow-up browser move A1 -> B2 confirmed the two cell overlays and `lastMove` text state in `/tmp/youi-last-move-final.png`.
+- `git diff --check` passed. The repository-wide Prettier check still reports the existing formatting backlog across 111 files; no unrelated files were reformatted.
