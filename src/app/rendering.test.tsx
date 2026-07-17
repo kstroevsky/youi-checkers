@@ -46,6 +46,8 @@ function BoardProbe({ onRender }: RenderProbeProps) {
     <Board
       board={board}
       jumpFollowUpSource={jumpFollowUpSource}
+      lastMoveSource={null}
+      lastMoveTarget={null}
       language={language}
       legalTargets={legalTargets}
       selectedCell={selectedCell}

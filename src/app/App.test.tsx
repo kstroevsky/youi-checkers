@@ -130,6 +130,14 @@ describe('App', () => {
       'data-followup',
       'true',
     );
+    expect(screen.getByRole('button', { name: 'Клетка A1' })).toHaveAttribute(
+      'data-last-move',
+      'source',
+    );
+    expect(screen.getByRole('button', { name: 'Клетка C3' })).toHaveAttribute(
+      'data-last-move',
+      'target',
+    );
   }, 10_000);
 
   it('shows the waiting-update banner and applies the update on demand', async () => {

@@ -4,6 +4,7 @@ import type { StoreApi } from 'zustand';
 
 import { createGameStore } from '@/app/store/createGameStore';
 import type { GameStore, GameStoreState } from '@/app/store/createGameStore';
+import { getTurnActionEndpoints } from '@/domain';
 import type { SerializableSession } from '@/shared/types/session';
 
 type CreateGameStoreOptions = Parameters<typeof createGameStore>[0];
@@ -59,6 +60,10 @@ export function GameStoreProvider({
           })),
         ]),
       );
+      const lastAction =
+        state.historyCursor > 0
+          ? (state.turnLog[state.historyCursor - 1]?.action ?? null)
+          : null;
 
       return JSON.stringify({
         coordinateSystem:
@@ -66,6 +71,7 @@ export function GameStoreProvider({
         board,
         currentPlayer: state.gameState.currentPlayer,
         interaction: state.interaction.type,
+        lastMove: lastAction ? getTurnActionEndpoints(lastAction) : null,
         moveNumber: state.gameState.moveNumber,
         online: state.onlineMatch
           ? {

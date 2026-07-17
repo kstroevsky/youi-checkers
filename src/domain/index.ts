@@ -2,6 +2,10 @@ export {
   createInitialBoard,
   createInitialState,
 } from '@/domain/generators/createInitialState';
+export {
+  getTurnActionEndpoints,
+  type TurnActionEndpoints,
+} from '@/domain/model/action';
 export { hashPosition } from '@/domain/model/hash';
 export {
   RULE_DEFAULTS,

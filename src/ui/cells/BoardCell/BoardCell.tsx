@@ -16,6 +16,7 @@ type BoardCellProps = {
   isLegalTarget: boolean;
   isSelected: boolean;
   isSelectable: boolean;
+  lastMoveTone: 'source' | 'target' | null;
   language: Language;
   onClick: (coord: Coord) => void;
 };
@@ -28,6 +29,7 @@ export const BoardCell = memo(function BoardCell({
   isLegalTarget,
   isSelected,
   isSelectable,
+  lastMoveTone,
   language,
   onClick,
 }: BoardCellProps) {
@@ -37,6 +39,7 @@ export const BoardCell = memo(function BoardCell({
       className={styles.root}
       data-tone={isDarkField ? 'dark' : 'light'}
       data-followup={isJumpFollowUpSource || undefined}
+      data-last-move={lastMoveTone ?? undefined}
       data-selectable={isSelectable || undefined}
       data-selected={isSelected || undefined}
       data-target={isLegalTarget || undefined}

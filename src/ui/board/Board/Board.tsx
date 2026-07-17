@@ -13,6 +13,8 @@ type BoardProps = {
   board: GameBoard;
   language: Language;
   jumpFollowUpSource: Coord | null;
+  lastMoveSource: Coord | null;
+  lastMoveTarget: Coord | null;
   legalTargets: Coord[];
   selectedCell: Coord | null;
   selectableCoords: Coord[];
@@ -28,6 +30,8 @@ export const Board = memo(function Board({
   board,
   language,
   jumpFollowUpSource,
+  lastMoveSource,
+  lastMoveTarget,
   legalTargets,
   selectedCell,
   selectableCoords,
@@ -37,7 +41,10 @@ export const Board = memo(function Board({
   const targets = new Set(legalTargets);
 
   return (
-    <section className={styles.root} aria-label={text(language, 'boardAriaLabel')}>
+    <section
+      className={styles.root}
+      aria-label={text(language, 'boardAriaLabel')}
+    >
       <div className={styles.frame}>
         <div className={styles.layout}>
           <div className={styles.axisRows}>
@@ -54,6 +61,13 @@ export const Board = memo(function Board({
                   coord={coord}
                   isDarkField={isDarkField}
                   isJumpFollowUpSource={jumpFollowUpSource === coord}
+                  lastMoveTone={
+                    lastMoveTarget === coord
+                      ? 'target'
+                      : lastMoveSource === coord
+                        ? 'source'
+                        : null
+                  }
                   language={language}
                   isLegalTarget={targets.has(coord)}
                   isSelected={selectedCell === coord}
