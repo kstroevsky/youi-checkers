@@ -18,6 +18,7 @@ import type {
   MatchSettings,
   SerializableSession,
 } from '../src/shared/types/session';
+import { DIAGNOSTICS_STORAGE_KEY } from '../src/shared/telemetry/preferenceStore';
 import {
   boardWithPieces,
   checker,
@@ -417,6 +418,9 @@ async function main(): Promise<void> {
       scenario: (page: Page, url: string) => Promise<void>,
     ): Promise<void> => {
       const context = await launchedBrowser.newContext();
+      await context.addInitScript((storageKey) => {
+        window.localStorage.setItem(storageKey, 'false');
+      }, DIAGNOSTICS_STORAGE_KEY);
       const page = await context.newPage();
 
       page.on('console', (message) => {

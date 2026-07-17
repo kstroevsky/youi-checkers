@@ -7,10 +7,11 @@ import type {
 } from '@/ai/types';
 import {
   advanceFinishingEngineState,
+  getFinishingProgress,
   getLegalActions,
-  getScoreSummary,
   hashPosition,
   type EngineState,
+  type FinishingGoal,
   type Player,
   type TurnAction,
 } from '@/domain';
@@ -20,6 +21,8 @@ const FINISH_SCORE = 1_000_000;
 type SearchCandidate = {
   action: TurnAction;
   nextState: EngineState;
+  positionKey: string;
+  repeatedPositionCount: number;
   score: number;
 };
 
@@ -39,38 +42,15 @@ function isPlayerVictory(state: EngineState, player: Player): boolean {
   );
 }
 
-function getFinishingProgress(state: EngineState, player: Player): number {
-  const summary = getScoreSummary(state);
-  const homeProgress = summary.homeFieldSingles[player] / 18;
-  const stackProgress = summary.controlledHomeRowHeightThreeStacks[player] / 6;
-
-  return (
-    Math.max(homeProgress, stackProgress) * 100_000 +
-    Math.min(homeProgress, stackProgress) * 10_000 +
-    summary.controlledStacks[player] * 100 -
-    summary.frozenEnemySingles[player] * 10
-  );
-}
-
-function getStrategicIntent(
-  state: EngineState,
-  player: Player,
-): AiStrategicIntent {
-  const summary = getScoreSummary(state);
-  const homeProgress = summary.homeFieldSingles[player] / 18;
-  const stackProgress = summary.controlledHomeRowHeightThreeStacks[player] / 6;
-
-  if (homeProgress === stackProgress) {
-    return 'hybrid';
-  }
-
-  return homeProgress > stackProgress ? 'home' : 'sixStack';
+function getStrategicIntent(goal: FinishingGoal): AiStrategicIntent {
+  return goal;
 }
 
 function buildCandidates(
   state: EngineState,
   player: Player,
   ruleConfig: ChooseComputerActionRequest['ruleConfig'],
+  goal: FinishingGoal,
 ): SearchCandidate[] {
   const candidates: SearchCandidate[] = [];
 
@@ -82,20 +62,34 @@ function buildCandidates(
         player,
         ruleConfig,
       );
+      const positionKey = hashPosition(nextState);
 
       candidates.push({
         action,
         nextState,
+        positionKey,
+        repeatedPositionCount: state.positionCounts[positionKey] ?? 0,
         score: isPlayerVictory(nextState, player)
           ? FINISH_SCORE
-          : getFinishingProgress(nextState, player),
+          : getFinishingProgress(nextState, player, goal).score,
       });
     } catch {
       // A dead-end finishing action cannot contribute to a valid completion line.
     }
   }
 
-  return candidates.sort((left, right) => right.score - left.score);
+  const novelCandidates = candidates.filter(
+    (candidate) => candidate.repeatedPositionCount === 0,
+  );
+  const selectableCandidates = novelCandidates.length
+    ? novelCandidates
+    : candidates;
+
+  return selectableCandidates.sort(
+    (left, right) =>
+      left.repeatedPositionCount - right.repeatedPositionCount ||
+      right.score - left.score,
+  );
 }
 
 /** Finds the shortest completion line while only the finishing player acts. */
@@ -110,7 +104,9 @@ export function chooseFinishingAction({
   const startedAt = now();
   const deadline = startedAt + preset.timeBudgetMs;
   const player = state.currentPlayer;
-  const rootCandidates = buildCandidates(state, player, ruleConfig);
+  const initialProgress = getFinishingProgress(state, player);
+  const goal = initialProgress.goal;
+  const rootCandidates = buildCandidates(state, player, ruleConfig, goal);
   const fallback = rootCandidates[0] ?? null;
   let evaluatedNodes = rootCandidates.length;
   let completedDepth = 0;
@@ -122,7 +118,7 @@ export function chooseFinishingAction({
       }
     : {
         path: [],
-        score: getFinishingProgress(state, player),
+        score: initialProgress.score,
         terminal: false,
       };
   let timedOut = false;
@@ -147,28 +143,28 @@ export function chooseFinishingAction({
     if (depth === 0) {
       return {
         path: [],
-        score: getFinishingProgress(currentState, player),
+        score: getFinishingProgress(currentState, player, goal).score,
         terminal: false,
       };
     }
 
-    const candidates = buildCandidates(currentState, player, ruleConfig).slice(
-      0,
-      preset.quietMoveLimit,
-    );
+    const candidates = buildCandidates(
+      currentState,
+      player,
+      ruleConfig,
+      goal,
+    ).slice(0, preset.quietMoveLimit);
     evaluatedNodes += candidates.length;
     let best: FinishingLine = {
       path: [],
-      score: getFinishingProgress(currentState, player),
+      score: getFinishingProgress(currentState, player, goal).score,
       terminal: false,
     };
 
     for (const candidate of candidates) {
       checkDeadline();
 
-      const positionKey = hashPosition(candidate.nextState);
-
-      if (visited.has(positionKey)) {
+      if (visited.has(candidate.positionKey)) {
         continue;
       }
 
@@ -180,9 +176,9 @@ export function chooseFinishingAction({
         };
       }
 
-      visited.add(positionKey);
+      visited.add(candidate.positionKey);
       const continuation = search(candidate.nextState, depth - 1, visited);
-      visited.delete(positionKey);
+      visited.delete(candidate.positionKey);
       const line = {
         path: [candidate.action, ...continuation.path],
         score: continuation.terminal
@@ -223,9 +219,6 @@ export function chooseFinishingAction({
   }
 
   const action = bestLine.path[0] ?? fallback?.action ?? null;
-  const previewState =
-    rootCandidates.find((candidate) => candidate.action === action)
-      ?.nextState ?? state;
   const baseResult = createEmptyResult(action, bestLine.score);
 
   return {
@@ -242,7 +235,7 @@ export function chooseFinishingAction({
       : 'none',
     principalVariation: bestLine.path,
     score: bestLine.score,
-    strategicIntent: getStrategicIntent(previewState, player),
+    strategicIntent: getStrategicIntent(goal),
     timedOut,
   };
 }

@@ -514,6 +514,23 @@ Verification 2026-07-17 (telemetry hardening):
 - `WRANGLER_LOG_PATH=/tmp/youi-wrangler.log pnpm exec wrangler deploy --dry-run` — assets, `MatchRoom`, D1, and both rate limiters bundled successfully.
 - Bundled Playwright client smoke-tested the production build with no console errors; reviewed `/tmp/youi-browser-smoke/shot-0.png` and its rendered game state.
 
-Remaining product work:
+Previously remaining product work (completed below):
 
 - This patch observes the finishing-mode AI loop but intentionally does not change AI move selection. The mechanics fix still needs historical-repeat/self-undo penalties plus a continuous finishing-progress evaluator and the screenshot-board regression at the search layer.
+
+Update 2026-07-17 (after-win finishing AI liveness repair):
+
+- Kept normal-game rules and normal alpha-beta search unchanged; the repair is confined to `searchMode: 'finishing'` and the pure finishing-progress read model.
+- Added canonical `getFinishingProgress()` domain analysis shared by finishing search and telemetry. It measures the real victory requirements: home singles/mass/travel/stack debt and pure owned front-row stack completion/fill/travel.
+- Finishing search now locks one completion goal per request, prefers unseen legal positions whenever one exists, and falls back to the least-repeated position only when every legal continuation has already appeared.
+- The production screenshot board is now a search-level regression: Easy mode completes it within 40 after-win moves without revisiting a position. A separate test verifies the same repetition policy remains active when the 120 ms Easy budget forces an immediate fallback.
+- Added domain coverage proving a mixed, merely controlled height-three front stack is not mistaken for a completed all-owned victory stack.
+
+Verification 2026-07-17 (after-win finishing AI liveness repair):
+
+- `pnpm test:run` — 56 files, 313 passing tests, one intentional skip.
+- `pnpm build` and `pnpm lint`.
+- `pnpm e2e:multi` — responsive setup, live mode switching, completion phase, next-game color choice, draw interstitial, and match completion passed without browser errors.
+- The multi-game E2E harness now disables diagnostics in its isolated Vite contexts so expected missing Worker telemetry routes do not become unrelated 404 console failures.
+- `WRANGLER_LOG_PATH=/tmp/youi-wrangler.log pnpm exec wrangler deploy --dry-run` — assets, `MatchRoom`, D1, and both rate limiters bundled successfully.
+- Bundled web-game Playwright client selected computer mode against the production build; reviewed `/tmp/youi-after-win-client-4/shot-0.png` and `state-0.json` with no console error artifact.

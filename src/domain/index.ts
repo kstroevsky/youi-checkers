@@ -19,6 +19,11 @@ export {
   runEngineCommand,
   runGameCommand,
 } from '@/domain/reducers/engineTransition';
+export {
+  getFinishingProgress,
+  type FinishingGoal,
+  type FinishingProgress,
+} from '@/domain/rules/finishingProgress';
 export { getScoreSummary } from '@/domain/rules/scoring';
 export {
   createUndoFrame,

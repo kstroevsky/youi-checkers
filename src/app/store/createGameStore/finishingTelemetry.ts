@@ -7,7 +7,7 @@ import type {
   Player,
   TurnAction,
 } from '@/domain/model/types';
-import { getScoreSummary } from '@/domain/rules/scoring';
+import { getFinishingProgress as getDomainFinishingProgress } from '@/domain/rules/finishingProgress';
 import type { SeriesState } from '@/shared/types/session';
 import type { TelemetrySink } from '@/shared/telemetry/contracts';
 
@@ -85,22 +85,14 @@ function getFinishingProgress(
   state: GameState,
   player: Player,
 ): FinishingProgress {
-  const summary = getScoreSummary(state);
-  const homeSingles = summary.homeFieldSingles[player];
-  const frontStacks = summary.controlledHomeRowHeightThreeStacks[player];
-  const controlledStacks = summary.controlledStacks[player];
-  const homeProgress = homeSingles / 18;
-  const stackProgress = frontStacks / 6;
+  const progress = getDomainFinishingProgress(state, player);
 
   return {
-    controlledStacks,
-    frontStacks,
-    goal: homeProgress > stackProgress ? 'home' : 'sixStack',
-    homeSingles,
-    score:
-      Math.max(homeProgress, stackProgress) * 100_000 +
-      Math.min(homeProgress, stackProgress) * 10_000 +
-      controlledStacks * 100,
+    controlledStacks: progress.controlledStacks,
+    frontStacks: progress.frontCompletedStacks,
+    goal: progress.goal,
+    homeSingles: progress.homeSingles,
+    score: progress.score,
   };
 }
 
