@@ -8,6 +8,7 @@ describe('telemetry bootstrap proxy', () => {
     const { connect, sink } = createBufferedTelemetrySink(2);
     const target: TelemetrySink = {
       context: vi.fn(),
+      flushCritical: vi.fn(),
       flushGameComplete: vi.fn(),
       incident: vi.fn(),
       increment: vi.fn(),
@@ -29,6 +30,7 @@ describe('telemetry bootstrap proxy', () => {
     const { connect, setEnabled, sink } = createBufferedTelemetrySink();
     const target: TelemetrySink = {
       context: vi.fn(),
+      flushCritical: vi.fn(),
       flushGameComplete: vi.fn(),
       incident: vi.fn(),
       increment: vi.fn(),
@@ -48,9 +50,11 @@ describe('telemetry bootstrap proxy', () => {
   });
 
   it('buffers post-opt-in signals until a replacement collector connects', () => {
-    const { connect, disconnect, setEnabled, sink } = createBufferedTelemetrySink();
+    const { connect, disconnect, setEnabled, sink } =
+      createBufferedTelemetrySink();
     const firstTarget: TelemetrySink = {
       context: vi.fn(),
+      flushCritical: vi.fn(),
       flushGameComplete: vi.fn(),
       incident: vi.fn(),
       increment: vi.fn(),
@@ -59,6 +63,7 @@ describe('telemetry bootstrap proxy', () => {
     };
     const nextTarget: TelemetrySink = {
       context: vi.fn(),
+      flushCritical: vi.fn(),
       flushGameComplete: vi.fn(),
       incident: vi.fn(),
       increment: vi.fn(),
@@ -74,6 +79,9 @@ describe('telemetry bootstrap proxy', () => {
     connect(nextTarget);
 
     expect(firstTarget.increment).not.toHaveBeenCalled();
-    expect(nextTarget.increment).toHaveBeenCalledWith('after_opt_in', undefined);
+    expect(nextTarget.increment).toHaveBeenCalledWith(
+      'after_opt_in',
+      undefined,
+    );
   });
 });

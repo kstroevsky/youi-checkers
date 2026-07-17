@@ -83,6 +83,7 @@ export type TelemetrySink = {
   ) => void;
   increment: (name: string, amount?: number) => void;
   measure: (name: string, durationMs: number) => void;
+  flushCritical: () => void;
   flushGameComplete: () => void;
   setMatchContext: (
     matchMode: TelemetryRuntimeContext['matchMode'],
@@ -95,6 +96,7 @@ export const NOOP_TELEMETRY_SINK: TelemetrySink = {
   incident: () => undefined,
   increment: () => undefined,
   measure: () => undefined,
+  flushCritical: () => undefined,
   flushGameComplete: () => undefined,
   setMatchContext: () => undefined,
 };

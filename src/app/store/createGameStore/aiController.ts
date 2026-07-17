@@ -53,6 +53,7 @@ export const AI_SLOW_DEVICE_BUFFER_MS = 500;
  * the device as slow for the next watchdog calculation.
  */
 const AI_SLOW_DEVICE_THRESHOLD = 0.75;
+const AI_SLOW_INCIDENT_THRESHOLD = 1.5;
 
 /** Owns the AI worker, request ids, and watchdog for one store instance. */
 export function createAiController({
@@ -73,6 +74,8 @@ export function createAiController({
   let lastAiTimedOut = false;
   /** Number of silent auto-retries attempted for the current computer turn. */
   let aiAutoRetryCount = 0;
+  /** Prevents expected iterative-search budget exhaustion from flooding incidents. */
+  let aiDegradedIncidentReported = false;
 
   function clearAiWatchdog(): void {
     if (aiWatchdogId === null) {
@@ -245,28 +248,50 @@ export function createAiController({
       lastAiElapsedMs = message.result.elapsedMs;
       lastAiTimedOut = message.result.timedOut;
       aiAutoRetryCount = 0;
+      const preset = AI_DIFFICULTY_PRESETS[latest.matchSettings.aiDifficulty];
+      const searchMode =
+        latest.seriesState?.phase === 'finishing' ? 'finishing' : 'normal';
       options.telemetry?.measure('ai_elapsed_ms', message.result.elapsedMs);
       options.telemetry?.increment(
         'ai_evaluated_nodes',
         message.result.evaluatedNodes,
       );
+      if (message.result.timedOut) {
+        options.telemetry?.increment('ai_search_budget_exhaustions');
+      }
       options.telemetry?.context('ai_completed', {
+        actionKind: message.result.action?.type ?? 'none',
         completedDepth: message.result.completedDepth,
+        evaluatedNodes: message.result.evaluatedNodes,
         fallback: message.result.fallbackKind,
+        principalVariationLength: message.result.principalVariation.length,
+        repetitionPenalties: message.result.diagnostics.repetitionPenalties,
+        rootCandidateCount: message.result.rootCandidates.length,
+        searchMode,
+        selfUndoPenalties: message.result.diagnostics.selfUndoPenalties,
+        strategicIntent: message.result.strategicIntent,
         timedOut: message.result.timedOut,
       });
-      if (
-        message.result.timedOut ||
-        message.result.elapsedMs >
-          AI_DIFFICULTY_PRESETS[latest.matchSettings.aiDifficulty]
-            .timeBudgetMs *
-            AI_SLOW_DEVICE_THRESHOLD
-      ) {
+      const degradedReason =
+        message.result.completedDepth === 0
+          ? 'zero_depth'
+          : message.result.elapsedMs >
+              preset.timeBudgetMs * AI_SLOW_INCIDENT_THRESHOLD
+            ? 'budget_overrun'
+            : null;
+      if (degradedReason) {
+        options.telemetry?.increment('ai_degraded_searches');
+      }
+      if (degradedReason && !aiDegradedIncidentReported) {
+        aiDegradedIncidentReported = true;
         options.telemetry?.incident('ai_slow', {
           durationMs: message.result.elapsedMs,
-          severity: message.result.timedOut ? 'error' : 'warning',
+          severity: 'warning',
           tags: {
+            completedDepth: message.result.completedDepth,
             difficulty: latest.matchSettings.aiDifficulty,
+            reason: degradedReason,
+            searchMode,
             timedOut: message.result.timedOut,
           },
         });
@@ -352,10 +377,14 @@ export function createAiController({
       state.matchSettings.opponentMode,
       state.matchSettings.aiDifficulty,
     );
+    const searchMode =
+      state.seriesState?.phase === 'finishing' ? 'finishing' : 'normal';
     options.telemetry?.context('ai_started', {
       budgetMs:
         AI_DIFFICULTY_PRESETS[state.matchSettings.aiDifficulty].timeBudgetMs,
       difficulty: state.matchSettings.aiDifficulty,
+      moveNumber: state.gameState.moveNumber,
+      searchMode,
       warm: aiWorkerIsWarm,
     });
     scheduleAiWatchdog(requestId, state.matchSettings);
@@ -366,8 +395,7 @@ export function createAiController({
       state: state.gameState,
       matchSettings: state.matchSettings,
       behaviorProfile: state.aiBehaviorProfile,
-      searchMode:
-        state.seriesState?.phase === 'finishing' ? 'finishing' : 'normal',
+      searchMode,
     });
   }
 

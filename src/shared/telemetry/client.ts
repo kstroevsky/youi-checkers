@@ -11,6 +11,7 @@ import type { TelemetryQueue } from '@/shared/telemetry/queue';
 import type { TelemetryDeviceProfile } from '@/shared/telemetry/deviceProfile';
 
 type FlushReason =
+  | 'critical'
   | 'game_complete'
   | 'hidden'
   | 'interval'
@@ -279,6 +280,9 @@ export function createTelemetryClient(
       }
     },
     flush,
+    flushCritical() {
+      void flush('critical');
+    },
     flushGameComplete() {
       void flush('game_complete');
     },

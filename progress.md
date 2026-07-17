@@ -475,3 +475,45 @@ Verification 2026-07-10 (authoritative multiplayer):
 Production rollout TODO:
 
 - Deploy the `v1` SQLite Durable Object migration and monitor direct-path success before deciding whether authenticated TURN is justified.
+
+Update 2026-07-17 (production finishing-loop investigation):
+
+- Correlated the player screenshot with the production D1 telemetry session: Chromium on Android, compact viewport, Easy computer match, release `0.3.3+da30795`, active around the screenshot's 08:06 phone time.
+- The session persisted 170 committed moves across two gameplay batches and 40 `ai_slow` incidents, with no AI watchdog timeout or worker error.
+- The trace shows normal human/computer alternation switching into consecutive computer-only `moveSingleToEmpty` actions during the match finishing phase.
+- Reconstructed the screenshot board and reproduced the exact deterministic loop with the shipped finishing search: `A1 -> B1`, `B1 -> A1`, indefinitely, while Black remains at 6 home-field singles and 4 completed front-row stacks.
+- Root cause: `finishingSearch.ts` scores only coarse completed progress, so both halves of the undo pair tie; its per-search `visited` set resets on every worker request and ignores historical `positionCounts`, so the separate finishing path does not inherit the normal AI repetition/self-undo protections.
+- Coverage gap: CodeGraph reports no test covering `chooseFinishingAction`.
+
+Recommended follow-up:
+
+- Add a regression fixture from this board, make finishing search reject/penalize historical repeats and two-ply self-undo, and add checker-level conversion/distance progress so multi-move building plans outrank score-flat shuffling.
+- Add a targeted `finishing_loop_detected` telemetry incident with match phase, move number, pending points, compact position fingerprint/snapshot, repetition count, no-progress streak, finishing progress metrics, action kind, and AI search outcome; flush it immediately. Ordinary context events are currently persisted only when another incident happens.
+
+Update 2026-07-17 (telemetry hardening, in progress):
+
+- Kept every AI search-budget exhaustion visible through the new `ai_search_budget_exhaustions` counter and richer `ai_completed` context.
+- Restricted `ai_slow` incidents to genuinely degraded searches (zero completed depth or a 1.5x budget overrun) and rate-limited them to one per store runtime, preventing expected iterative-deepening timeouts from filling the incident cap.
+- Added `searchMode`, move number, action kind, search depth/fallback, candidate/PV counts, and repetition/self-undo diagnostics to the AI lifecycle context.
+- TDD verification: `pnpm exec vitest run src/app/store/createGameStore.telemetry.test.ts`.
+
+Update 2026-07-17 (telemetry hardening, implementation complete):
+
+- Added a finishing telemetry tracker that records start/move/completion counters and rolling context without checker IDs or raw move coordinates.
+- Added deterministic position fingerprints, a compact anomaly-only board snapshot, progress/no-progress metrics, position-repeat counts, and two-ply undo detection.
+- Added one rate-limited `finishing_loop_detected` incident for threefold positions, repeated two-ply undo, or eight finishing moves without progress.
+- Added `flushCritical()` across the telemetry sink, buffered bootstrap proxy, and client; critical incidents now enqueue and deliver immediately using the existing schema and D1 tables.
+- Regression coverage replays the production `A1 -> B1 -> A1 -> B1` loop through the public store and also verifies a healthy one-move finishing completion does not raise a loop incident.
+
+Verification 2026-07-17 (telemetry hardening):
+
+- `pnpm exec vitest run src/app/store/createGameStore.telemetry.test.ts src/app/store/createGameStore.series.test.ts src/app/store/createGameStore.ai.test.ts src/shared/telemetry/accumulator.test.ts src/shared/telemetry/bootstrap.test.ts src/shared/telemetry/client.test.ts worker/telemetry.test.ts worker/index.test.ts` — 45 passing tests.
+- `pnpm test:run` — 55 files, 310 passing tests, one intentional skip.
+- `pnpm build`.
+- `pnpm lint`.
+- `WRANGLER_LOG_PATH=/tmp/youi-wrangler.log pnpm exec wrangler deploy --dry-run` — assets, `MatchRoom`, D1, and both rate limiters bundled successfully.
+- Bundled Playwright client smoke-tested the production build with no console errors; reviewed `/tmp/youi-browser-smoke/shot-0.png` and its rendered game state.
+
+Remaining product work:
+
+- This patch observes the finishing-mode AI loop but intentionally does not change AI move selection. The mechanics fix still needs historical-repeat/self-undo penalties plus a continuous finishing-progress evaluator and the screenshot-board regression at the search layer.

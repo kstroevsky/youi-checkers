@@ -89,6 +89,62 @@ describe('telemetry client delivery', () => {
     expect(JSON.stringify(body)).not.toContain('events');
   });
 
+  it('immediately delivers a critical incident through the sink interface', async () => {
+    const { queue } = createMemoryQueue();
+    let requestBody = '';
+    const fetchFn: typeof fetch = vi.fn(async (_input, init) => {
+      requestBody = String(init?.body);
+      return new Response(null, { status: 202 });
+    });
+    const client = createTelemetryClient({
+      deviceProfile: () => null,
+      fetchFn,
+      now: () => 1_750_000_000_000,
+      performanceNow: () => 42,
+      queue,
+      release: 'test+abcdef0',
+      runtimeContext: () => ({
+        aiDifficulty: 'easy',
+        browserFamily: 'test',
+        browserMajor: 1,
+        colorDepth: 24,
+        deviceClass: 'mobile',
+        deviceMemoryGb: 4,
+        devicePixelRatio: 2,
+        downlinkMbps: null,
+        gpuFamily: 'unknown',
+        hardwareConcurrency: 4,
+        matchMode: 'computer',
+        maxTouchPoints: 5,
+        networkClass: 'unknown',
+        osFamily: 'test',
+        osMajor: 1,
+        pwaMode: 'browser',
+        rttMs: null,
+        saveData: false,
+        screenHeight: 800,
+        screenWidth: 360,
+        viewportHeight: 800,
+        viewportClass: 'compact',
+        viewportWidth: 360,
+      }),
+      sessionId: 'session-12345678',
+    });
+
+    client.incident('finishing_loop_detected', {
+      severity: 'error',
+      tags: { positionFingerprint: 'deadbeef' },
+    });
+    client.flushCritical();
+
+    await vi.waitFor(() => expect(fetchFn).toHaveBeenCalledOnce());
+    const body = JSON.parse(requestBody) as TelemetryBatch;
+    expect(body.summary.counters.flush_critical).toBe(1);
+    expect(body.incidents).toEqual([
+      expect.objectContaining({ kind: 'finishing_loop_detected' }),
+    ]);
+  });
+
   it('retains a failed batch for a later retry', async () => {
     const { batches, queue } = createMemoryQueue();
     const client = createTelemetryClient({

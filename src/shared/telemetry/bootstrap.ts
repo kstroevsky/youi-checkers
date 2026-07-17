@@ -59,6 +59,9 @@ export function createBufferedTelemetrySink(
       context(name: string, tags: TelemetryTags = {}) {
         dispatch((sink) => sink.context(name, { ...tags }));
       },
+      flushCritical() {
+        dispatch((sink) => sink.flushCritical());
+      },
       flushGameComplete() {
         dispatch((sink) => sink.flushGameComplete());
       },

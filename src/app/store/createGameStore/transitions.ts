@@ -7,7 +7,12 @@ import {
 import type { SerializableSession } from '@/shared/types/session';
 import type { AiSearchResult } from '@/ai';
 import type { InteractionState } from '@/shared/types/session';
+import { hashPosition } from '@/domain/model/hash';
 
+import {
+  createFinishingTelemetryTracker,
+  positionFingerprint,
+} from '@/app/store/createGameStore/finishingTelemetry';
 import { getHistoryStepData } from '@/app/store/createGameStore/history';
 import {
   isComputerMatch,
@@ -99,6 +104,8 @@ export function createStoreTransitions({
   telemetry,
   updateSessionMeta,
 }: StoreTransitionsOptions) {
+  const finishingTelemetry = createFinishingTelemetryTracker(telemetry);
+
   /**
    * Persists the canonical session slices after a state transition.
    *
@@ -134,6 +141,9 @@ export function createStoreTransitions({
     const nextHistoryHydrationStatus = consumeStartupHydrationOnMutation();
     const finishingSeries =
       state.seriesState?.phase === 'finishing' ? state.seriesState : null;
+    if (!finishingSeries) {
+      finishingTelemetry.reset();
+    }
     const transition = runGameCommand(
       state.gameState,
       { type: 'submitAction', action },
@@ -146,11 +156,6 @@ export function createStoreTransitions({
           }
         : {},
     );
-    telemetry?.increment('moves_committed');
-    telemetry?.context('move_committed', {
-      actor: aiDecision ? 'computer' : 'human',
-      kind: action.type,
-    });
     let nextGameState = transition.state;
     let nextSeriesState = state.seriesState;
     let nextMatchSettings = state.matchSettings;
@@ -201,6 +206,37 @@ export function createStoreTransitions({
         nextMatchSettings,
         nextSeriesState,
       );
+    }
+
+    const nextPositionKey = hashPosition(nextGameState);
+    telemetry?.increment('moves_committed');
+    telemetry?.context('move_committed', {
+      actor: aiDecision ? 'computer' : 'human',
+      kind: action.type,
+      moveNumber: nextGameState.moveNumber,
+      positionAfter: positionFingerprint(nextGameState),
+      positionBefore: positionFingerprint(state.gameState),
+      positionRepeatCount: nextGameState.positionCounts[nextPositionKey] ?? 0,
+      searchMode: finishingSeries ? 'finishing' : 'normal',
+      seriesPhase: nextSeriesState?.phase ?? 'single',
+    });
+
+    if (finishingSeries && nextSeriesState) {
+      const finishingCompleted = nextSeriesState.phase !== 'finishing';
+      finishingTelemetry.recordMove({
+        action,
+        aiDecision,
+        afterState: nextGameState,
+        beforeState: state.gameState,
+        completed: finishingCompleted,
+        pendingPoints: nextSeriesState.pendingPoints,
+        series: finishingSeries,
+      });
+      if (finishingCompleted) {
+        finishingTelemetry.complete(nextSeriesState, nextGameState);
+      }
+    } else if (nextSeriesState?.phase === 'finishing') {
+      finishingTelemetry.start(nextGameState, nextSeriesState);
     }
 
     const nextTurnLog = nextGameState.history;
