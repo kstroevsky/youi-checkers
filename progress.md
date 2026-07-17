@@ -552,3 +552,22 @@ Verification 2026-07-17 (AI move reveal and board highlights):
 - `WRANGLER_LOG_PATH=/tmp/youi-wrangler.log pnpm exec wrangler deploy --dry-run` — assets, `MatchRoom`, D1, and both rate limiters bundled successfully.
 - The bundled web-game Playwright client rendered the production preview without console errors. A follow-up browser move A1 -> B2 confirmed the two cell overlays and `lastMove` text state in `/tmp/youi-last-move-final.png`.
 - `git diff --check` passed. The repository-wide Prettier check still reports the existing formatting backlog across 111 files; no unrelated files were reformatted.
+
+Update 2026-07-17 (one-shot finishing plan and larger AI budgets):
+
+- Raised the normal AI search budgets to Easy 250 ms, Medium 800 ms, and Hard 2000 ms. Watchdog deadlines continue to derive from the selected preset plus the existing warm/cold-device buffers.
+- Replaced per-move finishing searches with a bounded breadth-first beam planner. It searches up to 120 finishing actions and returns the first complete line found at the shallowest explored depth, prioritized by the canonical finishing-progress score and repetition avoidance.
+- Added the optional `completionPlan` result contract. A complete line is cached inside the store controller, validated against the live state before every step, and replayed without additional worker searches.
+- Generalized the 300 ms sequence reveal timer: it now separates both forced multi-jump landings and cached after-win actions. Normal AI moves still have no artificial reveal delay.
+- Invalid/stale cached steps are never applied: the plan is discarded, a replan counter/context event is emitted, and a fresh finishing request is made.
+- `ai_completed` telemetry now includes `completionPlanLength`; invalidated plans record `ai_finishing_plan_replans` and `ai_finishing_plan_invalidated`.
+- TDD coverage proves the reported board is solved from one Easy planning request, a two-step store plan is replayed with the reveal pause and no second worker request, invalid cached actions replan safely, and the exact difficulty budgets remain stable.
+
+Verification 2026-07-17 (one-shot finishing plan and larger AI budgets):
+
+- `pnpm test:run` — 57 files, 316 passing tests, one intentional skip.
+- `pnpm build` and `pnpm lint`.
+- `pnpm e2e:multi` — added and passed a real browser scenario where the computer computes and replays a two-action after-win line; inspected both `/tmp/youi-multi-game-e2e/computer-finishing-step.png` and `computer-finishing-complete.png`.
+- The bundled web-game Playwright client smoke-tested the production preview; reviewed `/tmp/youi-finishing-plan-client/shot-0.png` and `state-0.json` with no console error artifact.
+- `WRANGLER_LOG_PATH=/tmp/youi-finishing-plan-wrangler.log pnpm exec wrangler deploy --dry-run` — production assets, `MatchRoom`, D1, and both rate limiters bundled successfully.
+- The focused Prettier check passes for all touched files except the already-unformatted `src/ai/presets.ts` and `src/ai/test/search.behavior.test.ts`; only their numeric budget literals changed, and `git diff --check` remains clean.

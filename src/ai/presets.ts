@@ -7,7 +7,7 @@ export const AI_DIFFICULTY_PRESETS: Record<'easy' | 'medium' | 'hard', AiDifficu
     drawAversionBehindRelief: 70,
     familyVarietyWeight: 30,
     frontierWidthWeight: 20,
-    timeBudgetMs: 120,
+    timeBudgetMs: 250,
     maxDepth: 2,
     participationBias: 14,
     // Extended from 2: longer window makes the AI penalise same-piece reuse
@@ -42,7 +42,7 @@ export const AI_DIFFICULTY_PRESETS: Record<'easy' | 'medium' | 'hard', AiDifficu
     drawAversionBehindRelief: 60,
     familyVarietyWeight: 42,
     frontierWidthWeight: 28,
-    timeBudgetMs: 400,
+    timeBudgetMs: 800,
     maxDepth: 4,
     participationBias: 18,
     // Extended from 3: 8-move memory window keeps the AI aware of repeated
@@ -79,7 +79,7 @@ export const AI_DIFFICULTY_PRESETS: Record<'easy' | 'medium' | 'hard', AiDifficu
     drawAversionBehindRelief: 50,
     familyVarietyWeight: 56,
     frontierWidthWeight: 36,
-    timeBudgetMs: 1200,
+    timeBudgetMs: 2_000,
     maxDepth: 6,
     participationBias: 24,
     // Extended from 3: 10-move window is the primary lever against the

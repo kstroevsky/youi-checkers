@@ -123,6 +123,8 @@ export type AiSearchDiagnostics = {
 export type AiSearchResult = {
   action: TurnAction | null;
   behaviorProfileId: AiBehaviorProfileId | null;
+  /** Complete after-win action line. Present only when finishing search reaches victory. */
+  completionPlan?: TurnAction[];
   completedDepth: number;
   completedRootMoves: number;
   diagnostics: AiSearchDiagnostics;

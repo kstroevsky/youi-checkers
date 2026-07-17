@@ -47,11 +47,14 @@ function seriesSettings(targetPoints: number): MatchSettings {
 
 function createNearDoubleFinishSession(
   targetPoints: number,
+  computerFinishing = false,
 ): SerializableSession {
   resetFactoryIds();
   const board = boardWithPieces({
     A1: [checker('black'), checker('black')],
-    A2: [checker('black')],
+    ...(computerFinishing
+      ? { C2: [checker('black')] }
+      : { A2: [checker('black')] }),
     A3: [checker('white')],
     A4: [checker('white')],
     A5: [checker('white')],
@@ -77,13 +80,49 @@ function createNearDoubleFinishSession(
     F6: [checker('white')],
   });
   const state = gameStateWithBoard(board);
-  const matchSettings = seriesSettings(targetPoints);
+  const matchSettings: MatchSettings = {
+    ...seriesSettings(targetPoints),
+    ...(computerFinishing
+      ? { aiDifficulty: 'easy', opponentMode: 'computer' }
+      : {}),
+  };
 
   return createSession(state, {
     matchSettings,
     preferences: { language: 'english', passDeviceOverlayEnabled: true },
     seriesState: createSeriesState(matchSettings),
   });
+}
+
+async function testComputerFinishingPlan(
+  page: Page,
+  baseUrl: string,
+): Promise<void> {
+  await page.goto(baseUrl);
+  await useEnglish(page);
+  await importSession(page, createNearDoubleFinishSession(5, true));
+  await performAction(page, 'A3', 'Jump', 'C5');
+  await page.getByText('Completion phase', { exact: true }).waitFor();
+  await page.getByText(/Total: 2/u).waitFor();
+  await page.screenshot({
+    fullPage: true,
+    path: path.join(SCREENSHOT_DIR, 'computer-finishing-step.png'),
+  });
+
+  const dialog = page.getByRole('dialog', { name: 'Next game', exact: true });
+  await dialog.waitFor();
+  await page.screenshot({
+    fullPage: true,
+    path: path.join(SCREENSHOT_DIR, 'computer-finishing-complete.png'),
+  });
+  assert(
+    (await page.locator('[data-last-move="target"]').count()) === 1,
+    'The completed finishing line did not expose its final move highlight.',
+  );
+  assert(
+    (await page.getByText(/Total: 3/u).count()) === 1,
+    'The cached two-action finishing line did not complete.',
+  );
 }
 
 function createDrawInterstitialSession(): SerializableSession {
@@ -439,6 +478,7 @@ async function main(): Promise<void> {
 
     await runScenario(testResponsiveLayout);
     await runScenario(testLiveModeSwitch);
+    await runScenario(testComputerFinishingPlan);
     await runScenario(testFinishingAndColorChoice);
     await runScenario(testDrawInterstitial);
     await runScenario(testMatchCompletion);

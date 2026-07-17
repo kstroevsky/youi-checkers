@@ -17,6 +17,7 @@ import {
 } from '@/domain';
 
 const FINISH_SCORE = 1_000_000;
+const MAX_FINISHING_PLAN_LENGTH = 120;
 
 type SearchCandidate = {
   action: TurnAction;
@@ -30,6 +31,10 @@ type FinishingLine = {
   path: TurnAction[];
   score: number;
   terminal: boolean;
+};
+
+type FinishingPlanNode = FinishingLine & {
+  state: EngineState;
 };
 
 class FinishingSearchTimeout extends Error {}
@@ -129,93 +134,109 @@ export function chooseFinishingAction({
     }
   };
 
-  const search = (
-    currentState: EngineState,
-    depth: number,
-    visited: Set<string>,
-  ): FinishingLine => {
-    checkDeadline();
+  try {
+    const beamWidth = Math.max(8, preset.quietMoveLimit);
+    const branchWidth = Math.max(3, Math.ceil(beamWidth / 4));
+    const visited = new Set([hashPosition(state)]);
+    let frontier: FinishingPlanNode[] = [];
 
-    if (isPlayerVictory(currentState, player)) {
-      return { path: [], score: FINISH_SCORE, terminal: true };
-    }
-
-    if (depth === 0) {
-      return {
-        path: [],
-        score: getFinishingProgress(currentState, player, goal).score,
-        terminal: false,
-      };
-    }
-
-    const candidates = buildCandidates(
-      currentState,
-      player,
-      ruleConfig,
-      goal,
-    ).slice(0, preset.quietMoveLimit);
-    evaluatedNodes += candidates.length;
-    let best: FinishingLine = {
-      path: [],
-      score: getFinishingProgress(currentState, player, goal).score,
-      terminal: false,
-    };
-
-    for (const candidate of candidates) {
-      checkDeadline();
-
+    for (const candidate of rootCandidates.slice(0, beamWidth)) {
       if (visited.has(candidate.positionKey)) {
         continue;
       }
 
-      if (isPlayerVictory(candidate.nextState, player)) {
-        return {
-          path: [candidate.action],
-          score: FINISH_SCORE - 1,
-          terminal: true,
-        };
-      }
-
       visited.add(candidate.positionKey);
-      const continuation = search(candidate.nextState, depth - 1, visited);
-      visited.delete(candidate.positionKey);
-      const line = {
-        path: [candidate.action, ...continuation.path],
-        score: continuation.terminal
-          ? continuation.score - 1
-          : continuation.score,
-        terminal: continuation.terminal,
+      const terminal = isPlayerVictory(candidate.nextState, player);
+      const line: FinishingPlanNode = {
+        path: [candidate.action],
+        score: terminal ? FINISH_SCORE - 1 : candidate.score,
+        state: candidate.nextState,
+        terminal,
       };
 
-      if (line.score > best.score) {
-        best = line;
-      }
-    }
-
-    return best;
-  };
-
-  for (let depth = 1; depth <= preset.maxDepth; depth += 1) {
-    try {
-      const visited = new Set([hashPosition(state)]);
-      const line = search(state, depth, visited);
-
-      completedDepth = depth;
-      if (line.path.length > 0) {
+      if (terminal) {
         bestLine = line;
-      }
-
-      if (line.terminal) {
+        completedDepth = 1;
         break;
       }
-    } catch (error) {
-      if (!(error instanceof FinishingSearchTimeout)) {
-        throw error;
+
+      frontier.push(line);
+    }
+
+    if (!bestLine.terminal && frontier.length > 0) {
+      frontier.sort((left, right) => right.score - left.score);
+      bestLine = frontier[0];
+      completedDepth = 1;
+    }
+
+    for (
+      let depth = 2;
+      depth <= MAX_FINISHING_PLAN_LENGTH && !bestLine.terminal;
+      depth += 1
+    ) {
+      checkDeadline();
+      const nextFrontier: FinishingPlanNode[] = [];
+
+      for (const node of frontier) {
+        checkDeadline();
+        const candidates = buildCandidates(
+          node.state,
+          player,
+          ruleConfig,
+          goal,
+        ).slice(0, branchWidth);
+        evaluatedNodes += candidates.length;
+
+        for (const candidate of candidates) {
+          if (visited.has(candidate.positionKey)) {
+            continue;
+          }
+
+          visited.add(candidate.positionKey);
+          const path = [...node.path, candidate.action];
+
+          if (isPlayerVictory(candidate.nextState, player)) {
+            bestLine = {
+              path,
+              score: FINISH_SCORE - path.length,
+              terminal: true,
+            };
+            completedDepth = depth;
+            break;
+          }
+
+          nextFrontier.push({
+            path,
+            score: candidate.score,
+            state: candidate.nextState,
+            terminal: false,
+          });
+        }
+
+        if (bestLine.terminal) {
+          break;
+        }
       }
 
-      timedOut = true;
-      break;
+      if (bestLine.terminal) {
+        break;
+      }
+
+      if (nextFrontier.length === 0) {
+        break;
+      }
+
+      nextFrontier.sort((left, right) => right.score - left.score);
+      frontier = nextFrontier.slice(0, beamWidth);
+      bestLine = frontier[0];
+      completedDepth = depth;
     }
+  } catch (error) {
+    if (!(error instanceof FinishingSearchTimeout)) {
+      throw error;
+    }
+
+    timedOut = true;
   }
 
   const action = bestLine.path[0] ?? fallback?.action ?? null;
@@ -224,6 +245,7 @@ export function chooseFinishingAction({
   return {
     ...baseResult,
     behaviorProfileId: behaviorProfile?.id ?? null,
+    ...(bestLine.terminal ? { completionPlan: bestLine.path } : {}),
     completedDepth,
     completedRootMoves: completedDepth > 0 ? rootCandidates.length : 0,
     elapsedMs: Math.max(0, now() - startedAt),

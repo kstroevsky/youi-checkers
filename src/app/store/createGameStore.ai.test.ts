@@ -7,7 +7,7 @@ import {
   AI_SLOW_DEVICE_BUFFER_MS,
 } from '@/app/store/createGameStore/aiController';
 import {
-  AI_JUMP_STEP_REVEAL_MS,
+  AI_SEQUENCE_STEP_REVEAL_MS,
   AI_WATCHDOG_BUFFER_MS,
 } from '@/app/store/createGameStore/constants';
 import {
@@ -75,7 +75,87 @@ describe('createGameStore AI integration', () => {
     vi.useRealTimers();
   });
 
-  it('requests finishing search and immediately schedules ordinary completion moves', async () => {
+  it('replays one finishing plan with a reveal pause and no extra worker search', async () => {
+    vi.useFakeTimers();
+
+    const worker = new FakeAiWorker();
+    const matchSettings: MatchSettings = {
+      opponentMode: 'computer',
+      humanPlayer: 'black',
+      aiDifficulty: 'easy',
+      gameFormat: 'series',
+      targetPoints: 100,
+    };
+    const gameState = gameStateWithBoard(
+      boardWithPieces({
+        A4: [checker('white')],
+        A6: [checker('white'), checker('white')],
+        B6: [checker('white'), checker('white'), checker('white')],
+        C6: [checker('white'), checker('white'), checker('white')],
+        D6: [checker('white'), checker('white'), checker('white')],
+        E6: [checker('white'), checker('white'), checker('white')],
+        F6: [checker('white'), checker('white'), checker('white')],
+      }),
+      { currentPlayer: 'white' },
+    );
+    const seriesState = {
+      ...createSeriesState(matchSettings),
+      finishingParticipant: 'second' as const,
+      firstVictory: { type: 'homeField' as const, winner: 'black' as const },
+      firstWinner: 'first' as const,
+      pendingPoints: 1,
+      phase: 'finishing' as const,
+    };
+
+    const store = createGameStore({
+      createAiWorker: () => worker,
+      initialSession: createSession(gameState, {
+        matchSettings,
+        seriesState,
+      }),
+      storage: undefined,
+    });
+
+    await Promise.resolve();
+
+    expect(worker.requests).toHaveLength(1);
+    expect(worker.requests[0]?.searchMode).toBe('finishing');
+
+    const firstAction: TurnAction = {
+      type: 'moveSingleToEmpty',
+      source: 'A4',
+      target: 'A5',
+    };
+    const secondAction: TurnAction = {
+      type: 'climbOne',
+      source: 'A5',
+      target: 'A6',
+    };
+
+    worker.reply(
+      createAiResult({
+        action: firstAction,
+        completionPlan: [firstAction, secondAction],
+        principalVariation: [firstAction, secondAction],
+        strategicIntent: 'sixStack',
+      }),
+    );
+
+    expect(store.getState().gameState.history).toHaveLength(1);
+    expect(worker.requests).toHaveLength(1);
+
+    vi.advanceTimersByTime(AI_SEQUENCE_STEP_REVEAL_MS - 1);
+
+    expect(store.getState().gameState.history).toHaveLength(1);
+
+    vi.advanceTimersByTime(1);
+
+    expect(store.getState().gameState.history).toHaveLength(2);
+    expect(store.getState().seriesState?.phase).not.toBe('finishing');
+    expect(worker.requests).toHaveLength(1);
+  });
+
+  it('discards an invalid cached finishing step and requests a fresh plan', async () => {
     vi.useFakeTimers();
 
     const worker = new FakeAiWorker();
@@ -90,37 +170,47 @@ describe('createGameStore AI integration', () => {
       ...createInitialState(),
       currentPlayer: 'white' as const,
     };
-    const seriesState = {
-      ...createSeriesState(matchSettings),
-      finishingParticipant: 'second' as const,
-      firstVictory: { type: 'homeField' as const, winner: 'black' as const },
-      firstWinner: 'first' as const,
-      pendingPoints: 1,
-      phase: 'finishing' as const,
-    };
-
-    createGameStore({
+    const store = createGameStore({
       createAiWorker: () => worker,
       initialSession: createSession(gameState, {
         matchSettings,
-        seriesState,
+        seriesState: {
+          ...createSeriesState(matchSettings),
+          finishingParticipant: 'second',
+          firstVictory: { type: 'homeField', winner: 'black' },
+          firstWinner: 'first',
+          pendingPoints: 1,
+          phase: 'finishing',
+        },
       }),
       storage: undefined,
     });
 
     await Promise.resolve();
 
-    expect(worker.requests).toHaveLength(1);
-    expect(worker.requests[0]?.searchMode).toBe('finishing');
-
-    const action = getLegalActions(
+    const firstAction = getLegalActions(
       worker.requests[0]!.state,
       worker.requests[0]!.ruleConfig,
-    )[0];
+    )[0]!;
+    const invalidAction: TurnAction = {
+      type: 'manualUnfreeze',
+      coord: 'A6',
+    };
 
-    expect(action).toBeDefined();
-    worker.reply(createAiResult({ action }));
+    worker.reply(
+      createAiResult({
+        action: firstAction,
+        completionPlan: [firstAction, invalidAction],
+        principalVariation: [firstAction, invalidAction],
+      }),
+    );
 
+    expect(store.getState().gameState.history).toHaveLength(1);
+    expect(worker.requests).toHaveLength(1);
+
+    vi.advanceTimersByTime(AI_SEQUENCE_STEP_REVEAL_MS);
+
+    expect(store.getState().gameState.history).toHaveLength(1);
     expect(worker.requests).toHaveLength(2);
     expect(worker.requests[1]?.searchMode).toBe('finishing');
   });
@@ -527,7 +617,7 @@ describe('createGameStore AI integration', () => {
 
     expect(worker.requests).toHaveLength(1);
 
-    vi.advanceTimersByTime(AI_JUMP_STEP_REVEAL_MS - 1);
+    vi.advanceTimersByTime(AI_SEQUENCE_STEP_REVEAL_MS - 1);
 
     expect(worker.requests).toHaveLength(1);
 
@@ -578,7 +668,7 @@ describe('createGameStore AI integration', () => {
       }),
     );
 
-    vi.advanceTimersByTime(AI_JUMP_STEP_REVEAL_MS);
+    vi.advanceTimersByTime(AI_SEQUENCE_STEP_REVEAL_MS);
 
     expect(worker.requests).toHaveLength(2);
     expect(worker.requests[1]?.state.pendingJump?.source).toBe('C3');
@@ -593,7 +683,7 @@ describe('createGameStore AI integration', () => {
       }),
     );
 
-    vi.advanceTimersByTime(AI_JUMP_STEP_REVEAL_MS);
+    vi.advanceTimersByTime(AI_SEQUENCE_STEP_REVEAL_MS);
 
     expect(worker.requests).toHaveLength(3);
     expect(worker.requests[2]?.state.currentPlayer).toBe('white');

@@ -17,5 +17,5 @@ export const LEGACY_RULE_DEFAULTS: RuleConfig = {
 /** Small grace period added on top of the AI preset time budget. */
 export const AI_WATCHDOG_BUFFER_MS = 800;
 
-/** Lets the player see one landing before a forced AI jump continuation starts. */
-export const AI_JUMP_STEP_REVEAL_MS = 300;
+/** Lets the player see each step of a forced jump or precomputed finishing line. */
+export const AI_SEQUENCE_STEP_REVEAL_MS = 300;

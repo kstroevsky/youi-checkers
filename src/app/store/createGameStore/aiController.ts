@@ -1,8 +1,8 @@
 import { AI_DIFFICULTY_PRESETS, type AiSearchResult } from '@/ai';
-import type { TurnAction } from '@/domain';
+import { validateAction, type TurnAction } from '@/domain';
 
 import {
-  AI_JUMP_STEP_REVEAL_MS,
+  AI_SEQUENCE_STEP_REVEAL_MS,
   AI_WATCHDOG_BUFFER_MS,
 } from '@/app/store/createGameStore/constants';
 import {
@@ -64,8 +64,11 @@ export function createAiController({
 }: AiControllerOptions) {
   let aiWorker: AiWorkerLike | null = null;
   let aiWatchdogId: ReturnType<typeof globalThis.setTimeout> | null = null;
-  let aiJumpRevealTimeoutId: ReturnType<typeof globalThis.setTimeout> | null =
-    null;
+  let aiSequenceRevealTimeoutId: ReturnType<
+    typeof globalThis.setTimeout
+  > | null = null;
+  let finishingPlanDecision: AiSearchResult | null = null;
+  let finishingPlanQueue: TurnAction[] = [];
   let aiWorkerIsWarm = false;
   let nextAiRequestId = 1;
 
@@ -87,18 +90,24 @@ export function createAiController({
     aiWatchdogId = null;
   }
 
-  function clearAiJumpRevealTimeout(): void {
-    if (aiJumpRevealTimeoutId === null) {
+  function clearAiSequenceRevealTimeout(): void {
+    if (aiSequenceRevealTimeoutId === null) {
       return;
     }
 
-    globalThis.clearTimeout(aiJumpRevealTimeoutId);
-    aiJumpRevealTimeoutId = null;
+    globalThis.clearTimeout(aiSequenceRevealTimeoutId);
+    aiSequenceRevealTimeoutId = null;
+  }
+
+  function clearFinishingPlan(): void {
+    finishingPlanDecision = null;
+    finishingPlanQueue = [];
   }
 
   function disposeAiWorker(): void {
     clearAiWatchdog();
-    clearAiJumpRevealTimeout();
+    clearAiSequenceRevealTimeout();
+    clearFinishingPlan();
 
     if (!aiWorker) {
       return;
@@ -183,13 +192,13 @@ export function createAiController({
     );
   }
 
-  function scheduleAiJumpRevealSync(): void {
-    clearAiJumpRevealTimeout();
+  function scheduleAiSequenceRevealSync(): void {
+    clearAiSequenceRevealTimeout();
 
-    aiJumpRevealTimeoutId = globalThis.setTimeout(() => {
-      aiJumpRevealTimeoutId = null;
+    aiSequenceRevealTimeoutId = globalThis.setTimeout(() => {
+      aiSequenceRevealTimeoutId = null;
       syncComputerTurn();
-    }, AI_JUMP_STEP_REVEAL_MS);
+    }, AI_SEQUENCE_STEP_REVEAL_MS);
   }
 
   function getAiWorker(): AiWorkerLike | null {
@@ -263,6 +272,7 @@ export function createAiController({
       options.telemetry?.context('ai_completed', {
         actionKind: message.result.action?.type ?? 'none',
         completedDepth: message.result.completedDepth,
+        completionPlanLength: message.result.completionPlan?.length ?? 0,
         evaluatedNodes: message.result.evaluatedNodes,
         fallback: message.result.fallbackKind,
         principalVariationLength: message.result.principalVariation.length,
@@ -299,6 +309,7 @@ export function createAiController({
       }
 
       if (!message.result.action) {
+        clearFinishingPlan();
         set({
           aiError: null,
           aiStatus: 'idle',
@@ -306,6 +317,13 @@ export function createAiController({
           pendingAiRequestId: null,
         });
         return;
+      }
+
+      if (searchMode === 'finishing' && message.result.completionPlan?.length) {
+        finishingPlanDecision = message.result;
+        finishingPlanQueue = message.result.completionPlan.slice(1);
+      } else {
+        clearFinishingPlan();
       }
 
       commitAction(message.result.action, message.result);
@@ -331,9 +349,14 @@ export function createAiController({
   }
 
   function syncComputerTurn(): void {
-    clearAiJumpRevealTimeout();
+    clearAiSequenceRevealTimeout();
 
     const state = get();
+    const finishingActive = state.seriesState?.phase === 'finishing';
+
+    if (!finishingActive) {
+      clearFinishingPlan();
+    }
 
     if (
       !isComputerTurn(state.gameState, state.matchSettings) ||
@@ -353,6 +376,43 @@ export function createAiController({
 
     if (state.pendingAiRequestId !== null || state.aiStatus === 'thinking') {
       return;
+    }
+
+    const plannedAction = finishingActive ? finishingPlanQueue[0] : undefined;
+
+    if (plannedAction && finishingPlanDecision) {
+      const validation = validateAction(
+        state.gameState,
+        plannedAction,
+        state.ruleConfig,
+      );
+
+      if (validation.valid) {
+        finishingPlanQueue = finishingPlanQueue.slice(1);
+        const replayDecision: AiSearchResult = {
+          ...finishingPlanDecision,
+          action: plannedAction,
+          completionPlan: [plannedAction, ...finishingPlanQueue],
+          elapsedMs: 0,
+          evaluatedNodes: 0,
+          principalVariation: [plannedAction, ...finishingPlanQueue],
+          timedOut: false,
+        };
+
+        if (finishingPlanQueue.length === 0) {
+          finishingPlanDecision = null;
+        }
+
+        commitAction(plannedAction, replayDecision);
+        return;
+      }
+
+      clearFinishingPlan();
+      options.telemetry?.increment('ai_finishing_plan_replans');
+      options.telemetry?.context('ai_finishing_plan_invalidated', {
+        moveNumber: state.gameState.moveNumber,
+        reason: validation.reason,
+      });
     }
 
     const worker = getAiWorker();
@@ -403,7 +463,7 @@ export function createAiController({
   return {
     disposeAiWorker,
     resetAiState,
-    scheduleAiJumpRevealSync,
+    scheduleAiSequenceRevealSync,
     syncComputerTurn,
   };
 }

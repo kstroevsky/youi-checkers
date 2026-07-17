@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { chooseComputerAction } from '@/ai';
+import { AI_DIFFICULTY_PRESETS, chooseComputerAction } from '@/ai';
 import {
   advanceFinishingEngineState,
   hashPosition,
@@ -71,29 +71,30 @@ describe('computer finishing search', () => {
       source: 'A5',
       target: 'A6',
     });
+    expect(result.completionPlan).toEqual([result.action]);
     expect(result.completedDepth).toBe(1);
     expect(result.timedOut).toBe(false);
   });
 
-  it('completes the reported finishing board without revisiting a position', () => {
+  it('plans the reported finishing board once without revisiting a position', () => {
     const ruleConfig = withConfig();
     let state: EngineState = reportedFinishingState();
     const visited = new Set([hashPosition(state)]);
+    const decision = chooseComputerAction({
+      difficulty: 'easy',
+      random: () => 0,
+      ruleConfig,
+      searchMode: 'finishing',
+      state,
+    });
 
-    for (let move = 0; move < 40 && state.status === 'active'; move += 1) {
-      const decision = chooseComputerAction({
-        difficulty: 'easy',
-        now: () => 0,
-        random: () => 0,
-        ruleConfig,
-        searchMode: 'finishing',
-        state,
-      });
+    expect(decision.completionPlan).toBeDefined();
+    expect(decision.completionPlan?.length).toBeGreaterThan(1);
 
-      expect(decision.action).not.toBeNull();
+    for (const [move, action] of decision.completionPlan!.entries()) {
       const nextState = advanceFinishingEngineState(
         state,
-        decision.action!,
+        action,
         'black',
         ruleConfig,
       );
@@ -108,7 +109,7 @@ describe('computer finishing search', () => {
     expect(state.victory).toEqual({ type: 'sixStacks', winner: 'black' });
   });
 
-  it('keeps repetition avoidance when Easy search falls back at 120ms', () => {
+  it('keeps repetition avoidance when Easy planning exhausts its budget', () => {
     const ruleConfig = withConfig();
     let state: EngineState = reportedFinishingState();
 
@@ -133,7 +134,8 @@ describe('computer finishing search', () => {
     let nowCalls = 0;
     const decision = chooseComputerAction({
       difficulty: 'easy',
-      now: () => (nowCalls++ === 0 ? 0 : 120),
+      now: () =>
+        nowCalls++ === 0 ? 0 : AI_DIFFICULTY_PRESETS.easy.timeBudgetMs,
       random: () => 0,
       ruleConfig,
       searchMode: 'finishing',
@@ -147,6 +149,7 @@ describe('computer finishing search', () => {
     );
 
     expect(decision.timedOut).toBe(true);
+    expect(decision.completionPlan).toBeUndefined();
     expect(state.positionCounts[hashPosition(nextState)] ?? 0).toBe(0);
   });
 });
