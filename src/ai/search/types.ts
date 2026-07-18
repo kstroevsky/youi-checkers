@@ -69,6 +69,7 @@ export type RootRankedAction = Pick<
 
 export type SearchContext = {
   behaviorProfile: AiBehaviorProfile | null;
+  budgetExhaustion: 'none' | 'nodes' | 'time';
   /** Keyed by (previousActionId * AI_MODEL_ACTION_COUNT + actionId). */
   continuationScores: Map<number, number>;
   deadline: number;
@@ -77,6 +78,7 @@ export type SearchContext = {
   /** Fixed-size typed array; index is the numeric action ID (0..AI_MODEL_ACTION_COUNT-1). */
   historyScores: Int32Array;
   killerMovesByDepth: Map<number, number[]>;
+  maxEvaluatedNodes: number | null;
   now: () => number;
   perfCache: SearchPerfCache;
   preset: AiDifficultyPreset;

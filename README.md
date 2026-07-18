@@ -256,6 +256,8 @@ Key commands:
 - `npm run ai:selfplay`: generate training/self-play JSONL
 - `npm run ai:crossplay`: generate difficulty-vs-difficulty and persona-vs-persona cross-play matrices
 - `npm run ai:loop-benchmark`: measure recurrence, trapping, and loop-escape behavior on late benchmark states
+- `pnpm ai:measure -- --profile=full`: validate the exercised search path and emit uncertainty-aware outcome/behavior artifacts
+- `pnpm ai:measure:compare-files -- ...`: compare two retained raw measurement runs with paired bootstrap intervals
 - `npm run ai:position-buckets`: aggregate interestingness metrics over structural position buckets
 - `npm run ai:stage-variety`: generate opening-versus-late-stage AI variety reports
 - `npm run ai:threat`: measure pressure creation, frontier compression, and certified risk progress
@@ -295,4 +297,5 @@ All `*:compare` wrappers accept `--before=<ref|working>` and `--after=<ref|worki
 - Step-by-step algorithm explanations: [`docs/ALGORITHMS.md`](./docs/ALGORITHMS.md)
 - Runtime store and persistence: [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md)
 - PWA/report tooling: [`docs/INFRASTRUCTURE.md`](./docs/INFRASTRUCTURE.md)
+- AI measurement methodology: [`docs/ai-measurement.md`](./docs/ai-measurement.md)
 - Paired performance methodology and verdicts: [`docs/performance-ab-testing.md`](./docs/performance-ab-testing.md)

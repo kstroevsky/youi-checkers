@@ -15,6 +15,7 @@ import { withConfig } from '@/test/factories';
 function createSearchContext(): SearchContext {
   return {
     behaviorProfile: null,
+    budgetExhaustion: 'none',
     continuationScores: new Map<number, number>(),
     deadline: 0,
     diagnostics: {
@@ -37,6 +38,7 @@ function createSearchContext(): SearchContext {
     evaluatedNodes: 0,
     historyScores: new Int32Array(AI_MODEL_ACTION_COUNT),
     killerMovesByDepth: new Map<number, number[]>(),
+    maxEvaluatedNodes: null,
     now: () => 0,
     perfCache: createSearchPerfCache(),
     policyPriors: null,

@@ -222,6 +222,15 @@ The wider report family exists because "interestingness" is not one scalar:
 - `npm run ai:position-buckets` aggregates scenarios into structural buckets (`opening`, `congested`, `loopPressure`, `conversionRace`, `lateSparse`) so one pathological fixture does not overrule the whole judgment.
 - `npm run ai:threat` measures pressure creation directly from chosen moves: freeze swings, frontier compression, and certified risk progress.
 
+`pnpm ai:measure` is the validity layer in front of that family. It gives search
+experiments an explicit fixed-depth, fixed-node, wall-clock, or shipped-preset
+budget; records the actual budget/exhaustion path on every result; retains raw
+JSONL traces and provenance; separates normal wins, tiebreaks, draws, and
+unfinished games; and reports uncertainty rather than only point estimates. It
+also evaluates true horizontal fixture pairs under the same seed/persona. The
+full contract, interpretation rules, paired raw-file comparator, and academic
+basis are documented in [`ai-measurement.md`](./ai-measurement.md).
+
 These newer reports combine the core variety metrics from [`src/ai/test/metrics.ts`](../src/ai/test/metrics.ts) with nonlinear trace analytics from [`src/ai/test/advancedMetrics.ts`](../src/ai/test/advancedMetrics.ts). The current advanced metric family includes:
 
 - recurrence quantification analysis over visited-state sequences (`recurrenceRate`, `determinism`, `laminarity`, `trappingTime`);
@@ -245,6 +254,7 @@ When the intended shipped AI behavior changes materially, the workflow is:
 Current compare wrappers:
 
 - `npm run ai:variety:compare`
+- `npm run ai:measure:compare`
 - `npm run ai:stage-variety:compare`
 - `npm run ai:crossplay:compare`
 - `npm run ai:loop-benchmark:compare`
@@ -270,6 +280,8 @@ The repository exposes the infrastructure/report commands through `package.json`
 - `npm run build`
 - `npm run ai:crossplay`
 - `npm run ai:loop-benchmark`
+- `npm run ai:measure`
+- `npm run ai:measure:compare-files`
 - `npm run ai:position-buckets`
 - `npm run perf:report`
 - `npm run perf:compare`

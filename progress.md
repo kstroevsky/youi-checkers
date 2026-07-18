@@ -571,3 +571,24 @@ Verification 2026-07-17 (one-shot finishing plan and larger AI budgets):
 - The bundled web-game Playwright client smoke-tested the production preview; reviewed `/tmp/youi-finishing-plan-client/shot-0.png` and `state-0.json` with no console error artifact.
 - `WRANGLER_LOG_PATH=/tmp/youi-finishing-plan-wrangler.log pnpm exec wrangler deploy --dry-run` — production assets, `MatchRoom`, D1, and both rate limiters bundled successfully.
 - The focused Prettier check passes for all touched files except the already-unformatted `src/ai/presets.ts` and `src/ai/test/search.behavior.test.ts`; only their numeric budget literals changed, and `git diff --check` remains clean.
+
+Update 2026-07-17 (full-scale AI measurement foundation):
+
+- Added explicit optional search contracts for shipped preset time, controlled wall-clock time, fixed depth, and fixed evaluated nodes. Omitted budgets remain product-compatible; every result now records the resolved limits and whether time or nodes exhausted the search.
+- Propagated the node/time budget guard through root, negamax, and quiescence search while preserving the existing legal timeout fallback semantics.
+- Expanded self-play traces with completed root coverage, elapsed time, evaluated nodes, quiescence diagnostics, reported root candidates, root-score regret, and budget metadata.
+- Added a lossless schema-versioned `ai:measure` pipeline with scenario-stratified decisions, true horizontal mirrors under the same seed/persona, paired seeded self-play, raw JSONL traces, fixture/raw checksums, environment/Git provenance, and non-zero path-assertion failures.
+- Kept evidence families separate: search execution; normal/tiebreak/draw/unfinished outcomes; behavioral diversity, participation, movement, repetition, and self-undo; and spatial equivariance.
+- Added bootstrap mean/median intervals, Wilson proportion intervals, Miller-Madow entropy, Hill q0/q1/q2 effective behavior counts, and an uncertainty-aware raw-file comparator with workload identity checks and practical-difference thresholds.
+- Documented the measurement contract, command profiles, interpretation rules, player-experience boundary, and academic lineage in `docs/ai-measurement.md`.
+
+Verification 2026-07-17 (full-scale AI measurement foundation):
+
+- `pnpm test:run` — 60 files, 325 passing tests, one intentional skip.
+- `pnpm build` and `pnpm lint`.
+- `pnpm docs:check-links` — 29 Markdown files, no broken relative links.
+- Deterministic fixed-depth smoke: eight scenario decisions and four game plies all completed depth one with zero fallback and zero path-assertion failures; unfinished games remained censored rather than counted as draws.
+- Deliberately under-budget fixed-node smoke exposed node exhaustion, depth-zero fallback, and fallback share instead of treating those samples as normal search.
+- Identity paired-compare smoke returned zero deltas and `inconclusive`, confirming that the comparator does not manufacture an improvement from identical artifacts.
+- Bundled web-game Playwright client smoke-tested the production preview; visually reviewed `/tmp/youi-ai-measurement-smoke/shot-0.png` and the initial-state JSON with no console-error artifact.
+- `git diff --check` passed.

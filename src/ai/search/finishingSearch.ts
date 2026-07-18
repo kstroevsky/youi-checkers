@@ -256,6 +256,13 @@ export function chooseFinishingAction({
         : 'legalOrder'
       : 'none',
     principalVariation: bestLine.path,
+    searchBudget: {
+      exhaustedBy: timedOut ? 'time' : 'none',
+      maxDepth: MAX_FINISHING_PLAN_LENGTH,
+      maxEvaluatedNodes: null,
+      timeBudgetMs: preset.timeBudgetMs,
+      type: 'presetTime',
+    },
     score: bestLine.score,
     strategicIntent: getStrategicIntent(goal),
     timedOut,

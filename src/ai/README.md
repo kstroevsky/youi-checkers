@@ -866,6 +866,14 @@ The newer nonlinear metrics in [`test/advancedMetrics.ts`](./test/advancedMetric
 
 ### Report comparison wrappers
 
+Before interpreting any behavior report as evidence about a strategy change, run
+the explicit-budget measurement layer. It distinguishes shipped wall-clock,
+controlled wall-clock, fixed-depth, and fixed-node execution; asserts the actual
+path taken; preserves raw candidates/diagnostics; and keeps search, outcomes,
+behavior, spatial equivariance, and human experience as separate evidence
+families. See [`docs/ai-measurement.md`](../../docs/ai-measurement.md) for the
+contract and commands.
+
 [`scripts/run-git-report-compare.mjs`](../../scripts/run-git-report-compare.mjs) is the generic compare entry point behind the `*:compare` npm scripts. It materializes the `before` and `after` snapshots, reruns the requested pipeline for each snapshot, flattens the numeric leaves of both JSON reports, and emits a Markdown diff under `output/`.
 
 The wrappers accept `--before=<ref|working>` and `--after=<ref|working>`. In practice that supports:

@@ -17,6 +17,11 @@ import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
 import { getRiskProfile, hasCertifiedRiskProgress } from '@/ai/risk';
 import type { AiSearchResult, ChooseComputerActionRequest } from '@/ai/types';
 import type { TurnAction } from '@/domain';
+import {
+  reportSearchBudget,
+  resolveSearchBudget,
+  throwIfSearchBudgetExhausted,
+} from '@/ai/search/budget';
 
 import {
   getSelectiveExtension,
@@ -40,7 +45,6 @@ import {
   actionId,
   isSearchTimeout,
   makeTableKey,
-  throwIfTimedOut,
 } from '@/ai/search/shared';
 import type {
   RootRankedAction,
@@ -198,10 +202,17 @@ export function chooseComputerAction({
   now = () => performance.now(),
   random = Math.random,
   ruleConfig,
+  searchBudget,
   searchMode = 'normal',
   state,
 }: ChooseComputerActionRequest): AiSearchResult {
   if (searchMode === 'finishing') {
+    if (searchBudget) {
+      throw new RangeError(
+        'Explicit searchBudget contracts apply to normal search only.',
+      );
+    }
+
     return chooseFinishingAction({
       behaviorProfile,
       difficulty,
@@ -215,7 +226,8 @@ export function chooseComputerAction({
 
   const preset = AI_DIFFICULTY_PRESETS[difficulty];
   const startedAt = now();
-  const deadline = startedAt + preset.timeBudgetMs;
+  const resolvedBudget = resolveSearchBudget(searchBudget, preset, startedAt);
+  const deadline = resolvedBudget.deadline;
   const perfCache = createSearchPerfCache();
   const rootPerfBundle = getStatePerfBundle(state, ruleConfig, perfCache);
   const legalActions = getCachedLegalActions(
@@ -311,18 +323,21 @@ export function chooseComputerAction({
       behaviorProfileId: behaviorProfile?.id ?? null,
       fallbackKind: 'none',
       riskMode: effectiveRiskMode,
+      searchBudget: reportSearchBudget(resolvedBudget, 'none'),
       strategicIntent,
     };
   }
 
   const context: SearchContext = {
     behaviorProfile,
+    budgetExhaustion: 'none',
     continuationScores: new Map<number, number>(),
     deadline,
     diagnostics,
     evaluatedNodes: 0,
     historyScores: new Int32Array(AI_MODEL_ACTION_COUNT),
     killerMovesByDepth: new Map<number, number[]>(),
+    maxEvaluatedNodes: resolvedBudget.maxEvaluatedNodes,
     now,
     perfCache,
     policyPriors,
@@ -334,7 +349,7 @@ export function chooseComputerAction({
     rootPreviousOwnAction,
     rootPreviousStrategicTags,
     rootStrategicIntent: strategicIntent,
-    quiescenceDepthLimit: preset.maxDepth + MAX_QUIESCENCE_DEPTH,
+    quiescenceDepthLimit: resolvedBudget.maxDepth + MAX_QUIESCENCE_DEPTH,
     rootSelfUndoPositionKey,
     ruleConfig,
     table: new Map<string, TranspositionEntry>(),
@@ -449,6 +464,7 @@ export function chooseComputerAction({
             ],
             preset.rootCandidateLimit,
           ),
+          searchBudget: reportSearchBudget(resolvedBudget, 'none'),
           score: 1_000_000,
           strategicIntent,
           timedOut: false,
@@ -459,6 +475,8 @@ export function chooseComputerAction({
     if (!isSearchTimeout(error)) {
       throw error;
     }
+
+    context.budgetExhaustion = 'time';
 
     context.diagnostics.orderedFallbacks += 1;
     rootOrderedMoves =
@@ -506,6 +524,10 @@ export function chooseComputerAction({
             ],
         preset.rootCandidateLimit,
       ),
+      searchBudget: reportSearchBudget(
+        resolvedBudget,
+        context.budgetExhaustion,
+      ),
       score: orderedFallbackScore,
       strategicIntent,
       timedOut: true,
@@ -528,14 +550,14 @@ export function chooseComputerAction({
     // Fixed-capacity stack: length never changes during the search, so the
     // recursive path does not grow, shrink, or replace the backing container.
     const stack: SearchStack = {
-      entries: new Array(preset.maxDepth + MAX_QUIESCENCE_DEPTH + 4),
+      entries: new Array(resolvedBudget.maxDepth + MAX_QUIESCENCE_DEPTH + 4),
       depth: 0,
     };
 
     context.diagnostics.policyPriorHits += countPolicyPriorHits(orderedMoves);
 
     for (const entry of orderedMoves) {
-      throwIfTimedOut(now, deadline);
+      throwIfSearchBudgetExhausted(context);
 
       const keepsTurn = entry.nextState.currentPlayer === state.currentPlayer;
       const nextDepth = Math.max(
@@ -610,7 +632,7 @@ export function chooseComputerAction({
     return sortRankedActions(ranked);
   };
 
-  for (let depth = 1; depth <= preset.maxDepth; depth += 1) {
+  for (let depth = 1; depth <= resolvedBudget.maxDepth; depth += 1) {
     let ranked: RootRankedAction[] = [];
     const hasAspirationCenter =
       completedDepth > 0 && Number.isFinite(bestScore);
@@ -623,7 +645,7 @@ export function chooseComputerAction({
       : Number.POSITIVE_INFINITY;
 
     try {
-      throwIfTimedOut(now, deadline);
+      throwIfSearchBudgetExhausted(context);
       ranked = runDepthSearch(depth, alphaWindow, betaWindow);
 
       const aspirationMiss =
@@ -640,6 +662,10 @@ export function chooseComputerAction({
     } catch (error) {
       if (isSearchTimeout(error)) {
         timedOut = true;
+
+        if (context.budgetExhaustion === 'none') {
+          context.budgetExhaustion = 'time';
+        }
 
         if (ranked.length > 0) {
           const partialBest = ranked[0];
@@ -770,6 +796,10 @@ export function chooseComputerAction({
     rootCandidates: orderRootCandidates(
       rootCandidates,
       preset.rootCandidateLimit,
+    ),
+    searchBudget: reportSearchBudget(
+      resolvedBudget,
+      context.budgetExhaustion,
     ),
     score: bestScore,
     strategicIntent,

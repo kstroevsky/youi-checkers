@@ -31,10 +31,15 @@ export function isSearchTimeout(error: unknown): boolean {
 /** Singleton timeout error — pre-allocated to avoid V8 stack-trace capture cost on every throw. */
 const TIMEOUT_ERROR = new Error(AI_SEARCH_TIMEOUT);
 
+/** Aborts a search for a non-clock budget while preserving existing fallback handling. */
+export function throwSearchTimeout(): never {
+  throw TIMEOUT_ERROR;
+}
+
 /** Aborts the current search phase once the preset deadline has elapsed. */
 export function throwIfTimedOut(now: () => number, deadline: number): void {
   if (now() >= deadline) {
-    throw TIMEOUT_ERROR;
+    throwSearchTimeout();
   }
 }
 

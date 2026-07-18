@@ -1,4 +1,13 @@
-import { chooseComputerAction, type AiRiskMode, type AiStrategicIntent, type AiStrategicTag } from '@/ai';
+import {
+  chooseComputerAction,
+  type AiRiskMode,
+  type AiSearchBudget,
+  type AiSearchBudgetReport,
+  type AiSearchDiagnostics,
+  type AiRootCandidate,
+  type AiStrategicIntent,
+  type AiStrategicTag,
+} from '@/ai';
 import { createAiBehaviorProfile } from '@/ai/behavior';
 import { hasCertifiedRiskProgress } from '@/ai/risk';
 import { analyzePosition } from '@/ai/strategy';
@@ -19,8 +28,12 @@ export type AiTracePly = {
   beforeLegalMoveCount: number;
   boardDisplacement: number;
   completedDepth: number;
+  completedRootMoves: number;
+  diagnostics: AiSearchDiagnostics;
   emptyCellCount: number;
   emptyCellsDelta: number;
+  elapsedMs: number;
+  evaluatedNodes: number;
   fallbackKind: ReturnType<typeof chooseComputerAction>['fallbackKind'];
   freezeSwingBonus: number;
   frozenCountChurn: number;
@@ -38,8 +51,11 @@ export type AiTracePly = {
   participationDelta: number;
   ply: number;
   repeatedPositionCount: number;
+  rootCandidates: AiRootCandidate[];
+  rootScoreRegret: number;
   riskMode: AiRiskMode;
   score: number;
+  searchBudget: AiSearchBudgetReport | null;
   sixStackDelta: number;
   sixStackProgress: Record<Player, number>;
   sourceFamily: string;
@@ -52,11 +68,13 @@ export type AiTracePly = {
 };
 
 export type AiGameTrace = {
+  measurementClock?: 'legacyStableCalls' | 'product';
   difficulty: AiDifficulty;
   finalVictory: Victory;
   firstMoveKey: string | null;
   gameIndex: number;
   maxTurns: number;
+  measurementSearchBudget?: AiSearchBudget | null;
   mirrorIndex: 0 | 1;
   pairIndex: number;
   plies: AiTracePly[];
@@ -157,11 +175,13 @@ export type AiVarietyTargetBands = {
 };
 
 export type RunAiVarietySuiteOptions = {
+  clockMode?: 'legacyStableCalls' | 'product';
   difficulty: AiDifficulty;
   initialState?: GameState;
   maxTurns?: number;
   pairCount: number;
   ruleConfig: RuleConfig;
+  searchBudget?: AiSearchBudget;
   stableCalls?: number;
 };
 
@@ -943,6 +963,7 @@ export function runAiGameTrace({
   blackBehaviorProfile,
   blackDifficulty,
   blackStableCalls,
+  clockMode = 'legacyStableCalls',
   difficulty,
   gameIndex,
   initialState,
@@ -950,6 +971,7 @@ export function runAiGameTrace({
   mirrorIndex,
   pairIndex,
   ruleConfig,
+  searchBudget,
   stableCalls = getStableCallsForDifficulty(difficulty),
   whiteBehaviorProfile,
   whiteDifficulty,
@@ -960,6 +982,7 @@ export function runAiGameTrace({
   blackBehaviorProfile?: AiBehaviorProfile | null;
   blackDifficulty?: AiDifficulty;
   blackStableCalls?: number;
+  clockMode?: 'legacyStableCalls' | 'product';
   difficulty: AiDifficulty;
   gameIndex: number;
   initialState?: GameState;
@@ -967,6 +990,7 @@ export function runAiGameTrace({
   mirrorIndex: 0 | 1;
   pairIndex: number;
   ruleConfig: RuleConfig;
+  searchBudget?: AiSearchBudget;
   stableCalls?: number;
   whiteBehaviorProfile?: AiBehaviorProfile | null;
   whiteDifficulty?: AiDifficulty;
@@ -1013,7 +1037,11 @@ export function runAiGameTrace({
     const result = chooseComputerAction({
       behaviorProfile: activeBehaviorProfile,
       difficulty: activeDifficulty,
-      now: createTimeoutClock(activeStableCalls, 100_000),
+      ...(searchBudget
+        ? { searchBudget }
+        : clockMode === 'product'
+          ? {}
+          : { now: createTimeoutClock(activeStableCalls, 100_000) }),
       random: state.currentPlayer === 'white' ? whiteRandom : blackRandom,
       ruleConfig,
       state,
@@ -1028,6 +1056,7 @@ export function runAiGameTrace({
     const selectedCandidate =
       result.rootCandidates.find((candidate) => actionKey(candidate.action) === actionKey(chosenAction)) ??
       null;
+    const bestRootScore = result.rootCandidates[0]?.score ?? result.score;
     const nextState = applyAction(state, chosenAction, ruleConfig);
     const afterProgress = createScoreProgress(nextState);
     const afterHistogram = createStackHeightHistogram(nextState);
@@ -1076,8 +1105,12 @@ export function runAiGameTrace({
       beforeLegalMoveCount,
       boardDisplacement: roundMetric(countChangedCells(state, nextState) / 36),
       completedDepth: result.completedDepth,
+      completedRootMoves: result.completedRootMoves,
+      diagnostics: { ...result.diagnostics },
       emptyCellCount: analyzePosition(nextState).emptyCells,
       emptyCellsDelta: derivedSignals.emptyCellsDelta,
+      elapsedMs: roundMetric(result.elapsedMs),
+      evaluatedNodes: result.evaluatedNodes,
       fallbackKind: result.fallbackKind,
       freezeSwingBonus: derivedSignals.freezeSwingBonus,
       frozenCountChurn: roundMetric(
@@ -1104,8 +1137,17 @@ export function runAiGameTrace({
       participationDelta: selectedCandidate?.participationDelta ?? 0,
       ply: plyIndex + 1,
       repeatedPositionCount,
+      rootCandidates: result.rootCandidates.map((candidate) => ({
+        ...candidate,
+        action: structuredClone(candidate.action),
+        tags: [...candidate.tags],
+      })),
+      rootScoreRegret: roundMetric(
+        Math.max(0, bestRootScore - (selectedCandidate?.score ?? result.score)),
+      ),
       riskMode: result.riskMode,
       score: result.score,
+      searchBudget: result.searchBudget ? { ...result.searchBudget } : null,
       sixStackDelta: derivedSignals.sixStackDelta,
       sixStackProgress: afterProgress.sixStackProgress,
       sourceFamily: selectedCandidate?.sourceFamily ?? actionKey(chosenAction),
@@ -1131,6 +1173,8 @@ export function runAiGameTrace({
     firstMoveKey: plies[0]?.actionKey ?? null,
     gameIndex,
     maxTurns,
+    measurementClock: clockMode,
+    measurementSearchBudget: searchBudget ?? null,
     mirrorIndex,
     pairIndex,
     plies,
@@ -1152,11 +1196,13 @@ export function runAiGameTrace({
 }
 
 export function runAiVarietySuite({
+  clockMode = 'legacyStableCalls',
   difficulty,
   initialState,
   maxTurns = DEFAULT_MAX_TURNS,
   pairCount,
   ruleConfig,
+  searchBudget,
   stableCalls = getStableCallsForDifficulty(difficulty),
 }: RunAiVarietySuiteOptions): AiGameTrace[] {
   const traces: AiGameTrace[] = [];
@@ -1168,6 +1214,7 @@ export function runAiVarietySuite({
     traces.push(
       runAiGameTrace({
         blackSeed: baseBlackSeed,
+        clockMode,
         difficulty,
         gameIndex: traces.length,
         initialState,
@@ -1175,6 +1222,7 @@ export function runAiVarietySuite({
         mirrorIndex: 0,
         pairIndex,
         ruleConfig,
+        searchBudget,
         stableCalls,
         whiteSeed: baseWhiteSeed,
       }),
@@ -1182,6 +1230,7 @@ export function runAiVarietySuite({
     traces.push(
       runAiGameTrace({
         blackSeed: baseWhiteSeed,
+        clockMode,
         difficulty,
         gameIndex: traces.length,
         initialState,
@@ -1189,6 +1238,7 @@ export function runAiVarietySuite({
         mirrorIndex: 1,
         pairIndex,
         ruleConfig,
+        searchBudget,
         stableCalls,
         whiteSeed: baseBlackSeed,
       }),

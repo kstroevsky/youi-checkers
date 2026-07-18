@@ -32,12 +32,14 @@ function createContext(state: EngineState): SearchContext {
 
   return {
     behaviorProfile: null,
+    budgetExhaustion: 'none',
     continuationScores: new Map(),
     deadline: Number.POSITIVE_INFINITY,
     diagnostics: createSearchDiagnostics(),
     evaluatedNodes: 0,
     historyScores: new Int32Array(AI_MODEL_ACTION_COUNT),
     killerMovesByDepth: new Map(),
+    maxEvaluatedNodes: null,
     now: () => 0,
     perfCache: createSearchPerfCache(),
     policyPriors: null,

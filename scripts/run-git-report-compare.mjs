@@ -29,6 +29,16 @@ const PIPELINES = {
     script: 'ai:loop-benchmark',
     title: 'AI Loop Benchmark Comparison',
   },
+  'ai-measurement': {
+    compareOutput: 'output/ai/ai-measurement.compare.md',
+    jsonOutput: 'output/ai/ai-measurement-report.json',
+    notes: [
+      'Search-path, outcome, and behavior families are intentionally separate; inspect raw samples and confidence intervals before adoption.',
+      'Unfinished games are censored outcomes, not draws.',
+    ],
+    script: 'ai:measure',
+    title: 'AI Measurement Comparison',
+  },
   'ai-position-buckets': {
     compareOutput: 'output/ai/ai-position-buckets.compare.md',
     jsonOutput: 'output/ai/ai-position-buckets-report.json',

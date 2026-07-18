@@ -6,6 +6,7 @@ import {
   findLoopEscapePly,
 } from '@/ai/test/advancedMetrics';
 import type { AiGameTrace, AiTracePly } from '@/ai/test/metrics';
+import { createSearchDiagnostics } from '@/ai/search/result';
 import { describe, expect, it } from 'vitest';
 
 function createPly(overrides: Partial<AiTracePly> = {}): AiTracePly {
@@ -20,8 +21,12 @@ function createPly(overrides: Partial<AiTracePly> = {}): AiTracePly {
     beforeLegalMoveCount: 6,
     boardDisplacement: 0.08,
     completedDepth: 1,
+    completedRootMoves: 2,
+    diagnostics: createSearchDiagnostics(),
     emptyCellCount: 2,
     emptyCellsDelta: 0,
+    elapsedMs: 1,
+    evaluatedNodes: 4,
     fallbackKind: 'none',
     freezeSwingBonus: 0,
     frozenCountChurn: 0,
@@ -39,8 +44,11 @@ function createPly(overrides: Partial<AiTracePly> = {}): AiTracePly {
     participationDelta: 0,
     ply: 1,
     repeatedPositionCount: 1,
+    rootCandidates: [],
+    rootScoreRegret: 0,
     riskMode: 'normal',
     score: 0,
+    searchBudget: null,
     sixStackDelta: 0,
     sixStackProgress: { black: 0, white: 0 },
     sourceFamily: 'A',
@@ -51,7 +59,7 @@ function createPly(overrides: Partial<AiTracePly> = {}): AiTracePly {
     timedOut: false,
     whitePerspectiveScore: 0,
     ...overrides,
-  };
+  } as AiTracePly;
 }
 
 function createTrace(plies: AiTracePly[]): AiGameTrace {

@@ -1,5 +1,6 @@
 import { evaluateState } from '@/ai/evaluation';
 import { orderMoves } from '@/ai/moveOrdering';
+import { throwIfSearchBudgetExhausted } from '@/ai/search/budget';
 import { actionId } from '@/ai/search/shared';
 import type { ParticipationState } from '@/ai/participation';
 import type { EngineState, TurnAction } from '@/domain';
@@ -12,7 +13,7 @@ import {
   rememberCutoffMove,
   TRANSPOSITION_LIMIT,
 } from '@/ai/search/heuristics';
-import { makeTableKey, throwIfTimedOut } from '@/ai/search/shared';
+import { makeTableKey } from '@/ai/search/shared';
 import type { BoundFlag, SearchContext, SearchStack } from '@/ai/search/types';
 import { quiescence } from '@/ai/search/quiescence';
 
@@ -28,7 +29,7 @@ export function negamax(
   participationState: ParticipationState,
   context: SearchContext,
 ): number {
-  throwIfTimedOut(context.now, context.deadline);
+  throwIfSearchBudgetExhausted(context);
 
   if (state.status === 'gameOver') {
     context.evaluatedNodes += 1;

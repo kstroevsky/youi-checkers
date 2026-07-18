@@ -58,6 +58,37 @@ export type AiFallbackKind =
   | 'previousDepth'
   | 'legalOrder';
 
+/**
+ * Optional normal-search controls used by deterministic measurement harnesses.
+ *
+ * Product callers omit this field and continue to use the selected difficulty's
+ * wall-clock preset. Fixed-depth and fixed-node modes deliberately live at the
+ * pure search boundary so reports can compare logic and equal work separately.
+ */
+export type AiSearchBudget =
+  | {
+      maxDepth?: number;
+      timeBudgetMs: number;
+      type: 'wallClock';
+    }
+  | {
+      depth: number;
+      type: 'fixedDepth';
+    }
+  | {
+      maxDepth?: number;
+      maxEvaluatedNodes: number;
+      type: 'fixedNodes';
+    };
+
+export type AiSearchBudgetReport = {
+  exhaustedBy: 'none' | 'nodes' | 'time';
+  maxDepth: number;
+  maxEvaluatedNodes: number | null;
+  timeBudgetMs: number | null;
+  type: 'presetTime' | AiSearchBudget['type'];
+};
+
 /** Inputs accepted by the pure search entrypoint. */
 export type ChooseComputerActionRequest = {
   behaviorProfile?: AiBehaviorProfile | null;
@@ -66,6 +97,7 @@ export type ChooseComputerActionRequest = {
   now?: () => number;
   random?: () => number;
   ruleConfig: RuleConfig;
+  searchBudget?: AiSearchBudget;
   searchMode?: AiSearchMode;
   state: EngineState;
 };
@@ -134,6 +166,8 @@ export type AiSearchResult = {
   principalVariation: TurnAction[];
   riskMode: AiRiskMode;
   rootCandidates: AiRootCandidate[];
+  /** Exact resource contract exercised by this decision. */
+  searchBudget?: AiSearchBudgetReport;
   score: number;
   strategicIntent: AiStrategicIntent;
   timedOut: boolean;

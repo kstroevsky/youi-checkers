@@ -9,6 +9,8 @@ export type {
   AiModelGuidance,
   AiRiskMode,
   AiRootCandidate,
+  AiSearchBudget,
+  AiSearchBudgetReport,
   AiSearchMode,
   AiSearchDiagnostics,
   AiSearchResult,

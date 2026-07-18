@@ -9,13 +9,14 @@ import { getCachedLegalActions, getStatePerfBundle } from '@/ai/perf';
 import type { ParticipationState } from '@/ai/participation';
 import { FRONT_HOME_ROW, HOME_ROWS } from '@/domain/model/constants';
 import { parseCoord } from '@/domain/model/coordinates';
+import { throwIfSearchBudgetExhausted } from '@/ai/search/budget';
 
 import {
   getMovePenalty,
   getPreviousOwnActionFromLine,
   getPreviousOwnPositionKeyFromLine,
 } from '@/ai/search/heuristics';
-import { actionId, makeTableKey, throwIfTimedOut } from '@/ai/search/shared';
+import { actionId, makeTableKey } from '@/ai/search/shared';
 import type { SearchContext, SearchStack } from '@/ai/search/types';
 
 /**
@@ -37,7 +38,7 @@ function getQuiescenceScoringActions(
   }
 
   return candidateActions.filter((action) => {
-    throwIfTimedOut(context.now, context.deadline);
+    throwIfSearchBudgetExhausted(context);
 
     if (action.type === 'jumpSequence' || action.type === 'manualUnfreeze') {
       return true;
@@ -178,7 +179,7 @@ export function quiescence(
   participationState: ParticipationState,
   context: SearchContext,
 ): number {
-  throwIfTimedOut(context.now, context.deadline);
+  throwIfSearchBudgetExhausted(context);
   context.diagnostics.quiescenceNodes += 1;
   context.evaluatedNodes += 1;
 
