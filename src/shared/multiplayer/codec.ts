@@ -174,6 +174,13 @@ export function decodeServerMessage(value: unknown): ServerMessage | null {
     return value as ServerMessage;
   }
 
+  if (
+    value.type === 'peerPresence' &&
+    typeof value.connected === 'boolean'
+  ) {
+    return value as ServerMessage;
+  }
+
   return null;
 }
 

@@ -571,3 +571,35 @@ Verification 2026-07-17 (one-shot finishing plan and larger AI budgets):
 - The bundled web-game Playwright client smoke-tested the production preview; reviewed `/tmp/youi-finishing-plan-client/shot-0.png` and `state-0.json` with no console error artifact.
 - `WRANGLER_LOG_PATH=/tmp/youi-finishing-plan-wrangler.log pnpm exec wrangler deploy --dry-run` — production assets, `MatchRoom`, D1, and both rate limiters bundled successfully.
 - The focused Prettier check passes for all touched files except the already-unformatted `src/ai/presets.ts` and `src/ai/test/search.behavior.test.ts`; only their numeric budget literals changed, and `git diff --check` remains clean.
+Update 2026-07-19 (multiplayer connection diagnosis):
+
+- Reproduced the current failure with the real local Worker and the existing two-context multiplayer E2E: room creation and both capability exchanges returned success, and both WebSockets upgraded with `101`, but the creator remained `waiting` while the invited client reported `connected`; the E2E timed out at revision 0.
+- Correlated production D1 telemetry from release `0.3.3+859128a`: macOS and iOS online sessions repeatedly emitted the same `unhandled_rejection` fingerprint `07baeef5` with error name `InvalidAccessError`.
+- Root cause is the protocol-hardening change in `92f6c03`: `ServerMessage` includes `peerPresence`, and `MatchRoom` sends it when the second socket connects, but `decodeServerMessage()` has no `peerPresence` branch. The client therefore treats the valid frame as invalid.
+- The fallback error path then calls browser `WebSocket.close(1008, ...)`. Browser clients may send only code `1000` or application codes `3000..4999`, so that close itself throws the observed `InvalidAccessError` and leaves the two clients in inconsistent connection states.
+- Minimal codec reproduction confirms `decodeServerMessage({ type: 'peerPresence', connected: true }) === null`. CodeGraph reports no covering test for `decodeServerMessage`; the codec tests cover malformed frames and snapshots but not every `ServerMessage` variant.
+- No application fix was made in this diagnosis. Recommended repair: accept boolean `peerPresence`, replace browser-originated reserved close codes with an application code (for example `4008`) or bare `close()`, add exhaustive codec coverage for every union variant, and rerun `pnpm e2e:multiplayer` against local Worker and production preview.
+
+Update 2026-07-19 (multiplayer connection repair, implementation):
+
+- Added strict `peerPresence` decoding so the valid room lifecycle frame reaches `MultiplayerClient` instead of being rejected.
+- Replaced browser-originated reserved WebSocket close codes `1008` and `1013` with application codes `4008` and `4013`; this removes the production `InvalidAccessError` path while preserving close reasons.
+- Contained optional WebRTC offer failures so the canonical WebSocket path remains usable without an unhandled rejection.
+- Added regressions for boolean/malformed presence frames, end-to-end client presence handling, invalid-message close codes, and socket-backpressure close codes.
+- Red/green verification: the new focused suite failed in all four expected places before the fix and now passes all 8 tests across `codec.test.ts` and `MultiplayerClient.test.ts`.
+
+Verification 2026-07-19 (multiplayer connection repair, pre-deployment):
+
+- `pnpm lint` and `pnpm build` pass; `git diff --check` is clean.
+- `pnpm e2e:multiplayer` passes against the real local Worker: both browser contexts connect, negotiate the direct WebRTC path, commit Player 1's A1 -> B2 move, converge at revision 1, and transfer input to Player 2 without browser errors.
+- Visually reviewed the connected and post-move desktop/mobile screenshots plus the serialized state; both clients show the same board, revision, player, and connection state.
+- The bundled web-game Playwright client created a room successfully against the local Worker; the waiting-room screenshot and exported state contain a valid invite and no console-error artifact.
+- The repository-wide Vitest run completed 328 passing tests and one skip; two unrelated resource-sensitive tests failed while the benchmark suite saturated the runner. Rerunning those exact AI/UI files in isolation passed all 21 tests. The focused multiplayer suite remains 8/8 green.
+
+Deployment 2026-07-19 (multiplayer connection repair):
+
+- `pnpm cf:deploy` completed successfully: the production build passed again, D1 reported no pending migrations, 13 changed assets uploaded, and the Worker deployed with its Durable Object, D1, and rate-limiter bindings intact.
+- Production URL: `https://youi.kstroevsky.workers.dev`; Worker version: `c507330a-b9c2-419e-84f0-903af5cc928f`.
+- `YOUI_E2E_BASE_URL=https://youi.kstroevsky.workers.dev pnpm e2e:multiplayer` passed against two fresh browser contexts. Both clients showed `Connected` and `Direct fast path`, converged at revision 1 after A1 -> B2, and transferred the turn to Player 2.
+- Visually reviewed the post-deployment desktop and mobile connected/post-move screenshots; connection badges, board state, score, revision, and turn ownership are consistent.
+- A read-only production D1 check covering the 15 minutes around deployment and the public acceptance test returned no new telemetry incidents, including no `InvalidAccessError`/`unhandled_rejection` recurrence.
