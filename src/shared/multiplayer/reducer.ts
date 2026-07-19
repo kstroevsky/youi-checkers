@@ -293,6 +293,10 @@ function applyActionCommand(
   return {
     repetitionReset,
     state: { ...state, engine, series },
+    turn: {
+      autoPasses: transition.autoPasses,
+      positionHash: transition.positionHash,
+    },
     updatedPositionHash: repetitionReset
       ? (Object.keys(engine.positionCounts)[0] ?? null)
       : transition.positionHash,
@@ -330,6 +334,7 @@ function chooseNextColor(
         } as OnlineSeriesState['colors'],
       },
     },
+    turn: null,
     updatedPositionHash: null,
   };
 }
@@ -369,6 +374,7 @@ function startNextGame(state: AuthoritativeMatchState): MatchApplyResult {
         phase: 'playing',
       },
     },
+    turn: null,
     updatedPositionHash: Object.keys(engine.positionCounts)[0] ?? null,
   };
 }

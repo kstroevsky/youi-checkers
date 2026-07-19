@@ -5,6 +5,7 @@ import {
   isComputerMatch,
   isComputerTurn,
 } from '@/app/store/createGameStore/match';
+import { isOnlineInputLocked } from '@/app/store/createGameStore/onlineMatchPolicy';
 import {
   createJumpFollowUpState,
   createIdleSelection,
@@ -55,7 +56,10 @@ export function createGameplayActions({
     cancelInteraction: () => {
       const state = get();
 
-      if (isComputerTurn(state.gameState, state.matchSettings)) {
+      if (
+        isComputerTurn(state.gameState, state.matchSettings) ||
+        isOnlineInputLocked(state)
+      ) {
         return;
       }
 
@@ -75,7 +79,8 @@ export function createGameplayActions({
       if (
         !source ||
         !state.availableActionKinds.includes(actionType) ||
-        isComputerTurn(state.gameState, state.matchSettings)
+        isComputerTurn(state.gameState, state.matchSettings) ||
+        isOnlineInputLocked(state)
       ) {
         return;
       }
@@ -181,7 +186,8 @@ export function createGameplayActions({
 
       if (
         state.interaction.type === 'passingDevice' ||
-        isComputerTurn(state.gameState, state.matchSettings)
+        isComputerTurn(state.gameState, state.matchSettings) ||
+        isOnlineInputLocked(state)
       ) {
         return;
       }

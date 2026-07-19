@@ -7,6 +7,12 @@ import {
   type EngineState,
 } from '@/domain';
 import { RULE_DEFAULTS } from '@/domain/model/ruleConfig';
+import {
+  boardWithPieces,
+  checker,
+  gameStateWithBoard,
+  withConfig,
+} from '@/test/factories';
 
 import {
   applyMatchCommand,
@@ -75,6 +81,39 @@ describe('authoritative multiplayer reducer', () => {
         reason: 'notYourTurn',
       }),
     );
+  });
+
+  it('applies a configured non-adjacent friendly transfer authoritatively', () => {
+    const rules = withConfig({
+      allowNonAdjacentFriendlyStackTransfer: true,
+    });
+    const game = gameStateWithBoard(
+      boardWithPieces({
+        A1: [checker('white'), checker('white')],
+        F6: [checker('white'), checker('white')],
+      }),
+    );
+    const state = {
+      ...createAuthoritativeMatchState({
+        format: 'single',
+        rules,
+        targetPoints: 1,
+      }),
+      engine: stripHistory(game),
+    };
+
+    const result = applyMatchCommand(state, 'first', {
+      type: 'submitAction',
+      action: {
+        type: 'friendlyStackTransfer',
+        source: 'A1',
+        target: 'F6',
+      },
+    });
+
+    expect(result.state.engine.board.A1.checkers).toHaveLength(1);
+    expect(result.state.engine.board.F6.checkers).toHaveLength(3);
+    expect(result.state.rules.allowNonAdjacentFriendlyStackTransfer).toBe(true);
   });
 
   it('produces a stable cryptographic hash independent of object key order', async () => {

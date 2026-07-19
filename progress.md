@@ -625,3 +625,30 @@ Deployment 2026-07-19 (multiplayer connection repair):
 - `YOUI_E2E_BASE_URL=https://youi.kstroevsky.workers.dev pnpm e2e:multiplayer` passed against two fresh browser contexts. Both clients showed `Connected` and `Direct fast path`, converged at revision 1 after A1 -> B2, and transferred the turn to Player 2.
 - Visually reviewed the post-deployment desktop and mobile connected/post-move screenshots; connection badges, board state, score, revision, and turn ownership are consistent.
 - A read-only production D1 check covering the 15 minutes around deployment and the public acceptance test returned no new telemetry incidents, including no `InvalidAccessError`/`unhandled_rejection` recurrence.
+
+Update 2026-07-19 (multiplayer history and input follow-up, diagnosis):
+
+- The online projection in `stateCreator.ts` resets `gameState.history`, `turnLog`, and `historyCursor` to empty values on every authoritative or speculative projection. That is the shared root cause of both an empty History panel and missing last-move source/target highlights.
+- `BoardCell` invokes `onSelectCell` for every square regardless of `isSelectable`, while `createGameplayActions` only blocks pass-device and computer turns. During an online opponent turn, the engine correctly considers the opponent's pieces actionable, so the local spectator can open a move dialog for them even though the room would reject submission.
+- The selected `allowNonAdjacentFriendlyStackTransfer` value is already included in match creation, authoritative state, derivation-cache keys, and room validation. The remaining work is to exercise its complete browser path and protect it with a multiplayer regression rather than changing the domain rule speculatively.
+- Planned repair keeps the backend history-free: build display-only `TurnRecord`s from accepted client commits, project them into the store, lock their navigation online, and use the same log for board highlights and `render_game_to_text`.
+
+Update 2026-07-19 (multiplayer history and input follow-up, implementation):
+
+- Added lightweight turn metadata to the shared reducer result and used it only in the browser client to build canonical display `TurnRecord`s from accepted commits. Durable Object state and wire snapshots remain history-free.
+- Online projections now retain the client turn log in `gameState.history`, `turnLog`, and `historyCursor`; History renders normally but its entries and undo/redo navigation remain locked by the existing online policy.
+- BoardStage and `render_game_to_text` now derive the last move from that projected online log, restoring source/target highlights consistently for both participants.
+- Added an online ownership gate covering connection state, pending commands, participant/color mapping, and series color changes. Public selection/action methods enforce it even when invoked outside the UI.
+- Board cells that are neither selectable sources nor legal targets now use native disabled-button semantics, so an inactive participant cannot open a move dialog for the opponent's checker.
+- Extended the two-browser scenario to assert read-only history, source/target state, inactive-seat click locking, and a five-ply sequence ending in the configured non-adjacent B2 -> D2 friendly transfer.
+- Red/green focused verification: the new history, opponent-selection, and disabled-cell regressions failed before the repair; all 17 focused multiplayer/rendering/reducer tests now pass, including the authoritative transfer case.
+
+Verification 2026-07-19 (multiplayer history and input follow-up):
+
+- `pnpm lint` and `pnpm build` pass.
+- The expanded multiplayer-focused suite passes 29/29 tests across client, store policy, reducer, codec, performance, Worker room/route, and rendering coverage; the added direct online-input policy case also passes.
+- `YOUI_E2E_BASE_URL=http://127.0.0.1:8787 pnpm e2e:multiplayer` passes through five live revisions and a negotiated direct path. Both clients converge with five history entries, null selection, B2 -> D2 last-move endpoints, one checker at B2, three at D2, and identical boards.
+- Visually reviewed desktop/mobile screenshots after the first move and after the friendly transfer. History is readable and scrollable but non-clickable; the source/target olive tones are visible; disabled opponent-turn cells retain the normal board appearance.
+- The required bundled web-game Playwright client created a waiting room from the production build and exported the expanded state (`historyLength`, `lastMove`, rule selection, selection state) without a console-error artifact; reviewed `/tmp/youi-multiplayer-followup/shot-0.png` and `state-0.json`.
+- The repository-wide run completed 324 passing tests and one intentional skip; the known resource-sensitive finishing-plan test failed while the 63-second benchmark saturated the runner, then passed all 3 tests immediately in isolation.
+- `git diff --check` passes. No production deployment was attempted from this branch because local `main` contains the previously deployed but still-unpushed AI measurement commit, while this review branch intentionally excludes it.

@@ -227,4 +227,33 @@ describe('render containment', () => {
     expect(boardRender).toHaveBeenCalledTimes(1);
     expect(historyRender).toHaveBeenCalledTimes(1);
   });
+
+  it('makes non-selectable, non-target board cells physically non-clickable', async () => {
+    const user = userEvent.setup();
+    const onSelectCell = vi.fn();
+
+    render(
+      <Board
+        board={createInitialState().board}
+        jumpFollowUpSource={null}
+        lastMoveSource={null}
+        lastMoveTarget={null}
+        language="english"
+        legalTargets={[]}
+        selectedCell={null}
+        selectableCoords={['A1']}
+        onSelectCell={onSelectCell}
+      />,
+    );
+
+    const selectableCell = screen.getByRole('button', { name: 'Cell A1' });
+    const lockedCell = screen.getByRole('button', { name: 'Cell A2' });
+    expect(selectableCell).toBeEnabled();
+    expect(lockedCell).toBeDisabled();
+
+    await user.click(lockedCell);
+    expect(onSelectCell).not.toHaveBeenCalled();
+    await user.click(selectableCell);
+    expect(onSelectCell).toHaveBeenCalledWith('A1');
+  });
 });

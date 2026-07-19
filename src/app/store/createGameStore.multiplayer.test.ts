@@ -57,4 +57,20 @@ describe('online store safety boundaries', () => {
     expect(store.getState().preferences.passDeviceOverlayEnabled).toBe(false);
     expect(persistedWrites).toBe(writesBefore);
   });
+
+  it('does not select or act with the online opponent pieces', () => {
+    const store = createGameStore({
+      archive: null,
+      storage: createMemoryStorage(),
+    });
+    store.setState({
+      onlineMatch: { ...ONLINE_MATCH, participant: 'second' },
+    });
+
+    store.getState().selectCell('A1');
+
+    expect(store.getState().selectedCell).toBeNull();
+    expect(store.getState().interaction.type).toBe('idle');
+    expect(store.getState().availableActionKinds).toEqual([]);
+  });
 });

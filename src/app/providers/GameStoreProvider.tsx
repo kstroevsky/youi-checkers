@@ -71,6 +71,8 @@ export function GameStoreProvider({
         board,
         currentPlayer: state.gameState.currentPlayer,
         interaction: state.interaction.type,
+        historyCursor: state.historyCursor,
+        historyLength: state.turnLog.length,
         lastMove: lastAction ? getTurnActionEndpoints(lastAction) : null,
         moveNumber: state.gameState.moveNumber,
         online: state.onlineMatch
@@ -81,7 +83,12 @@ export function GameStoreProvider({
               status: state.onlineMatch.status,
             }
           : null,
+        rules: {
+          allowNonAdjacentFriendlyStackTransfer:
+            state.ruleConfig.allowNonAdjacentFriendlyStackTransfer,
+        },
         selectableCoords: state.selectableCoords,
+        selectedCell: state.selectedCell,
         series: state.seriesState
           ? {
               gameNumber: state.seriesState.gameNumber,

@@ -126,5 +126,9 @@ export type CreateSessionResponse = {
 export type MatchApplyResult = {
   repetitionReset: boolean;
   state: AuthoritativeMatchState;
+  turn: {
+    autoPasses: Player[];
+    positionHash: string;
+  } | null;
   updatedPositionHash: string | null;
 };

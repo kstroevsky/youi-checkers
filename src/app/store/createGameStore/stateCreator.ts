@@ -108,7 +108,7 @@ export function createGameStoreStateRuntime({
         const current = get();
         const gameState: GameStoreState['gameState'] = {
           ...authoritative.engine,
-          history: [],
+          history: projection.turnLog,
         };
         const seriesState: GameStoreState['seriesState'] = authoritative.series
           ? { ...authoritative.series, gameOneCheckpoint: null }
@@ -149,10 +149,10 @@ export function createGameStoreStateRuntime({
           matchSettings,
           seriesState,
           gameState,
-          turnLog: [],
+          turnLog: projection.turnLog,
           past: [],
           future: [],
-          historyCursor: 0,
+          historyCursor: projection.turnLog.length,
           selectableCoords: canAct ? boardDerivation.selectableCoords : [],
           aiBehaviorProfile: null,
           aiError: null,

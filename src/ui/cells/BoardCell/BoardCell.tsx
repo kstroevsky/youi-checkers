@@ -43,6 +43,7 @@ export const BoardCell = memo(function BoardCell({
       data-selectable={isSelectable || undefined}
       data-selected={isSelected || undefined}
       data-target={isLegalTarget || undefined}
+      disabled={!isSelectable && !isLegalTarget}
       onClick={() => onClick(coord)}
       aria-label={`${text(language, 'cellLabel')} ${coord}`}
     >

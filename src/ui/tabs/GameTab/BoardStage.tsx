@@ -1,6 +1,7 @@
 import { useShallow } from 'zustand/react/shallow';
 
 import { useGameStore } from '@/app/providers/GameStoreProvider';
+import { isOnlineInputLocked } from '@/app/store/createGameStore/onlineMatchPolicy';
 import { getTurnActionEndpoints, type Coord } from '@/domain';
 import { Board } from '@/ui/board/Board';
 
@@ -32,6 +33,7 @@ export function BoardStage() {
       selectedCell: state.selectedCell,
       selectableCoords:
         state.interaction.type === 'passingDevice' ||
+        isOnlineInputLocked(state) ||
         (state.matchSettings.opponentMode === 'computer' &&
           state.gameState.currentPlayer !== state.matchSettings.humanPlayer)
           ? NO_SELECTABLE_COORDS

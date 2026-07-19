@@ -15,6 +15,8 @@ import {
   type MatchParticipant,
   type PeerProposal,
 } from '@/shared/multiplayer';
+import { createSnapshot } from '@/domain/model/board';
+import type { TurnRecord } from '@/domain';
 
 const CHECKPOINT_EVERY_REVISIONS = 16;
 const MAX_CHECKPOINT_BYTES = 1_500_000;
@@ -48,6 +50,7 @@ type ProjectionOptions = {
   connected: boolean;
   participant: MatchParticipant;
   pending: boolean;
+  turnLog: TurnRecord[];
 };
 
 type MultiplayerCallbacks = {
@@ -63,6 +66,7 @@ type MultiplayerCallbacks = {
 type PendingCommand = {
   envelope: MatchCommandEnvelope;
   predicted: AuthoritativeMatchState;
+  turn: ReturnType<typeof applyMatchCommand>['turn'];
 };
 
 type StoredCheckpoint = {
@@ -127,6 +131,23 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
+function createOnlineTurnRecord(
+  before: AuthoritativeMatchState,
+  after: AuthoritativeMatchState,
+  command: Extract<MatchCommand, { type: 'submitAction' }>,
+  turn: NonNullable<ReturnType<typeof applyMatchCommand>['turn']>,
+): TurnRecord {
+  return {
+    actor: before.engine.currentPlayer,
+    action: structuredClone(command.action),
+    beforeState: createSnapshot({ ...before.engine, history: [] }),
+    afterState: createSnapshot({ ...after.engine, history: [] }),
+    autoPasses: turn.autoPasses.slice(),
+    victoryAfter: structuredClone(after.engine.victory),
+    positionHash: turn.positionHash,
+  };
+}
+
 function canUseDirectPath(): boolean {
   if (typeof RTCPeerConnection === 'undefined') return false;
   const connection = (
@@ -165,6 +186,7 @@ export class MultiplayerClient {
   private speculativeTimer: number | null = null;
   private stateHash: string | null = null;
   private started = false;
+  private turnLog: TurnRecord[] = [];
   private view: OnlineMatchView | null = null;
   private readonly onVisibilityChange = () => {
     if (document.visibilityState === 'hidden') {
@@ -334,13 +356,16 @@ export class MultiplayerClient {
     }
 
     let predicted: AuthoritativeMatchState;
+    let turn: ReturnType<typeof applyMatchCommand>['turn'];
 
     try {
-      predicted = applyMatchCommand(
+      const result = applyMatchCommand(
         this.authoritative,
         this.participant,
         command,
-      ).state;
+      );
+      predicted = result.state;
+      turn = result.turn;
     } catch {
       return false;
     }
@@ -353,6 +378,7 @@ export class MultiplayerClient {
       connected: true,
       participant: this.participant,
       pending: true,
+      turnLog: this.turnLog,
     });
     this.patchView({ pendingCommand: true });
 
@@ -382,7 +408,7 @@ export class MultiplayerClient {
           predictedStateHash,
           previousStateHash,
         };
-        this.pending = { envelope, predicted };
+        this.pending = { envelope, predicted, turn };
         this.sendSocket({ type: 'submit', envelope });
         this.sendDirect({
           actor: this.participant,
@@ -613,21 +639,26 @@ export class MultiplayerClient {
       return false;
     }
 
+    const before = this.authoritative;
     let next: AuthoritativeMatchState;
+    let turn: ReturnType<typeof applyMatchCommand>['turn'];
 
     if (this.pending?.envelope.commandId === commit.commandId) {
       next = this.pending.predicted;
+      turn = this.pending.turn;
       if (this.pending.envelope.predictedStateHash !== commit.stateHash) {
         this.requestResync();
         return false;
       }
     } else {
       try {
-        next = applyMatchCommand(
+        const result = applyMatchCommand(
           this.authoritative,
           commit.actor,
           commit.command,
-        ).state;
+        );
+        next = result.state;
+        turn = result.turn;
       } catch {
         this.requestResync();
         return false;
@@ -637,6 +668,13 @@ export class MultiplayerClient {
         this.requestResync();
         return false;
       }
+    }
+
+    if (commit.command.type === 'submitAction' && turn) {
+      this.turnLog = [
+        ...this.turnLog,
+        createOnlineTurnRecord(before, next, commit.command, turn),
+      ];
     }
 
     this.authoritative = next;
@@ -664,6 +702,7 @@ export class MultiplayerClient {
       connected: this.view?.status === 'connected',
       participant: this.participant,
       pending: Boolean(this.pending) || this.hashingCommand,
+      turnLog: this.turnLog,
     });
   }
 
@@ -833,6 +872,7 @@ export class MultiplayerClient {
         connected: true,
         participant: this.participant,
         pending: true,
+        turnLog: this.turnLog,
       });
     } catch {
       // WebRTC is speculative only; canonical WebSocket delivery remains sufficient.
@@ -890,6 +930,7 @@ export class MultiplayerClient {
     this.reconnectAttempt = 0;
     this.revision = 0;
     this.stateHash = null;
+    this.turnLog = [];
     this.clearSpeculation();
     this.closed = false;
   }
