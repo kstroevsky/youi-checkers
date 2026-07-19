@@ -33,6 +33,18 @@ describe('multiplayer wire codec', () => {
     ).toBeNull();
   });
 
+  it('accepts boolean peer-presence frames and rejects malformed ones', () => {
+    expect(
+      decodeServerMessage({ type: 'peerPresence', connected: true }),
+    ).toEqual({ type: 'peerPresence', connected: true });
+    expect(
+      decodeServerMessage({ type: 'peerPresence', connected: false }),
+    ).toEqual({ type: 'peerPresence', connected: false });
+    expect(
+      decodeServerMessage({ type: 'peerPresence', connected: 'yes' }),
+    ).toBeNull();
+  });
+
   it('shares the same client-frame validation with the room', () => {
     expect(
       decodeClientMessage({

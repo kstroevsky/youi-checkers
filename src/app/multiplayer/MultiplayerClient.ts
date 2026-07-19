@@ -21,6 +21,8 @@ const MAX_CHECKPOINT_BYTES = 1_500_000;
 const SOCKET_BACKPRESSURE_BYTES = 64 * 1024;
 const DIRECT_BACKPRESSURE_BYTES = 64 * 1024;
 const STUN_URL = 'stun:stun.cloudflare.com:3478';
+const CLIENT_CLOSE_INVALID_MESSAGE = 4008;
+const CLIENT_CLOSE_RECONNECT = 4013;
 
 export type OnlineConnectionStatus =
   | 'connecting'
@@ -470,7 +472,10 @@ export class MultiplayerClient {
       this.messageQueue = this.messageQueue
         .then(() => this.handleServerMessage(event.data))
         .catch(() => {
-          this.socket?.close(1008, 'Invalid server message');
+          this.socket?.close(
+            CLIENT_CLOSE_INVALID_MESSAGE,
+            'Invalid server message',
+          );
         });
     });
     socket.addEventListener('close', () => {
@@ -488,13 +493,19 @@ export class MultiplayerClient {
     try {
       parsed = JSON.parse(raw);
     } catch {
-      this.socket?.close(1008, 'Invalid server message');
+      this.socket?.close(
+        CLIENT_CLOSE_INVALID_MESSAGE,
+        'Invalid server message',
+      );
       return;
     }
 
     const message = decodeServerMessage(parsed);
     if (!message) {
-      this.socket?.close(1008, 'Invalid server message');
+      this.socket?.close(
+        CLIENT_CLOSE_INVALID_MESSAGE,
+        'Invalid server message',
+      );
       return;
     }
 
@@ -582,7 +593,9 @@ export class MultiplayerClient {
         this.lifecycle = 'active';
         this.patchView({ lifecycle: 'active', status: 'connected' });
         this.projectAuthoritative();
-        if (this.participant === 'first') void this.startPeerOffer();
+        if (this.participant === 'first') {
+          void this.startPeerOffer().catch(() => this.closePeer());
+        }
       } else {
         this.closePeer();
       }
@@ -670,7 +683,7 @@ export class MultiplayerClient {
     if (!this.socket || this.socket.readyState !== WebSocket.OPEN) return;
 
     if (this.socket.bufferedAmount > SOCKET_BACKPRESSURE_BYTES) {
-      this.socket.close(1013, 'Reconnect to resume');
+      this.socket.close(CLIENT_CLOSE_RECONNECT, 'Reconnect to resume');
       return;
     }
 
