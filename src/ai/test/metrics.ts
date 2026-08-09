@@ -1,4 +1,5 @@
 import {
+  AI_DIFFICULTY_PRESETS,
   chooseComputerAction,
   type AiRiskMode,
   type AiSearchBudget,
@@ -129,6 +130,7 @@ export type AiTerminalType =
   | 'unfinished';
 
 export type AiVarietyMetricKey =
+  | 'avoidableSourceFamilyRepeatRate'
   | 'behaviorSpaceCoverage'
   | 'compositeInterestingness'
   | 'decisiveResultShare'
@@ -1061,6 +1063,87 @@ function computeSourceFamilyOpeningHhi(traces: AiGameTrace[]): number {
   return roundMetric(average(values));
 }
 
+function getTerminalSafeRootCandidates(
+  candidates: AiRootCandidate[],
+): AiRootCandidate[] {
+  const immediateWins = candidates.filter(
+    (candidate) => candidate.terminalUtility === 'win',
+  );
+
+  if (immediateWins.length) {
+    return immediateWins;
+  }
+
+  const nonLosses = candidates.filter(
+    (candidate) => candidate.terminalUtility !== 'loss',
+  );
+  const lossSafe = nonLosses.length ? nonLosses : candidates;
+  const nonAdverseDraws = lossSafe.filter(
+    (candidate) => candidate.terminalUtility !== 'unfavorableDraw',
+  );
+
+  return nonAdverseDraws.length ? nonAdverseDraws : lossSafe;
+}
+
+/**
+ * Counts repeated source-family choices only when another family was eligible
+ * inside the final terminal-safe strength-regret set. This separates avoidable
+ * stylistic concentration from tactically forced checker reuse.
+ */
+function computeAvoidableSourceFamilyRepeatRate(
+  traces: AiGameTrace[],
+): number {
+  let avoidableRepeats = 0;
+  let samePlayerComparisons = 0;
+
+  for (const trace of traces) {
+    const previousSourceFamily: Partial<Record<Player, string>> = {};
+
+    for (const ply of trace.plies) {
+      const previous = previousSourceFamily[ply.actor];
+      previousSourceFamily[ply.actor] = ply.sourceFamily;
+
+      if (!previous) {
+        continue;
+      }
+
+      samePlayerComparisons += 1;
+
+      if (previous !== ply.sourceFamily) {
+        continue;
+      }
+
+      const terminalSafe = getTerminalSafeRootCandidates(ply.rootCandidates);
+      const best = terminalSafe[0];
+
+      if (!best) {
+        continue;
+      }
+
+      const regretCap =
+        AI_DIFFICULTY_PRESETS[trace.sideDifficulties[ply.actor]]
+          .maxSelectionRegret;
+      const hasSafeAlternativeFamily = terminalSafe.some(
+        (candidate) =>
+          best.score - candidate.score <= regretCap &&
+          !candidate.isForced &&
+          !candidate.isRepetition &&
+          !candidate.isSelfUndo &&
+          candidate.drawTrapRisk < 0.95 &&
+          candidate.sourceFamily !== ply.sourceFamily,
+      );
+
+      if (hasSafeAlternativeFamily) {
+        avoidableRepeats += 1;
+      }
+    }
+  }
+
+  return roundMetric(
+    avoidableRepeats / Math.max(1, samePlayerComparisons),
+  );
+}
+
 export function getStableCallsForDifficulty(difficulty: AiDifficulty): number {
   return STABLE_CALLS_BY_DIFFICULTY[difficulty];
 }
@@ -1583,6 +1666,8 @@ export function summarizeAiVariety(
     ),
   );
   const metrics: AiVarietySummary['metrics'] = {
+    avoidableSourceFamilyRepeatRate:
+      computeAvoidableSourceFamilyRepeatRate(traces),
     behaviorSpaceCoverage: computeBehaviorSpaceCoverage(traces),
     compositeInterestingness: 0,
     decisiveResultShare: roundMetric(
@@ -1723,6 +1808,7 @@ export function compareSummaryToBaseline(
     threshold: number;
   }> = [];
   const lowerIsBetter: AiVarietyMetricKey[] = [
+    'avoidableSourceFamilyRepeatRate',
     'maxRepeatedStateRun',
     'repetitionPlyShare',
     'sameFamilyQuietRepeatRate',

@@ -23,6 +23,7 @@ type CellSummary = {
   decisiveResultShare: number;
   drawShare: number;
   loopEscapeRate8: number | null;
+  nearCycleRate: number | null;
   pointShare: number;
   pressureEventRate: number;
   recurrenceLaminarity: number;
@@ -87,6 +88,7 @@ function summarizeCell(
         Math.max(1, traces.length),
     ),
     loopEscapeRate8: advanced.loopEscapeRate8,
+    nearCycleRate: advanced.nearCycleRate,
     pointShare,
     pressureEventRate: advanced.pressureEventRate,
     recurrenceLaminarity: advanced.recurrenceLaminarity,

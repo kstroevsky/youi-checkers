@@ -78,6 +78,7 @@ function buildMarkdown(
   targets: TargetBandFile,
 ): string {
   const keyMetrics: AiVarietyMetricKey[] = [
+    'avoidableSourceFamilyRepeatRate',
     'decisiveResultShare',
     'twoPlyUndoRate',
     'sameFamilyQuietRepeatRate',

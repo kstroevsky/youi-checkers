@@ -1,4 +1,5 @@
 import {
+  computeNearCycleRate,
   computeNormalizedLempelZiv,
   computePermutationEntropy,
   computeRecurrenceQuantification,
@@ -144,6 +145,45 @@ describe('advanced trace analytics', () => {
     expect(looping).toBeLessThan(diverse);
   });
 
+  it('detects approximate structural cycles without counting exact repeats', () => {
+    const cycling = [
+      createPly({ actor: 'white', emptyCellCount: 2, ply: 1 }),
+      createPly({ actor: 'black', emptyCellCount: 4, ply: 2 }),
+      createPly({ actor: 'white', emptyCellCount: 2, ply: 3 }),
+      createPly({ actor: 'black', emptyCellCount: 4, ply: 4 }),
+      createPly({ actor: 'white', emptyCellCount: 2, ply: 5 }),
+    ];
+    const dispersing = cycling.map((ply, index) =>
+      createPly({
+        ...ply,
+        emptyCellCount: 2 + index * 4,
+        homeFieldProgress: { black: index * 0.15, white: index * 0.2 },
+        sixStackProgress: { black: index * 0.15, white: index * 0.2 },
+        stackHeightHistogram: [
+          30 - index * 3,
+          4 + index,
+          2 + index,
+          index,
+        ],
+      }),
+    );
+
+    const nearCycle = computeNearCycleRate(cycling);
+    const progressive = computeNearCycleRate(dispersing);
+
+    expect(nearCycle.sampleCount).toBeGreaterThan(0);
+    expect(nearCycle.rate).toBe(1);
+    expect(progressive.rate).toBe(0);
+    expect(
+      cycling.every(
+        (ply, index) =>
+          cycling.findIndex(
+            (candidate) => candidate.afterPositionKey === ply.afterPositionKey,
+          ) === index,
+      ),
+    ).toBe(true);
+  });
+
   it('keeps token Lempel-Ziv invariant under symbolic relabeling', () => {
     expect(computeNormalizedLempelZiv(['a', 'b', 'a', 'b', 'a', 'b'])).toBe(
       computeNormalizedLempelZiv([
@@ -236,6 +276,7 @@ describe('advanced trace analytics', () => {
     expect(summary.loopEscapeEligibleTraceCount).toBe(1);
     expect(summary.loopEscapeObservedCount).toBe(1);
     expect(summary.loopEscapeRate8).toBe(1);
+    expect(summary.nearCycleSampleCount).toBeGreaterThan(0);
     expect(summary.frontierCompressionSampleCount).toBe(0);
     expect(summary.frontierCompressionRate).toBeNull();
 

@@ -399,12 +399,11 @@ describe('AI variety guardrails', () => {
     const hard = getSummary('hard');
     const medium = getSummary('medium');
 
-    // Persistent plans can concentrate a source family slightly while reducing
-    // same-family quiet repeats. Keep the cross-level check tight and retain the
-    // absolute 0.401 ceiling below.
+    // Raw concentration can be tactically forced. Gate only repeated-family
+    // choices where another terminal-safe family was inside the regret cap.
     expect(hard.metrics.repetitionPlyShare).toBeLessThanOrEqual(0.04);
-    expect(hard.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(
-      medium.metrics.sourceFamilyOpeningHhi * 1.07 + 1e-6,
+    expect(hard.metrics.avoidableSourceFamilyRepeatRate).toBeLessThanOrEqual(
+      medium.metrics.avoidableSourceFamilyRepeatRate + 1e-6,
     );
   }, 90_000);
 
@@ -414,7 +413,11 @@ describe('AI variety guardrails', () => {
 
     expect(medium.metrics.sameFamilyQuietRepeatRate).toBeLessThanOrEqual(0.4);
     expect(hard.metrics.sameFamilyQuietRepeatRate).toBeLessThanOrEqual(0.45);
-    expect(medium.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(0.401);
-    expect(hard.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(0.401);
+    expect(
+      medium.metrics.avoidableSourceFamilyRepeatRate,
+    ).toBeLessThanOrEqual(0.08);
+    expect(hard.metrics.avoidableSourceFamilyRepeatRate).toBeLessThanOrEqual(
+      0.04,
+    );
   }, 90_000);
 });

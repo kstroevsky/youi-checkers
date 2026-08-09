@@ -18,6 +18,8 @@ export type AdvancedTraceSummary = {
   loopEscapeRate24: number | null;
   loopEscapeRate8: number | null;
   meanLoopEscapePly: number | null;
+  nearCycleRate: number | null;
+  nearCycleSampleCount: number;
   pressureEventRate: number;
   positionLempelZiv: number;
   recurrenceDeterminism: number;
@@ -31,6 +33,9 @@ export type AdvancedTraceSummary = {
 };
 
 const LOOP_ESCAPE_WINDOW = 4;
+const NEAR_CYCLE_MAX_LAG = 12;
+const NEAR_CYCLE_MIN_LAG = 2;
+const NEAR_CYCLE_DISTANCE_THRESHOLD = 0.08;
 
 function roundMetric(value: number, digits = 6): number {
   return Number(value.toFixed(digits));
@@ -76,6 +81,94 @@ function isPressureEvent(ply: AiTracePly): boolean {
     (ply.opponentReplyCompression ?? 0) >= 0.15 ||
     getPlanProgress(ply) >= 0.04
   );
+}
+
+function getStructuralFeatureVector(ply: AiTracePly): number[] {
+  return [
+    ply.emptyCellCount / 36,
+    ...ply.stackHeightHistogram.map((count) => count / 36),
+    ply.frozenSingles.white / 18,
+    ply.frozenSingles.black / 18,
+    ply.homeFieldProgress.white,
+    ply.homeFieldProgress.black,
+    ply.sixStackProgress.white,
+    ply.sixStackProgress.black,
+  ];
+}
+
+function getMeanAbsoluteDistance(left: number[], right: number[]): number {
+  return average(
+    left.map((value, index) => Math.abs(value - (right[index] ?? value))),
+  );
+}
+
+/**
+ * Detects local structural oscillation that exact position hashes cannot see.
+ * Each eligible ply is counted once when it nearly revisits a distinct earlier
+ * position with the same actor inside a bounded temporal window.
+ */
+export function computeNearCycleRate(
+  plies: AiTracePly[],
+  options: {
+    distanceThreshold?: number;
+    maxLag?: number;
+    minLag?: number;
+  } = {},
+): { rate: number | null; sampleCount: number } {
+  const distanceThreshold =
+    options.distanceThreshold ?? NEAR_CYCLE_DISTANCE_THRESHOLD;
+  const maxLag = options.maxLag ?? NEAR_CYCLE_MAX_LAG;
+  const minLag = options.minLag ?? NEAR_CYCLE_MIN_LAG;
+
+  if (
+    distanceThreshold < 0 ||
+    !Number.isFinite(distanceThreshold) ||
+    !Number.isInteger(minLag) ||
+    !Number.isInteger(maxLag) ||
+    minLag < 1 ||
+    maxLag < minLag
+  ) {
+    throw new RangeError('Invalid near-cycle measurement options.');
+  }
+
+  const vectors = plies.map(getStructuralFeatureVector);
+  let nearCycleCount = 0;
+  let sampleCount = 0;
+
+  for (let index = 0; index < plies.length; index += 1) {
+    const candidates: number[] = [];
+
+    for (
+      let previous = Math.max(0, index - maxLag);
+      previous <= index - minLag;
+      previous += 1
+    ) {
+      if (plies[previous].actor === plies[index].actor) {
+        candidates.push(previous);
+      }
+    }
+
+    if (!candidates.length) {
+      continue;
+    }
+
+    sampleCount += 1;
+    const isNearCycle = candidates.some(
+      (previous) =>
+        plies[previous].afterPositionKey !== plies[index].afterPositionKey &&
+        getMeanAbsoluteDistance(vectors[previous], vectors[index]) <=
+          distanceThreshold,
+    );
+
+    if (isNearCycle) {
+      nearCycleCount += 1;
+    }
+  }
+
+  return {
+    rate: sampleCount ? roundMetric(nearCycleCount / sampleCount) : null,
+    sampleCount,
+  };
 }
 
 function buildRecurrenceMatrix(sequence: string[]): boolean[][] {
@@ -477,6 +570,15 @@ export function summarizeAdvancedTraceMetrics(
   const frontierCompressionRate = frontierCompressionSamples.length
     ? average(frontierCompressionSamples)
     : null;
+  const nearCycles = traces.map((trace) => computeNearCycleRate(trace.plies));
+  const nearCycleSampleCount = nearCycles.reduce(
+    (sum, entry) => sum + entry.sampleCount,
+    0,
+  );
+  const nearCycleWeightedTotal = nearCycles.reduce(
+    (sum, entry) => sum + (entry.rate ?? 0) * entry.sampleCount,
+    0,
+  );
   const loopEscapeRate = (limit: number): number | null =>
     loopEligibleTraces.length
       ? loopEscapePlies.filter((value) => value <= limit).length /
@@ -494,6 +596,12 @@ export function summarizeAdvancedTraceMetrics(
     meanLoopEscapePly: loopEscapePlies.length
       ? roundMetric(average(loopEscapePlies))
       : null,
+    nearCycleRate: roundOptionalMetric(
+      nearCycleSampleCount
+        ? nearCycleWeightedTotal / nearCycleSampleCount
+        : null,
+    ),
+    nearCycleSampleCount,
     pressureEventRate: roundMetric(pressureEventRate),
     positionLempelZiv: roundMetric(positionLempelZiv),
     recurrenceDeterminism: roundMetric(
