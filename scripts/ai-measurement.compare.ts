@@ -27,7 +27,11 @@ type DecisionSample = {
 };
 
 type MeasurementReport = {
-  provenance: { fixtureSha256: string; gitRevision: string };
+  provenance: {
+    fixtureSha256: string;
+    gitDirty: boolean;
+    gitRevision: string;
+  };
   schemaVersion: number;
   settings: unknown;
 };
@@ -275,8 +279,8 @@ async function main(): Promise<void> {
       ? 'improved-search-execution'
       : 'inconclusive';
   const report = {
-    baselineRevision: baselineReport.provenance.gitRevision,
-    candidateRevision: candidateReport.provenance.gitRevision,
+    baselineRevision: `${baselineReport.provenance.gitRevision}${baselineReport.provenance.gitDirty ? '+dirty' : ''}`,
+    candidateRevision: `${candidateReport.provenance.gitRevision}${candidateReport.provenance.gitDirty ? '+dirty' : ''}`,
     generatedAt: new Date().toISOString(),
     metrics,
     overallVerdict,

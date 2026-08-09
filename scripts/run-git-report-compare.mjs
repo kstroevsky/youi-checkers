@@ -1,4 +1,11 @@
-import { access, mkdtemp, rm, symlink } from 'node:fs/promises';
+import {
+  access,
+  copyFile,
+  mkdir,
+  mkdtemp,
+  rm,
+  symlink,
+} from 'node:fs/promises';
 import os from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
@@ -46,6 +53,7 @@ const PIPELINES = {
       'Search-path, outcome, and behavior families are intentionally separate; inspect raw samples and confidence intervals before adoption.',
       'Unfinished games are censored outcomes, not draws.',
     ],
+    rawOutput: 'output/ai/ai-measurement-samples.jsonl',
     script: 'ai:measure',
     title: 'AI Measurement Comparison',
   },
@@ -156,7 +164,11 @@ async function prepareRefWorkspace(ref) {
   });
 
   try {
-    await symlink(path.join(process.cwd(), 'node_modules'), path.join(tempDir, 'node_modules'), 'dir');
+    await symlink(
+      path.join(process.cwd(), 'node_modules'),
+      path.join(tempDir, 'node_modules'),
+      'dir',
+    );
   } catch {
     // Reusing the current workspace dependencies is best-effort only.
   }
@@ -198,6 +210,9 @@ async function materializeReport(target, pipeline, forwardedArgs) {
       cleanup: null,
       label: 'working-tree',
       path: outputPath,
+      rawPath: pipeline.rawOutput
+        ? path.join(process.cwd(), pipeline.rawOutput)
+        : null,
     };
   }
 
@@ -225,11 +240,62 @@ async function materializeReport(target, pipeline, forwardedArgs) {
       cleanup: async () => cleanupRefWorkspace(workdir),
       label: target,
       path: outputPath,
+      rawPath: pipeline.rawOutput
+        ? path.join(workdir, pipeline.rawOutput)
+        : null,
     };
   } catch (error) {
     await cleanupRefWorkspace(workdir);
     throw error;
   }
+}
+
+async function retainAndComparePairedMeasurement(
+  beforeSnapshot,
+  afterSnapshot,
+) {
+  if (!beforeSnapshot.rawPath || !afterSnapshot.rawPath) {
+    return;
+  }
+
+  const retainedRoot = path.join(
+    process.cwd(),
+    'output',
+    'ai',
+    'git-measurement-compare',
+  );
+  const baselineRoot = path.join(retainedRoot, 'baseline');
+  const candidateRoot = path.join(retainedRoot, 'candidate');
+  await Promise.all([
+    mkdir(baselineRoot, { recursive: true }),
+    mkdir(candidateRoot, { recursive: true }),
+  ]);
+  const retained = {
+    baselineRaw: path.join(baselineRoot, 'measurement.samples.jsonl'),
+    baselineReport: path.join(baselineRoot, 'measurement.json'),
+    candidateRaw: path.join(candidateRoot, 'measurement.samples.jsonl'),
+    candidateReport: path.join(candidateRoot, 'measurement.json'),
+  };
+
+  await Promise.all([
+    copyFile(beforeSnapshot.path, retained.baselineReport),
+    copyFile(beforeSnapshot.rawPath, retained.baselineRaw),
+    copyFile(afterSnapshot.path, retained.candidateReport),
+    copyFile(afterSnapshot.rawPath, retained.candidateRaw),
+  ]);
+
+  execFileSync(
+    path.join(process.cwd(), 'node_modules', '.bin', 'tsx'),
+    [
+      'scripts/ai-measurement.compare.ts',
+      `--baseline-report=${retained.baselineReport}`,
+      `--baseline-raw=${retained.baselineRaw}`,
+      `--candidate-report=${retained.candidateReport}`,
+      `--candidate-raw=${retained.candidateRaw}`,
+      `--out=${path.join(retainedRoot, 'paired')}`,
+    ],
+    { cwd: process.cwd(), stdio: 'inherit' },
+  );
 }
 
 async function main() {
@@ -240,15 +306,26 @@ async function main() {
     throw new Error(`Unknown pipeline "${parsed.pipeline}".`);
   }
 
-  const beforeSnapshot = await materializeReport(parsed.before, pipeline, parsed.forwarded);
-  const afterSnapshot = await materializeReport(parsed.after, pipeline, parsed.forwarded);
+  const beforeSnapshot = await materializeReport(
+    parsed.before,
+    pipeline,
+    parsed.forwarded,
+  );
+  const afterSnapshot = await materializeReport(
+    parsed.after,
+    pipeline,
+    parsed.forwarded,
+  );
 
   try {
     const [beforeReport, afterReport] = await Promise.all([
       readJsonReport(beforeSnapshot.path),
       readJsonReport(afterSnapshot.path),
     ]);
-    const outputPath = path.join(process.cwd(), parsed.out ?? pipeline.compareOutput);
+    const outputPath = path.join(
+      process.cwd(),
+      parsed.out ?? pipeline.compareOutput,
+    );
     const markdown = buildComparisonMarkdown({
       afterLabel: afterSnapshot.label,
       afterPath: afterSnapshot.path,
@@ -261,6 +338,9 @@ async function main() {
     });
 
     await writeComparisonReport(outputPath, markdown);
+    if (parsed.pipeline === 'ai-measurement') {
+      await retainAndComparePairedMeasurement(beforeSnapshot, afterSnapshot);
+    }
   } finally {
     if (beforeSnapshot.cleanup) {
       await beforeSnapshot.cleanup();
@@ -273,6 +353,8 @@ async function main() {
 }
 
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
+  process.stderr.write(
+    `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
+  );
   process.exitCode = 1;
 });
