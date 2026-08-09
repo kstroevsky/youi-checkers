@@ -107,11 +107,141 @@ export type BehaviorMeasurementSummary = {
   firstMoveDiversity: EffectiveDiversitySummary;
   firstMoveSourceFamilyDiversity: EffectiveDiversitySummary;
   participationDelta: NumericDistributionSummary;
+  planCommitmentRun: NumericDistributionSummary;
+  planSwitchShare: ProportionSummary;
+  persistentPlanProgress: Record<
+    '2' | '4' | '8',
+    {
+      delta: NumericDistributionSummary;
+      positiveShare: ProportionSummary;
+    }
+  >;
   positiveParticipationShare: ProportionSummary;
+  opponentReplyCount: NumericDistributionSummary;
   repetitionShare: ProportionSummary;
   strategicIntentDiversity: EffectiveDiversitySummary;
   twoPlyUndoShare: ProportionSummary;
 };
+
+type StrategicTrajectoryPly = Pick<
+  AiTracePly,
+  | 'actor'
+  | 'homeFieldProgress'
+  | 'mobility'
+  | 'sixStackProgress'
+  | 'strategicIntent'
+>;
+
+function planProgress(
+  ply: StrategicTrajectoryPly,
+  actor: StrategicTrajectoryPly['actor'],
+  intent: StrategicTrajectoryPly['strategicIntent'],
+): number {
+  if (intent === 'home') return ply.homeFieldProgress[actor];
+  if (intent === 'sixStack') return ply.sixStackProgress[actor];
+  return Math.max(ply.homeFieldProgress[actor], ply.sixStackProgress[actor]);
+}
+
+/** Summarizes plan legibility and response-surviving progress over exact ply horizons. */
+export function summarizeStrategicTrajectories(
+  traces: StrategicTrajectoryPly[][],
+): Pick<
+  BehaviorMeasurementSummary,
+  | 'opponentReplyCount'
+  | 'planCommitmentRun'
+  | 'planSwitchShare'
+  | 'persistentPlanProgress'
+> {
+  const commitmentRuns: number[] = [];
+  const horizonDeltas: Record<'2' | '4' | '8', number[]> = {
+    '2': [],
+    '4': [],
+    '8': [],
+  };
+  const opponentReplies: number[] = [];
+  let comparisons = 0;
+  let switches = 0;
+
+  for (const plies of traces) {
+    const previousByActor: Partial<
+      Record<
+        StrategicTrajectoryPly['actor'],
+        StrategicTrajectoryPly['strategicIntent']
+      >
+    > = {};
+    const runByActor: Partial<Record<StrategicTrajectoryPly['actor'], number>> =
+      {};
+    const intentSnapshots: Array<
+      Partial<
+        Record<
+          StrategicTrajectoryPly['actor'],
+          StrategicTrajectoryPly['strategicIntent']
+        >
+      >
+    > = [];
+
+    for (const ply of plies) {
+      const previous = previousByActor[ply.actor];
+      if (previous === undefined) {
+        runByActor[ply.actor] = 1;
+      } else {
+        comparisons += 1;
+        if (previous === ply.strategicIntent) {
+          runByActor[ply.actor] = (runByActor[ply.actor] ?? 0) + 1;
+        } else {
+          switches += 1;
+          commitmentRuns.push(runByActor[ply.actor] ?? 1);
+          runByActor[ply.actor] = 1;
+        }
+      }
+      previousByActor[ply.actor] = ply.strategicIntent;
+      intentSnapshots.push({ ...previousByActor });
+
+      if (ply.mobility.opponentReplyAfter !== null) {
+        opponentReplies.push(ply.mobility.opponentReplyAfter);
+      }
+    }
+
+    for (const actor of ['black', 'white'] as const) {
+      if (runByActor[actor]) commitmentRuns.push(runByActor[actor]);
+    }
+
+    for (const horizon of [2, 4, 8] as const) {
+      for (let index = horizon; index < plies.length; index += 1) {
+        const actor = plies[index].actor;
+        const currentIntent = intentSnapshots[index][actor];
+        if (
+          !currentIntent ||
+          intentSnapshots[index - horizon][actor] !== currentIntent
+        ) {
+          continue;
+        }
+        horizonDeltas[String(horizon) as '2' | '4' | '8'].push(
+          planProgress(plies[index], actor, currentIntent) -
+            planProgress(plies[index - horizon], actor, currentIntent),
+        );
+      }
+    }
+  }
+
+  return {
+    opponentReplyCount: summarizeNumericDistribution(opponentReplies),
+    planCommitmentRun: summarizeNumericDistribution(commitmentRuns),
+    planSwitchShare: summarizeProportion(switches, comparisons),
+    persistentPlanProgress: Object.fromEntries(
+      Object.entries(horizonDeltas).map(([horizon, deltas]) => [
+        horizon,
+        {
+          delta: summarizeNumericDistribution(deltas),
+          positiveShare: summarizeProportion(
+            deltas.filter((delta) => delta > 0).length,
+            deltas.length,
+          ),
+        },
+      ]),
+    ) as BehaviorMeasurementSummary['persistentPlanProgress'],
+  };
+}
 
 function roundMetric(value: number, digits = 6): number {
   return Number(value.toFixed(digits));
@@ -506,6 +636,9 @@ export function summarizeMeasuredBehavior(
   const firstMoves: Record<string, number> = {};
   const firstMoveSourceFamilies: Record<string, number> = {};
   const intents: Record<string, number> = {};
+  const strategicTrajectories = summarizeStrategicTrajectories(
+    traces.map((trace) => trace.plies),
+  );
 
   for (const trace of traces) {
     if (trace.plies[0]) {
@@ -531,6 +664,7 @@ export function summarizeMeasuredBehavior(
     participationDelta: summarizeNumericDistribution(
       plies.map((ply) => ply.participationDelta),
     ),
+    ...strategicTrajectories,
     positiveParticipationShare: summarizeProportion(
       plies.filter((ply) => ply.participationDelta > 0).length,
       plies.length,
