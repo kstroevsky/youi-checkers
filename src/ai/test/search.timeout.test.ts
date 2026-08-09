@@ -33,7 +33,9 @@ describe('computer opponent search timeouts', () => {
       Object.assign(AI_DIFFICULTY_PRESETS.hard, originalHardPreset);
     }
 
-    expect(legalActions.length).toBeGreaterThan(AI_DIFFICULTY_PRESETS.hard.quietMoveLimit);
+    expect(legalActions.length).toBeGreaterThan(
+      AI_DIFFICULTY_PRESETS.hard.quietMoveLimit,
+    );
     expect(result.completedDepth).toBe(1);
     expect(result.completedRootMoves).toBe(legalActions.length);
     expect(result.fallbackKind).toBe('none');
@@ -76,12 +78,18 @@ describe('computer opponent search timeouts', () => {
       actionKey(legalActions[0] ?? null),
     );
     expect(result.timedOut).toBe(true);
-    expect(['orderedRoot', 'partialCurrentDepth']).toContain(result.fallbackKind);
+    expect(['orderedRoot', 'partialCurrentDepth']).toContain(
+      result.fallbackKind,
+    );
     if (result.fallbackKind === 'partialCurrentDepth') {
       expect(result.completedRootMoves).toBeGreaterThan(0);
-      expect(actionKey(result.action)).not.toBe(actionKey(legalActions[0] ?? null));
+      expect(actionKey(result.action)).not.toBe(
+        actionKey(legalActions[0] ?? null),
+      );
     } else {
-      expect(actionKey(result.action)).toBe(actionKey(orderedRootMoves[0]?.action ?? null));
+      expect(actionKey(result.action)).toBe(
+        actionKey(orderedRootMoves[0]?.action ?? null),
+      );
     }
   });
 
@@ -95,7 +103,9 @@ describe('computer opponent search timeouts', () => {
       ruleConfig: config,
       searchBudget: {
         maxDepth: 6,
-        maxEvaluatedNodes: 2_600,
+        // Root preparation now consumes more explicitly-accounted nodes. Leave
+        // enough budget to enter depth two before asserting partial evidence.
+        maxEvaluatedNodes: 3_000,
         type: 'fixedNodes',
       },
       state,
