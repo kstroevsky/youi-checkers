@@ -805,3 +805,17 @@ Verification 2026-08-09 (human experience calibration infrastructure):
 - Regressions cover opaque counterbalancing, held-out-player isolation, recovery of a known synthetic descriptor preference, uncertainty selection, and exploration propensities.
 - The synthetic five-participant/ten-observation smoke generated valid JSON and Markdown, held out one complete participant, recovered the planted productive-participation direction, and correctly reported `confirmatoryReady: false`.
 - Human-calibration tests, TypeScript, changed-file ESLint, and report execution pass. The checked-in JSONL is explicitly synthetic infrastructure data, not human evidence.
+
+Update 2026-08-09 (strategic hypotheses and concentration semantics):
+
+- Added a normalized, ranked portfolio of home-field, six-stack, and hybrid plan hypotheses. It is deliberately observational: 25% and 10% attempts to blend portfolio progress into move choice were rejected when the existing variety guardrail did not improve, and the experimental selective extension was removed after materially increasing search cost.
+- Added strategic near-cycle measurement over a normalized structural state vector. It detects bounded-lag, same-actor near-recurrence between distinct hashes and reports both rate and eligible sample count alongside exact recurrence analytics.
+- Replaced raw source-family HHI as a release assertion with `avoidableSourceFamilyRepeatRate`. A repeated source family is counted only when another family is terminal-safe, non-repeating, non-self-undoing, below the draw-trap ceiling, and inside the declared difficulty regret cap.
+- Retained raw HHI as a descriptive measurement. On the deterministic four-pair corpus, the corrected avoidable-repeat rate is 0.058333 on Medium and 0.016667 on Hard, explaining why Hard's slightly higher raw HHI reflects tactical necessity rather than more discretionary checker reuse.
+
+Verification 2026-08-09 (strategic hypotheses and concentration semantics):
+
+- The clean serial suite passes 72 files and 396 tests with one intentional skip, including the 22-case performance benchmark and all six 200/500-turn search soaks. The focused strategic-plan, advanced-metric, and variety suites pass 28 tests.
+- Production build, repository-scoped ESLint, documentation links, enforced tactical-competence smoke, TypeScript, and diff hygiene pass.
+- Browser verification rendered the production build, selected A1, opened the move dialog, and exposed the expected `pieceSelected` state without a console-error artifact. The worker-backed multi-game finishing E2E also passed.
+- No unvalidated plan score or selective search extension was promoted into production move selection.

@@ -366,6 +366,26 @@ entered loop pressure. These conditional metrics publish their eligible sample
 counts beside the estimate. Symbolic Lempel-Ziv complexity is computed over
 tokens, so renaming a position/action token cannot change the value.
 
+Near-cycle detection complements exact-hash recurrence with a normalized
+structural state vector covering empty cells, stack-height distribution, frozen
+singles, and both victory-plan progress measures. It compares only bounded-lag,
+same-actor positions and excludes identical hashes, so an `A-B-A'-B'` strategic
+oscillation is visible even when checker identity or a peripheral square keeps
+the canonical positions distinct. The rate remains descriptive until its
+distance threshold is calibrated from a larger empirical state corpus.
+
+Raw source-family HHI also remains descriptive. The release guardrail uses
+`avoidableSourceFamilyRepeatRate`: a repeated checker family counts against the
+policy only when a different family survives terminal safety and lies inside
+the difficulty's maximum strength-regret cap. Tactical necessity is therefore
+not mislabeled as a style failure.
+
+The strategy layer can now expose a normalized, ranked portfolio of home-field,
+six-stack, and hybrid plan hypotheses without changing adversarial evaluation
+or final move choice. Its confidence is observational pending fixed-horizon
+strength and human-preference evidence; attempted search extensions were not
+retained because they exceeded the existing runtime/variety guardrails.
+
 The summary records Git revision/dirty state, Node and package versions, OS,
 architecture, CPU count, fixture hash, raw-sample hash, raw path, and sample
 count. The JSONL checksum makes a summary/raw mismatch detectable.
