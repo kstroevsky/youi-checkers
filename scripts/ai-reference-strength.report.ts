@@ -69,10 +69,28 @@ function parseArgs(argv: string[]): {
   out: string;
   settings: Settings;
 } {
+  const allowedArgs = new Set([
+    'adjudicate-horizon',
+    'difficulty',
+    'max-plies',
+    'nodes',
+    'out',
+    'pairs',
+    'profile',
+    'references',
+    'resume',
+    'scenario-limit',
+    'shard-count',
+    'shard-index',
+    'split',
+  ]);
   const args = new Map<string, string>();
   for (const entry of argv) {
     if (!entry.startsWith('--')) continue;
     const [key, value = ''] = entry.slice(2).split('=');
+    if (!allowedArgs.has(key)) {
+      throw new Error(`Unknown argument --${key}.`);
+    }
     args.set(key, value);
   }
   const profile = (args.get('profile') ?? 'smoke') as Profile;
