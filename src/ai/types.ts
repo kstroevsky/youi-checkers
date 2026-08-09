@@ -92,6 +92,8 @@ export type AiSearchBudgetReport = {
 /** Inputs accepted by the pure search entrypoint. */
 export type ChooseComputerActionRequest = {
   behaviorProfile?: AiBehaviorProfile | null;
+  /** Measurement-only override for how many searched root scores are returned. */
+  diagnosticRootCandidateLimit?: number;
   difficulty: AiDifficulty;
   modelGuidance?: AiModelGuidance | null;
   now?: () => number;

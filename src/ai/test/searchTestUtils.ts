@@ -2,12 +2,15 @@ import { expect } from 'vitest';
 
 import { AI_DIFFICULTY_PRESETS, chooseComputerAction } from '@/ai';
 import { applyAction, createInitialState, getLegalActions } from '@/domain';
-import { createEmptyBoard } from '@/domain/model/board';
-import { createCoord } from '@/domain/model/coordinates';
-import type { Coord, GameState, TurnAction } from '@/domain/model/types';
+import type { TurnAction } from '@/domain/model/types';
 import { validateGameState } from '@/domain/validators/stateValidators';
-import { checker, gameStateWithBoard } from '@/test/factories';
 import { withConfig } from '@/test/factories';
+
+export {
+  createHomeFieldWinState,
+  createOpponentThreatState,
+  createSixStackWinState,
+} from '@/ai/test/tacticalFixtures';
 
 /** Serializes nullable actions into compact test assertions. */
 export function actionKey(action: TurnAction | null): string {
@@ -57,134 +60,6 @@ export function createSeededRandom(seed = 1): () => number {
     current = (current * 1_664_525 + 1_013_904_223) >>> 0;
     return current / 0x1_0000_0000;
   };
-}
-
-function fillBlackReserve(
-  board: ReturnType<typeof createEmptyBoard>,
-  excluded: Set<Coord>,
-  frozenSingles = true,
-): void {
-  const reserveCoords: Coord[] = [
-    'A1',
-    'B1',
-    'C1',
-    'D1',
-    'E1',
-    'F1',
-    'A2',
-    'B2',
-    'C2',
-    'D2',
-    'E2',
-    'F2',
-    'A3',
-    'B3',
-    'C3',
-    'D3',
-    'E3',
-    'F3',
-  ];
-  const missingReserveSlots = reserveCoords.filter((coord) => excluded.has(coord)).length;
-  const stackCoord =
-    frozenSingles && missingReserveSlots > 0
-      ? reserveCoords.find((coord) => !excluded.has(coord)) ?? null
-      : null;
-  let blackCount = 0;
-
-  for (const coord of reserveCoords) {
-    if (excluded.has(coord)) {
-      continue;
-    }
-
-    board[coord].checkers.push(checker('black', coord === stackCoord ? false : frozenSingles));
-    blackCount += 1;
-  }
-
-  while (blackCount < 18) {
-    if (!stackCoord) {
-      throw new Error('Black reserve could not place a valid overflow stack.');
-    }
-
-    board[stackCoord].checkers.push(checker('black'));
-    blackCount += 1;
-  }
-}
-
-/** Builds a position with a one-move home-field win for white. */
-export function createHomeFieldWinState(): GameState {
-  const board = createEmptyBoard();
-  const excluded = new Set<Coord>(['C3']);
-
-  for (const row of [4, 5, 6] as const) {
-    for (const column of ['A', 'B', 'C', 'D', 'E', 'F'] as const) {
-      const coord = createCoord(column, row);
-
-      if (coord === 'C4') {
-        continue;
-      }
-
-      board[coord].checkers = [checker('white')];
-      excluded.add(coord);
-    }
-  }
-
-  board.C3.checkers = [checker('white')];
-  fillBlackReserve(board, excluded);
-
-  return gameStateWithBoard(board);
-}
-
-/** Builds a position with a one-move six-stack win for white. */
-export function createSixStackWinState(): GameState {
-  const board = createEmptyBoard();
-  const excluded = new Set<Coord>(['A5', 'A6']);
-
-  (['B6', 'C6', 'D6', 'E6', 'F6'] as const).forEach((coord) => {
-    board[coord].checkers = [checker('white'), checker('white'), checker('white')];
-    excluded.add(coord);
-  });
-  board.A6.checkers = [checker('white'), checker('white')];
-  board.A5.checkers = [checker('white')];
-  fillBlackReserve(board, excluded);
-
-  return gameStateWithBoard(board);
-}
-
-/** Builds a position where white must stop black from winning immediately. */
-export function createOpponentThreatState(): GameState {
-  const board = createEmptyBoard();
-
-  (['B1', 'C1', 'D1', 'E1', 'F1'] as const).forEach((coord) => {
-    board[coord].checkers = [checker('black'), checker('black'), checker('black')];
-  });
-  board.A1.checkers = [checker('black'), checker('black')];
-  board.A2.checkers = [checker('black')];
-  board.B2.checkers = [checker('white')];
-
-  let whiteCount = 1;
-
-  for (const row of [4, 5, 6] as const) {
-    for (const column of ['A', 'B', 'C', 'D', 'E', 'F'] as const) {
-      const coord = createCoord(column, row);
-
-      if (coord === 'B4') {
-        continue;
-      }
-
-      board[coord].checkers = [checker('white', true)];
-      whiteCount += 1;
-
-      if (whiteCount === 18) {
-        break;
-      }
-    }
-
-    if (whiteCount === 18) {
-      break;
-    }
-  }
-
-  return gameStateWithBoard(board);
 }
 
 export type SoakStats = {

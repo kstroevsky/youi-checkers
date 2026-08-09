@@ -213,6 +213,7 @@ function toFallbackRanked(orderedMoves: OrderedAction[]): RootRankedAction[] {
 /** Chooses one computer move using iterative deepening negamax with alpha-beta pruning. */
 export function chooseComputerAction({
   behaviorProfile = null,
+  diagnosticRootCandidateLimit,
   difficulty,
   modelGuidance = null,
   now = () => performance.now(),
@@ -241,6 +242,13 @@ export function chooseComputerAction({
   }
 
   const preset = AI_DIFFICULTY_PRESETS[difficulty];
+  const rootCandidateLimit =
+    diagnosticRootCandidateLimit ?? preset.rootCandidateLimit;
+  if (!Number.isSafeInteger(rootCandidateLimit) || rootCandidateLimit <= 0) {
+    throw new RangeError(
+      'diagnosticRootCandidateLimit must be a positive safe integer.',
+    );
+  }
   const startedAt = now();
   const resolvedBudget = resolveSearchBudget(searchBudget, preset, startedAt);
   const deadline = resolvedBudget.deadline;
@@ -481,7 +489,7 @@ export function chooseComputerAction({
                 tiebreakEdgeKind: entry.tiebreakEdgeKind,
               },
             ],
-            preset.rootCandidateLimit,
+            rootCandidateLimit,
           ),
           searchBudget: reportSearchBudget(resolvedBudget, 'none'),
           bestSearchAction: entry.action,
@@ -548,7 +556,7 @@ export function chooseComputerAction({
       riskMode: effectiveRiskMode,
       rootCandidates: orderRootCandidates(
         fallbackCandidates,
-        preset.rootCandidateLimit,
+        rootCandidateLimit,
       ),
       searchBudget: reportSearchBudget(
         resolvedBudget,
@@ -828,7 +836,7 @@ export function chooseComputerAction({
     riskMode: effectiveRiskMode,
     rootCandidates: orderRootCandidates(
       rootCandidates,
-      preset.rootCandidateLimit,
+      rootCandidateLimit,
     ),
     searchBudget: reportSearchBudget(
       resolvedBudget,
