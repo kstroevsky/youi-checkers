@@ -184,7 +184,7 @@ describe('computer opponent search', () => {
         stagnationRepetitionWeight: 18,
         stagnationSelfUndoWeight: 18,
         stagnationThreshold: 0.5,
-        varietyTemperature: 0.15,
+        varietyTemperature: 0.22,
         varietyThreshold: 0.015,
         varietyTopCount: 3,
       },
