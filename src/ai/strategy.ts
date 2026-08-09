@@ -60,6 +60,15 @@ export type IntentProfile = {
   sixStackPlanPotential: number;
 };
 
+export type StrategicPlanHypothesis = {
+  confidence: number;
+  intent: AiStrategicIntent;
+  potential: number;
+  rank: number;
+};
+
+const STRATEGIC_PORTFOLIO_TEMPERATURE = 900;
+
 /** Extra potential required to abandon an already-legible win plan. */
 export const STRATEGIC_PLAN_SWITCH_MARGIN = 1_400;
 
@@ -546,6 +555,56 @@ function getIntentScore(profile: IntentProfile): number {
     default:
       return profile.hybridPlanPotential;
   }
+}
+
+function getPlanPotential(
+  profile: IntentProfile,
+  intent: AiStrategicIntent,
+): number {
+  switch (intent) {
+    case 'home':
+      return profile.homePlanPotential;
+    case 'sixStack':
+      return profile.sixStackPlanPotential;
+    default:
+      return profile.hybridPlanPotential;
+  }
+}
+
+/**
+ * Retains several credible strategic hypotheses instead of collapsing an
+ * ambiguous position into one brittle label. Confidence is a softmax over the
+ * same plan potentials used by evaluation, so the portfolio adds no hidden
+ * objective.
+ */
+export function getStrategicPlanPortfolio(
+  profile: IntentProfile,
+  temperature = STRATEGIC_PORTFOLIO_TEMPERATURE,
+): StrategicPlanHypothesis[] {
+  if (!(temperature > 0)) {
+    throw new RangeError('Strategic portfolio temperature must be positive.');
+  }
+  const candidates = (['home', 'sixStack', 'hybrid'] as const).map(
+    (intent) => ({ intent, potential: getPlanPotential(profile, intent) }),
+  );
+  const maximum = Math.max(...candidates.map(({ potential }) => potential));
+  const weights = candidates.map(({ potential }) =>
+    Math.exp((potential - maximum) / temperature),
+  );
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+
+  return candidates
+    .map((candidate, index) => ({
+      ...candidate,
+      confidence: weights[index] / total,
+      rank: 0,
+    }))
+    .sort(
+      (left, right) =>
+        right.confidence - left.confidence ||
+        left.intent.localeCompare(right.intent),
+    )
+    .map((candidate, index) => ({ ...candidate, rank: index + 1 }));
 }
 
 /** Normalizes heterogeneous actions onto a common target coordinate abstraction. */

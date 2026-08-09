@@ -1,4 +1,5 @@
 import {
+  getStrategicPlanPortfolio,
   stabilizeStrategicIntent,
   STRATEGIC_PLAN_SWITCH_MARGIN,
   type IntentProfile,
@@ -23,6 +24,21 @@ function profile(
 }
 
 describe('strategic plan hysteresis', () => {
+  it('retains a normalized ranked portfolio of credible plans', () => {
+    const portfolio = getStrategicPlanPortfolio(
+      profile('hybrid', 1_000, 1_100),
+    );
+
+    expect(portfolio).toHaveLength(3);
+    expect(portfolio.map(({ rank }) => rank)).toEqual([1, 2, 3]);
+    expect(
+      portfolio.reduce((sum, hypothesis) => sum + hypothesis.confidence, 0),
+    ).toBeCloseTo(1, 12);
+    expect(portfolio[0].potential).toBeGreaterThanOrEqual(
+      portfolio[1].potential,
+    );
+  });
+
   it('uses the live classifier before a plan is committed', () => {
     expect(stabilizeStrategicIntent(profile('sixStack', 100, 900), null)).toBe(
       'sixStack',
