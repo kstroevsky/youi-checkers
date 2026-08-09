@@ -1,4 +1,5 @@
 import {
+  type NumericDistributionSummary,
   summarizeNumericDistribution,
   summarizeProportion,
 } from '@/ai/test/measurement';
@@ -6,6 +7,33 @@ import type {
   ReferenceStrengthGame,
   ReferenceStrengthPair,
 } from '@/ai/test/referenceStrength';
+
+export type RatingDifferenceSummary = {
+  ci95: { high: number | null; low: number | null };
+  estimate: number | null;
+  model: 'logisticElo';
+  sampleCount: number;
+};
+
+/** Converts expected score against the frozen pool to conventional logistic Elo. */
+export function pointShareToEloDifference(pointShare: number): number | null {
+  if (!(pointShare > 0 && pointShare < 1)) return null;
+  return Number((400 * Math.log10(pointShare / (1 - pointShare))).toFixed(3));
+}
+
+function ratingDifference(
+  score: NumericDistributionSummary,
+): RatingDifferenceSummary {
+  return {
+    ci95: {
+      high: pointShareToEloDifference(score.meanCi95.high),
+      low: pointShareToEloDifference(score.meanCi95.low),
+    },
+    estimate: score.count > 0 ? pointShareToEloDifference(score.mean) : null,
+    model: 'logisticElo',
+    sampleCount: score.count,
+  };
+}
 
 function gameOutcome(
   game: ReferenceStrengthGame,
@@ -64,6 +92,8 @@ export function summarizeReferenceStrengthPairs(
   const candidatePlies = games
     .flatMap((game) => game.plies)
     .filter((ply) => ply.actorKind === 'candidate');
+  const adjudicatedPointShare = summarizeNumericDistribution(adjudicatedPairs);
+  const naturalPointShare = summarizeNumericDistribution(resolvedPairs);
   const strata = Object.fromEntries(
     [...new Set(pairs.map(({ stratumId }) => stratumId))]
       .sort()
@@ -100,9 +130,12 @@ export function summarizeReferenceStrengthPairs(
       candidatePlies.length,
     ),
     candidatePointShareByGame: summarizeNumericDistribution(resolvedGames),
-    candidatePointShareByAdjudicatedPair:
-      summarizeNumericDistribution(adjudicatedPairs),
-    candidatePointShareByPair: summarizeNumericDistribution(resolvedPairs),
+    candidatePointShareByAdjudicatedPair: adjudicatedPointShare,
+    candidatePointShareByPair: naturalPointShare,
+    candidateRatingDifferenceByAdjudicatedPair: ratingDifference(
+      adjudicatedPointShare,
+    ),
+    candidateRatingDifferenceByNaturalPair: ratingDifference(naturalPointShare),
     candidateZeroDepthShare: summarizeProportion(
       candidatePlies.filter((ply) => ply.searchResult?.completedDepth === 0)
         .length,

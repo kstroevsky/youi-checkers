@@ -4,7 +4,10 @@ import type {
   ReferenceStrengthGame,
   ReferenceStrengthPair,
 } from '@/ai/test/referenceStrength';
-import { summarizeReferenceStrengthPairs } from '@/ai/test/referenceStrengthReport';
+import {
+  pointShareToEloDifference,
+  summarizeReferenceStrengthPairs,
+} from '@/ai/test/referenceStrengthReport';
 
 function game(
   id: string,
@@ -46,6 +49,13 @@ function pair(
 }
 
 describe('reference strength outcome summaries', () => {
+  it('converts point share into a diagnostic logistic rating difference', () => {
+    expect(pointShareToEloDifference(0.5)).toBe(0);
+    expect(pointShareToEloDifference(0.75)).toBe(190.849);
+    expect(pointShareToEloDifference(0)).toBeNull();
+    expect(pointShareToEloDifference(1)).toBeNull();
+  });
+
   it('keeps competing terminal events, ongoing games, and censoring separate', () => {
     const summary = summarizeReferenceStrengthPairs(
       [
@@ -69,5 +79,10 @@ describe('reference strength outcome summaries', () => {
     expect(at96.censored.share).toBe(0.25);
     expect(at96.stillPlaying.share).toBe(0);
     expect(summary.resolvedPairs.share).toBe(0.5);
+    expect(summary.candidateRatingDifferenceByAdjudicatedPair).toMatchObject({
+      estimate: 0,
+      model: 'logisticElo',
+      sampleCount: 2,
+    });
   });
 });

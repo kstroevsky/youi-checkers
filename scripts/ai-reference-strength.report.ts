@@ -267,6 +267,9 @@ function markdown(report: {
   settings: Settings;
   summary: ReturnType<typeof summarizeReferenceStrengthPairs>;
 }): string {
+  const rating = report.settings.adjudicateHorizon
+    ? report.summary.candidateRatingDifferenceByAdjudicatedPair
+    : report.summary.candidateRatingDifferenceByNaturalPair;
   const lines = [
     '# AI Frozen-Reference Strength',
     '',
@@ -289,6 +292,10 @@ function markdown(report: {
     report.settings.adjudicateHorizon
       ? `Fixed-horizon adjudicated point share: ${report.summary.candidatePointShareByAdjudicatedPair.mean} (95% CI ${report.summary.candidatePointShareByAdjudicatedPair.meanCi95.low}–${report.summary.candidatePointShareByAdjudicatedPair.meanCi95.high}).`
       : 'Fixed-horizon adjudication is disabled for this run.',
+    '',
+    rating.sampleCount > 0
+      ? `Diagnostic logistic rating difference: ${rating.estimate ?? 'unbounded'} Elo (transformed 95% CI ${rating.ci95.low ?? 'unbounded'}–${rating.ci95.high ?? 'unbounded'}) versus the frozen reference pool.`
+      : 'Diagnostic logistic rating difference: unavailable until the selected endpoint has observations.',
     '',
     '| Stratum | Resolved pairs | Natural point share | Adjudicated point share | Adjudicated 95% CI |',
     '| --- | ---: | ---: | ---: | ---: |',
