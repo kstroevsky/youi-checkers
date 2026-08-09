@@ -74,9 +74,14 @@ export function summarizeReferenceStrengthPairs(
         const values = stratumPairs.flatMap((pair) =>
           pair.pairScore === null ? [] : [pair.pairScore],
         );
+        const adjudicatedValues = stratumPairs.flatMap((pair) =>
+          pair.adjudicatedPairScore === null ? [] : [pair.adjudicatedPairScore],
+        );
         return [
           stratumId,
           {
+            adjudicatedPairScore:
+              summarizeNumericDistribution(adjudicatedValues),
             pairScore: summarizeNumericDistribution(values),
             resolvedPairs: summarizeProportion(
               values.length,

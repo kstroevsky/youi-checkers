@@ -265,12 +265,12 @@ function markdown(report: {
       ? `Fixed-horizon adjudicated point share: ${report.summary.candidatePointShareByAdjudicatedPair.mean} (95% CI ${report.summary.candidatePointShareByAdjudicatedPair.meanCi95.low}–${report.summary.candidatePointShareByAdjudicatedPair.meanCi95.high}).`
       : 'Fixed-horizon adjudication is disabled for this run.',
     '',
-    '| Stratum | Resolved pairs | Point share | 95% CI |',
-    '| --- | ---: | ---: | ---: |',
+    '| Stratum | Resolved pairs | Natural point share | Adjudicated point share | Adjudicated 95% CI |',
+    '| --- | ---: | ---: | ---: | ---: |',
   ];
   for (const [stratumId, summary] of Object.entries(report.summary.strata)) {
     lines.push(
-      `| ${stratumId} | ${summary.resolvedPairs.count}/${summary.resolvedPairs.total} | ${summary.pairScore.mean} | [${summary.pairScore.meanCi95.low}, ${summary.pairScore.meanCi95.high}] |`,
+      `| ${stratumId} | ${summary.resolvedPairs.count}/${summary.resolvedPairs.total} | ${summary.pairScore.mean} | ${summary.adjudicatedPairScore.mean} | [${summary.adjudicatedPairScore.meanCi95.low}, ${summary.adjudicatedPairScore.meanCi95.high}] |`,
     );
   }
   lines.push(
@@ -296,9 +296,12 @@ async function main(): Promise<void> {
     positionHash: hashPosition(fixture.state),
     split: fixture.split,
   }));
+  const productionAiFiles = gitTrackedFiles('src/ai').filter(
+    (filePath) => !filePath.startsWith('src/ai/test/'),
+  );
   const [candidateSha256, domainSha256, referencePoolSha256] =
     await Promise.all([
-      sourceFingerprint(gitTrackedFiles('src/ai')),
+      sourceFingerprint(productionAiFiles),
       sourceFingerprint(gitTrackedFiles('src/domain')),
       sourceFingerprint(['src/ai/test/frozenReferencePool.ts']),
     ]);

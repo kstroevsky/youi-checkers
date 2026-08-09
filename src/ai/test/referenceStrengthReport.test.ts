@@ -25,6 +25,13 @@ function pair(
   games: [ReferenceStrengthGame, ReferenceStrengthGame],
 ): ReferenceStrengthPair {
   return {
+    adjudicatedPairScore:
+      games.reduce(
+        (sum, entry) =>
+          sum +
+          (entry.adjudicatedCandidatePoints ?? entry.candidatePoints ?? 0.5),
+        0,
+      ) / 2,
     games,
     kind: 'strengthPair',
     pairId: id,
