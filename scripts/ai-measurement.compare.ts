@@ -7,8 +7,11 @@ import {
   summarizePairedDifference,
   type PairedDifferenceSummary,
 } from '@/ai/test/measurement';
+import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
+import type { AiDifficulty } from '@/shared/types/session';
 
 type DecisionSample = {
+  difficulty: AiDifficulty;
   kind: 'decision';
   observedWallMs: number;
   result: {
@@ -18,6 +21,7 @@ type DecisionSample = {
     fallbackKind: string;
     partialDepth: number | null;
     partialRootMoves: number;
+    selectionRegret: number;
   };
   sampleId: string;
 };
@@ -119,6 +123,7 @@ function markdown(report: {
   candidateRevision: string;
   metrics: Record<string, ComparisonMetric>;
   overallVerdict: string;
+  styleBudgetViolations: number;
 }): string {
   const lines = [
     '# AI Measurement Paired Comparison',
@@ -128,6 +133,7 @@ function markdown(report: {
     `Candidate: \`${report.candidateRevision}\``,
     '',
     `Overall infrastructure verdict: **${report.overallVerdict}**`,
+    `Candidate style-budget violations: **${report.styleBudgetViolations}**`,
     '',
     '| Metric | Direction | Baseline mean | Candidate mean | Oriented delta | 95% CI | Verdict |',
     '| --- | --- | ---: | ---: | ---: | ---: | --- |',
@@ -231,16 +237,35 @@ async function main(): Promise<void> {
         { direction: 'lowerIsBetter', materialDifference: 0.01 },
       ),
     },
+    selectionRegret: {
+      meaning:
+        'Lower root-score regret means less adversarial strength was sacrificed during final selection.',
+      summary: summarizePairedDifference(
+        pairedValues(
+          baselineSamples,
+          candidateSamples,
+          (sample) => sample.result.selectionRegret,
+        ),
+        { direction: 'lowerIsBetter', materialDifference: 30 },
+      ),
+    },
   };
   const guardrailNames = [
     'completedDepth',
     'completedRootMoves',
     'fallbackShare',
     'partialDepthShare',
+    'selectionRegret',
   ];
-  const hasRegression = guardrailNames.some(
-    (name) => metrics[name].summary.verdict === 'regressed',
-  );
+  const styleBudgetViolations = [...candidateSamples.values()].filter(
+    (sample) =>
+      sample.result.selectionRegret >
+      AI_DIFFICULTY_PRESETS[sample.difficulty].maxSelectionRegret,
+  ).length;
+  const hasRegression =
+    guardrailNames.some(
+      (name) => metrics[name].summary.verdict === 'regressed',
+    ) || styleBudgetViolations > 0;
   const hasImprovement = Object.values(metrics).some(
     (metric) => metric.summary.verdict === 'improved',
   );
@@ -257,6 +282,7 @@ async function main(): Promise<void> {
     overallVerdict,
     pairCount: baselineSamples.size,
     schemaVersion: AI_MEASUREMENT_SCHEMA_VERSION,
+    styleBudgetViolations,
   };
   const outputPrefix =
     args.out ?? path.join('output', 'ai', 'ai-measurement-paired');

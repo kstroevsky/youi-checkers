@@ -11,9 +11,11 @@ import {
   type AiSearchResult,
 } from '@/ai';
 import { createAiBehaviorProfile } from '@/ai/behavior';
+import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
 import {
   AI_MEASUREMENT_SCHEMA_VERSION,
   summarizeMeasuredBehavior,
+  summarizeNumericDistribution,
   summarizeOutcomes,
   summarizeProportion,
   summarizeSearchExecutions,
@@ -71,6 +73,26 @@ type Settings = {
   scenarioLimit: number;
   timeBudgetMs: number;
 };
+
+function summarizeStyleRegret(regrets: number[], difficulty: AiDifficulty) {
+  const budget = AI_DIFFICULTY_PRESETS[difficulty].maxSelectionRegret;
+
+  return {
+    budget,
+    budgetUtilization: summarizeNumericDistribution(
+      regrets.map((regret) => regret / budget),
+    ),
+    budgetViolations: summarizeProportion(
+      regrets.filter((regret) => regret > budget).length,
+      regrets.length,
+    ),
+    positiveSelections: summarizeProportion(
+      regrets.filter((regret) => regret > 0).length,
+      regrets.length,
+    ),
+    regret: summarizeNumericDistribution(regrets),
+  };
+}
 
 function parseArgs(argv: string[]): Settings {
   const parsed = new Map<string, string>();
@@ -264,6 +286,10 @@ function buildMarkdown(report: Record<string, unknown>): string {
       gameSearch: ReturnType<typeof summarizeSearchPaths>;
       outcomes: ReturnType<typeof summarizeOutcomes>;
       spatialEquivariance: ReturnType<typeof summarizeProportion>;
+      styleRegret: {
+        decisions: ReturnType<typeof summarizeStyleRegret>;
+        games: ReturnType<typeof summarizeStyleRegret>;
+      };
     }
   >;
   const lines = [
@@ -273,14 +299,14 @@ function buildMarkdown(report: Record<string, unknown>): string {
     '',
     'This report keeps search-path, outcome, and behavioral evidence separate. Raw samples are stored in `ai-measurement-samples.jsonl`.',
     '',
-    '| Difficulty | Decision depth median | Decision partial | Decision fallback | Game depth median | Game partial | Game fallback | Spatial equivariance | Normal wins | Draws | Unfinished | Opening effective behaviors |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Difficulty | Decision depth median | Decision partial | Decision fallback | Game depth median | Game partial | Game fallback | Spatial equivariance | Normal wins | Draws | Unfinished | Opening effective behaviors | Style budget | Game style-selection share | Max game regret | Budget violations |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
   ];
 
   for (const difficulty of Object.keys(summaries) as AiDifficulty[]) {
     const summary = summaries[difficulty];
     lines.push(
-      `| ${difficulty} | ${summary.decisionSearch.completedDepth.median} | ${summary.decisionSearch.partialDepthShare.share} | ${summary.decisionSearch.fallbackShare.share} | ${summary.gameSearch.completedDepth.median} | ${summary.gameSearch.partialDepthShare.share} | ${summary.gameSearch.fallbackShare.share} | ${summary.spatialEquivariance.share} | ${summary.outcomes.normalGoalWins.share} | ${summary.outcomes.actualDraws.share} | ${summary.outcomes.unfinished.share} | ${summary.behavior.firstMoveDiversity.hill1EffectiveBehaviors} |`,
+      `| ${difficulty} | ${summary.decisionSearch.completedDepth.median} | ${summary.decisionSearch.partialDepthShare.share} | ${summary.decisionSearch.fallbackShare.share} | ${summary.gameSearch.completedDepth.median} | ${summary.gameSearch.partialDepthShare.share} | ${summary.gameSearch.fallbackShare.share} | ${summary.spatialEquivariance.share} | ${summary.outcomes.normalGoalWins.share} | ${summary.outcomes.actualDraws.share} | ${summary.outcomes.unfinished.share} | ${summary.behavior.firstMoveDiversity.hill1EffectiveBehaviors} | ${summary.styleRegret.games.budget} | ${summary.styleRegret.games.positiveSelections.share} | ${summary.styleRegret.games.regret.maximum} | ${summary.styleRegret.games.budgetViolations.count} |`,
     );
   }
 
@@ -404,6 +430,20 @@ async function main(): Promise<void> {
       spatialEquivariance: summarizeSpatialEquivariance(
         difficultyDecisionSamples,
       ),
+      styleRegret: {
+        decisions: summarizeStyleRegret(
+          difficultyDecisionSamples.map(
+            (sample) => sample.result.selectionRegret,
+          ),
+          difficulty,
+        ),
+        games: summarizeStyleRegret(
+          traces.flatMap((trace) =>
+            trace.plies.map((ply) => ply.selectionRegret),
+          ),
+          difficulty,
+        ),
+      },
     };
   }
 
