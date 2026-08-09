@@ -244,6 +244,7 @@ export function selectCandidateAction(
     behaviorSeed?: string | null;
     previousStrategicTags?: AiRootCandidate['tags'] | null;
     riskMode?: AiRiskMode;
+    strategicIntent?: RootRankedAction['intent'];
   } = {},
 ): RootRankedAction {
   const riskMode = options.riskMode ?? 'normal';
@@ -399,6 +400,14 @@ export function selectCandidateAction(
             ) * Math.max(1.5, preset.familyVarietyWeight / 10),
           )
         : 0;
+    const planCoherenceBonus =
+      !options.strategicIntent || options.strategicIntent === 'hybrid'
+        ? 0
+        : entry.intent === options.strategicIntent
+          ? 90
+          : entry.intent === 'hybrid'
+            ? 20
+            : -90;
     const compressedScore =
       best.score + (entry.score - best.score) * scoreCompression;
 
@@ -411,6 +420,7 @@ export function selectCandidateAction(
       diversityBonus +
       personaTagBonus +
       seededGeometryBonus +
+      planCoherenceBonus +
       Math.round(entry.participationDelta * 0.2) +
       Math.round(entry.policyPrior * 40) +
       riskBonus +

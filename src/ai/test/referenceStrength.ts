@@ -1,4 +1,8 @@
-import { chooseComputerAction, type AiSearchResult } from '@/ai';
+import {
+  chooseComputerAction,
+  type AiSearchResult,
+  type AiStrategicIntent,
+} from '@/ai';
 import { createAiBehaviorProfile } from '@/ai/behavior';
 import {
   FROZEN_REFERENCE_POOL_VERSION,
@@ -143,6 +147,7 @@ export function runReferenceStrengthGame({
     `strength-candidate-${candidateSeed}`,
   );
   const plies: ReferenceStrengthPly[] = [];
+  let candidateStrategicIntent: AiStrategicIntent | null = null;
 
   for (let ply = 0; ply < maxPlies && state.status !== 'gameOver'; ply += 1) {
     const actor = state.currentPlayer;
@@ -155,11 +160,13 @@ export function runReferenceStrengthGame({
       searchResult = chooseComputerAction({
         behaviorProfile,
         difficulty: candidateDifficulty,
+        previousStrategicIntent: candidateStrategicIntent,
         random: candidateRandom,
         ruleConfig,
         searchBudget: { maxEvaluatedNodes: nodeBudget, type: 'fixedNodes' },
         state,
       });
+      candidateStrategicIntent = searchResult.strategicIntent;
       action = searchResult.action;
     } else {
       const decision = chooseFrozenReferenceAction({

@@ -99,6 +99,7 @@ export type ChooseComputerActionRequest = {
   difficulty: AiDifficulty;
   modelGuidance?: AiModelGuidance | null;
   now?: () => number;
+  previousStrategicIntent?: AiStrategicIntent | null;
   random?: () => number;
   ruleConfig: RuleConfig;
   searchBudget?: AiSearchBudget;
@@ -223,6 +224,7 @@ export type AiWorkerRequest = {
   behaviorProfile: AiBehaviorProfile | null;
   matchSettings: MatchSettings;
   requestId: number;
+  previousStrategicIntent: AiStrategicIntent | null;
   ruleConfig: RuleConfig;
   searchMode: AiSearchMode;
   state: EngineState;

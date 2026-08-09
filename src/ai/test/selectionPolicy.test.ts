@@ -18,6 +18,7 @@ function candidate(
   options: {
     isForced?: boolean;
     isRepetition?: boolean;
+    intent?: RootRankedAction['intent'];
     participationDelta?: number;
     terminalUtility?: AiTerminalUtility;
   } = {},
@@ -28,7 +29,7 @@ function candidate(
     emptyCellsDelta: 0,
     freezeSwingBonus: 0,
     homeFieldDelta: 0,
-    intent: 'hybrid',
+    intent: options.intent ?? 'hybrid',
     intentDelta: 0,
     isForced: options.isForced ?? false,
     isRepetition: options.isRepetition ?? false,
@@ -57,6 +58,20 @@ function candidate(
 }
 
 describe('root selection safety and strength budget', () => {
+  it('uses the committed plan to break ties inside the safe strength band', () => {
+    const home = candidate('A1', 1_000, { intent: 'home' });
+    const stack = candidate('B1', 1_000, { intent: 'sixStack' });
+
+    expect(
+      selectCandidateAction(
+        [home, stack],
+        AI_DIFFICULTY_PRESETS.hard,
+        () => 0.5,
+        { bandBoost: 1, strategicIntent: 'sixStack' },
+      ),
+    ).toBe(stack);
+  });
+
   it('keeps adversarial strength estimates independent of persona', () => {
     const ruleConfig = withConfig();
     const state = createInitialState(ruleConfig);

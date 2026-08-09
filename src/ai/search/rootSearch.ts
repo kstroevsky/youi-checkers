@@ -15,6 +15,7 @@ import {
 import { buildParticipationState } from '@/ai/participation';
 import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
 import { getRiskProfile, hasCertifiedRiskProgress } from '@/ai/risk';
+import { stabilizeStrategicIntent } from '@/ai/strategy';
 import type { AiSearchResult, ChooseComputerActionRequest } from '@/ai/types';
 import type { TurnAction } from '@/domain';
 import {
@@ -213,6 +214,7 @@ export function chooseComputerAction({
   difficulty,
   modelGuidance = null,
   now = () => performance.now(),
+  previousStrategicIntent = null,
   random = Math.random,
   ruleConfig,
   searchBudget,
@@ -255,11 +257,11 @@ export function chooseComputerAction({
     ruleConfig,
     rootPerfBundle.positionKey,
   );
-  const inferredIntent = getPerfStrategicIntent(
+  const inferredIntentProfile = getPerfStrategicIntent(
     rootPerfBundle,
     state,
     state.currentPlayer,
-  ).intent;
+  );
   const diagnostics = createSearchDiagnostics();
   const riskProfile = getRiskProfile(state, ruleConfig, preset, diagnostics);
   const policyPriors = modelGuidance?.actionPriors ?? null;
@@ -325,10 +327,14 @@ export function chooseComputerAction({
     }
   }
 
-  const strategicIntent =
+  const proposedIntent =
     effectiveRiskMode === 'normal'
-      ? (modelGuidance?.strategicIntent ?? inferredIntent)
-      : inferredIntent;
+      ? (modelGuidance?.strategicIntent ?? inferredIntentProfile.intent)
+      : inferredIntentProfile.intent;
+  const strategicIntent = stabilizeStrategicIntent(
+    { ...inferredIntentProfile, intent: proposedIntent },
+    previousStrategicIntent,
+  );
   let fallbackScore: number | null = null;
 
   /** Lazily computes the root static fallback so timeout/error paths stay cheap unless needed. */
@@ -523,6 +529,7 @@ export function chooseComputerAction({
           behaviorProfileId: behaviorProfile?.id ?? null,
           previousStrategicTags: rootPreviousStrategicTags,
           riskMode: effectiveRiskMode,
+          strategicIntent,
         })
       : null;
     const orderedFallbackScore = fallbackRanked[0]?.score ?? getFallbackScore();
@@ -730,6 +737,7 @@ export function chooseComputerAction({
             behaviorSeed: behaviorProfile?.seed ?? null,
             previousStrategicTags: rootPreviousStrategicTags,
             riskMode: effectiveRiskMode,
+            strategicIntent,
           }).action;
           bestScore = partialBest.score;
           partialDepth = depth;
@@ -787,6 +795,7 @@ export function chooseComputerAction({
                 behaviorSeed: behaviorProfile?.seed ?? null,
                 previousStrategicTags: rootPreviousStrategicTags,
                 riskMode: effectiveRiskMode,
+                strategicIntent,
               }).action
             : (orderedFallback?.action ?? legalActions[0]);
         }
@@ -816,6 +825,7 @@ export function chooseComputerAction({
       behaviorSeed: behaviorProfile?.seed ?? null,
       previousStrategicTags: rootPreviousStrategicTags,
       riskMode: effectiveRiskMode,
+      strategicIntent,
     }).action;
     fallbackKind = 'none';
 
