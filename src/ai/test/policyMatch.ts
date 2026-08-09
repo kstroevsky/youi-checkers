@@ -1,0 +1,223 @@
+import type { AiPolicy, AiPolicyDecision } from '@/ai/test/policy';
+import type { StrengthFixture } from '@/ai/test/referenceStrength';
+import {
+  cloneStrengthState,
+  getHorizonPointsForPlayer,
+  getNaturalPointsForPlayer,
+  getStrengthTerminalType,
+  type StrengthTerminalType,
+} from '@/ai/test/strengthOutcome';
+import {
+  applyAction,
+  hashPosition,
+  type Player,
+  type RuleConfig,
+} from '@/domain';
+import type { AiDifficulty } from '@/shared/types/session';
+
+import { actionKey } from '@/ai/test/searchTestUtils';
+
+export type PolicyMatchPly = {
+  actionKey: string;
+  actor: Player;
+  afterPositionHash: string;
+  beforePositionHash: string;
+  decision: AiPolicyDecision;
+  policyId: string;
+};
+
+export type PolicyMatchGame = {
+  adjudicatedPolicyAPoints: number | null;
+  adjudicationType: 'horizonDomainTiebreak' | 'natural' | 'none';
+  fixtureId: string;
+  gameId: string;
+  plies: PolicyMatchPly[];
+  policyAColor: Player;
+  policyAPoints: number | null;
+  policyByColor: Record<Player, string>;
+  terminalType: StrengthTerminalType;
+  totalPlies: number;
+  winner: Player | null;
+};
+
+export type PolicyMatchPair = {
+  adjudicatedPairScore: number | null;
+  fixtureId: string;
+  games: [PolicyMatchGame, PolicyMatchGame];
+  pairId: string;
+  pairScore: number | null;
+  policyAId: string;
+  policyASeed: number;
+  policyBId: string;
+  policyBSeed: number;
+};
+
+export async function runPolicyMatchGame({
+  adjudicateHorizon,
+  difficulty,
+  fixture,
+  gameId,
+  maxPlies,
+  nodeBudget,
+  policyA,
+  policyAColor,
+  policyASeed,
+  policyB,
+  policyBSeed,
+  ruleConfig,
+}: {
+  adjudicateHorizon: boolean;
+  difficulty: AiDifficulty;
+  fixture: StrengthFixture;
+  gameId: string;
+  maxPlies: number;
+  nodeBudget: number;
+  policyA: AiPolicy;
+  policyAColor: Player;
+  policyASeed: number;
+  policyB: AiPolicy;
+  policyBSeed: number;
+  ruleConfig: RuleConfig;
+}): Promise<PolicyMatchGame> {
+  let state = cloneStrengthState(fixture.state);
+  const policyBColor: Player = policyAColor === 'white' ? 'black' : 'white';
+  const sessions = {
+    [policyAColor]: await policyA.createSession(policyASeed),
+    [policyBColor]: await policyB.createSession(policyBSeed),
+  } as const;
+  const policies = {
+    [policyAColor]: policyA,
+    [policyBColor]: policyB,
+  } as const;
+  const plies: PolicyMatchPly[] = [];
+
+  try {
+    for (let ply = 0; ply < maxPlies && state.status !== 'gameOver'; ply += 1) {
+      const actor = state.currentPlayer;
+      const beforePositionHash = hashPosition(state);
+      const decision = await sessions[actor].decide({
+        difficulty,
+        ruleConfig,
+        searchBudget: { maxEvaluatedNodes: nodeBudget, type: 'fixedNodes' },
+        state,
+      });
+
+      if (!decision.action) break;
+      const nextState = applyAction(state, decision.action, ruleConfig);
+      plies.push({
+        actionKey: actionKey(decision.action),
+        actor,
+        afterPositionHash: hashPosition(nextState),
+        beforePositionHash,
+        decision,
+        policyId: policies[actor].id,
+      });
+      state = nextState;
+    }
+  } finally {
+    await Promise.all(
+      Object.values(sessions).map((session) => session.dispose()),
+    );
+  }
+
+  const naturalPoints = getNaturalPointsForPlayer(state, policyAColor);
+  return {
+    adjudicatedPolicyAPoints:
+      naturalPoints ??
+      (adjudicateHorizon
+        ? getHorizonPointsForPlayer(state, policyAColor)
+        : null),
+    adjudicationType:
+      naturalPoints !== null
+        ? 'natural'
+        : adjudicateHorizon
+          ? 'horizonDomainTiebreak'
+          : 'none',
+    fixtureId: fixture.id,
+    gameId,
+    plies,
+    policyAColor,
+    policyAPoints: naturalPoints,
+    policyByColor: {
+      [policyAColor]: policyA.id,
+      [policyBColor]: policyB.id,
+    } as Record<Player, string>,
+    terminalType: getStrengthTerminalType(state),
+    totalPlies: plies.length,
+    winner:
+      state.status === 'gameOver' && 'winner' in state.victory
+        ? state.victory.winner
+        : null,
+  };
+}
+
+export async function runPolicyMatchPair({
+  adjudicateHorizon,
+  difficulty,
+  fixture,
+  maxPlies,
+  nodeBudget,
+  pairId,
+  policyA,
+  policyASeed,
+  policyB,
+  policyBSeed,
+  ruleConfig,
+}: Omit<Parameters<typeof runPolicyMatchGame>[0], 'gameId' | 'policyAColor'> & {
+  pairId: string;
+}): Promise<PolicyMatchPair> {
+  const games = (await Promise.all([
+    runPolicyMatchGame({
+      adjudicateHorizon,
+      difficulty,
+      fixture,
+      gameId: `${pairId}/a-white`,
+      maxPlies,
+      nodeBudget,
+      policyA,
+      policyAColor: 'white',
+      policyASeed,
+      policyB,
+      policyBSeed,
+      ruleConfig,
+    }),
+    runPolicyMatchGame({
+      adjudicateHorizon,
+      difficulty,
+      fixture,
+      gameId: `${pairId}/a-black`,
+      maxPlies,
+      nodeBudget,
+      policyA,
+      policyAColor: 'black',
+      policyASeed,
+      policyB,
+      policyBSeed,
+      ruleConfig,
+    }),
+  ])) as [PolicyMatchGame, PolicyMatchGame];
+  const naturalScores = games.map((game) => game.policyAPoints);
+  const adjudicatedScores = games.map((game) => game.adjudicatedPolicyAPoints);
+  const pairScore = naturalScores.every(
+    (score): score is number => score !== null,
+  )
+    ? (naturalScores[0] + naturalScores[1]) / 2
+    : null;
+  const adjudicatedPairScore = adjudicatedScores.every(
+    (score): score is number => score !== null,
+  )
+    ? (adjudicatedScores[0] + adjudicatedScores[1]) / 2
+    : null;
+
+  return {
+    adjudicatedPairScore,
+    fixtureId: fixture.id,
+    games,
+    pairId,
+    pairScore,
+    policyAId: policyA.id,
+    policyASeed,
+    policyBId: policyB.id,
+    policyBSeed,
+  };
+}

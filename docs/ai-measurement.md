@@ -25,6 +25,25 @@ not evidence about the intended AI.
 This infrastructure does not change the shipped difficulty presets or move
 selection. A future strategy change needs a separate adoption decision.
 
+## Same-harness policy boundary
+
+`AiPolicy` is the outcome-experiment boundary. It owns a stable id and source
+hash, creates seeded per-game sessions, and returns a legal action plus optional
+policy-specific diagnostics. The current engine and `LegacyPolicyV0` implement
+the same interface; the match harness supplies both with identical current
+domain states, rules, fixed-node budgets, horizons, and color-swapped seeds.
+
+`LegacyPolicyV0` is pinned to `2bd9c455ec2537aa84b1fef38550ce13c53efd29`,
+the parent of the branch's first production-semantic commit
+`944e0f06d937d3a8bce6fba2f6063485a3266ecb`. At runtime its production AI
+sources are materialized from that immutable Git object in an isolated process,
+while `src/domain` and `src/shared` are linked from the current workspace. This
+deliberately compares old policy versus current policy under one current harness
+and one fingerprintable domain, instead of confounding policy changes with each
+revision's historical report schema. Policy-source and adapter hashes are
+separate from the domain, fixture, harness, budget-semantics, and adjudication
+identities that the campaign layer records.
+
 ## Tactical competence and fixed-node regret
 
 `ai:competence` measures the first Phase 2 strength contract. Its fixture catalog

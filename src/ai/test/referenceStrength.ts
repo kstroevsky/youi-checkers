@@ -21,8 +21,13 @@ import {
   type Victory,
 } from '@/domain';
 import type { AiDifficulty } from '@/shared/types/session';
-import { resolveDrawOutcome } from '@/domain/rules/victory';
 import { mirrorGameStateHorizontally } from '@/ai/test/symmetry';
+import {
+  cloneStrengthState,
+  getHorizonPointsForPlayer,
+  getNaturalPointsForPlayer,
+  getStrengthTerminalType,
+} from '@/ai/test/strengthOutcome';
 
 export const AI_REFERENCE_STRENGTH_SCHEMA_VERSION = 3 as const;
 
@@ -111,36 +116,6 @@ function createSeededRandom(seed: number): () => number {
   };
 }
 
-function cloneState(state: GameState): GameState {
-  return structuredClone(state);
-}
-
-function terminalType(state: GameState): ReferenceStrengthGame['terminalType'] {
-  return state.status === 'gameOver' && state.victory.type !== 'none'
-    ? state.victory.type
-    : 'unfinished';
-}
-
-function pointsForCandidate(
-  state: GameState,
-  candidateColor: Player,
-): number | null {
-  if (state.status !== 'gameOver') return null;
-  if ('winner' in state.victory) {
-    return state.victory.winner === candidateColor ? 1 : 0;
-  }
-  return 0.5;
-}
-
-function horizonAdjudicatedPoints(
-  state: GameState,
-  candidateColor: Player,
-): number {
-  const outcome = resolveDrawOutcome(state, 'stalemate');
-  if ('winner' in outcome) return outcome.winner === candidateColor ? 1 : 0;
-  return 0.5;
-}
-
 export function runReferenceStrengthGame({
   adjudicateHorizon,
   candidateColor,
@@ -166,7 +141,7 @@ export function runReferenceStrengthGame({
   referenceSeed: number;
   ruleConfig: RuleConfig;
 }): ReferenceStrengthGame {
-  let state = cloneState(fixture.state);
+  let state = cloneStrengthState(fixture.state);
   const candidateRandom = createSeededRandom(candidateSeed);
   const referenceRandom = createSeededRandom(referenceSeed);
   const behaviorProfile = createAiBehaviorProfile(
@@ -219,12 +194,12 @@ export function runReferenceStrengthGame({
     state = nextState;
   }
 
-  const naturalPoints = pointsForCandidate(state, candidateColor);
+  const naturalPoints = getNaturalPointsForPlayer(state, candidateColor);
   return {
     adjudicatedCandidatePoints:
       naturalPoints ??
       (adjudicateHorizon
-        ? horizonAdjudicatedPoints(state, candidateColor)
+        ? getHorizonPointsForPlayer(state, candidateColor)
         : null),
     adjudicationType:
       naturalPoints !== null
@@ -241,7 +216,7 @@ export function runReferenceStrengthGame({
     plies,
     referenceId,
     referenceSeed,
-    terminalType: terminalType(state),
+    terminalType: getStrengthTerminalType(state),
     totalPlies: plies.length,
     winner:
       state.status === 'gameOver' && 'winner' in state.victory

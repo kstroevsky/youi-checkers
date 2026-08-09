@@ -874,6 +874,13 @@ behavior, spatial equivariance, and human experience as separate evidence
 families. See [`docs/ai-measurement.md`](../../docs/ai-measurement.md) for the
 contract and commands.
 
+For branch-wide outcome comparisons, the Node-only `AiPolicy` layer runs the
+current engine and the merge-base `LegacyPolicyV0` inside the same current match
+harness. The legacy adapter executes immutable old AI sources against current,
+fingerprinted domain rules; seeded sessions, fixed-node budgets, starting states,
+horizons, adjudication, and color swaps therefore remain common. Older report
+schemas are not used as the baseline implementation.
+
 The companion `ai:competence` command owns tactical correctness and equal-work
 strength curves. It validates rule-derived unique wins/defenses under true
 mirrors, searches each subject at increasing fixed-node budgets, and rescores

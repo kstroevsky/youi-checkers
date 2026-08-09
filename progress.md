@@ -763,3 +763,17 @@ Verification 2026-08-09 (measurement-validity corrections):
 - Added regressions proving fixed-node candidates/scores/depth evidence do not change with style RNG, policy priors do not affect final behavioral sampling, continuation mobility is not mislabeled as opponent pressure, and root-preparation counts remain deterministic across wall-clock implementations.
 - Focused selection, behavior, variety, timeout, budget, move-ordering, advanced-metric, and measurement suites pass; TypeScript and changed-file ESLint pass.
 - A one-pair/two-ply legacy-report smoke generated the new report kind, heading, and calibration warning. Its expected non-zero exit reflected deliberately tiny-sample baseline regressions; generated tracked artifacts were restored after inspection.
+
+Update 2026-08-09 (same-harness legacy policy boundary):
+
+- Added a first-class asynchronous `AiPolicy` contract with seeded per-game sessions, immutable policy ids/source hashes, a common decision request, optional policy-specific diagnostics, and explicit disposal.
+- Pinned `LegacyPolicyV0` to `2bd9c455ec2537aa84b1fef38550ce13c53efd29`, the structural feature-branch merge-base and parent of the first production-semantic commit. The adapter materializes that revision's production AI sources into an isolated process but links the current domain/shared implementation, so policy—not historical harness or domain code—is the experimental variable.
+- Added the current-policy adapter and hashes that cover production AI source plus adapter source/version. The legacy hash covers the immutable revision source, adapter server source, and adapter version.
+- Added a current-harness policy match runner with identical fixed-node decision contracts, starting fixtures, horizons, domain adjudication, and color-swapped games. Natural and fixed-horizon scores remain separate.
+- Extracted the existing fixed-horizon outcome/adjudication functions into a shared versioned module so frozen-reference and policy-vs-policy experiments cannot silently implement different terminal scoring.
+
+Verification 2026-08-09 (same-harness legacy policy boundary):
+
+- A regression proves the pinned legacy revision is exactly the parent of the first feature policy commit.
+- Both legacy and current policies returned legal moves for the same current state and fixed-node request, exposed distinct 64-character source hashes, and completed a current-harness two-game color swap.
+- Existing frozen-reference strength tests continue to pass against the shared adjudication implementation; TypeScript, changed-file ESLint, and diff hygiene pass.
