@@ -4,6 +4,8 @@
   "version": "0.3.3",
   "type": "module",
   "scripts": {
+    "ai:competence": "tsx scripts/ai-competence.report.ts",
+    "ai:competence:compare": "node scripts/run-git-report-compare.mjs --pipeline=ai-competence",
     "ai:crossplay": "tsx scripts/ai-crossplay.report.ts",
     "ai:crossplay:compare": "node scripts/run-git-report-compare.mjs --pipeline=ai-crossplay",
     "ai:loop-benchmark": "tsx scripts/ai-loop-benchmark.report.ts",

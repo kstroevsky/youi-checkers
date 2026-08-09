@@ -11,6 +11,16 @@ import {
 } from './report-compare-utils.mjs';
 
 const PIPELINES = {
+  'ai-competence': {
+    compareOutput: 'output/ai/ai-competence.compare.md',
+    jsonOutput: 'output/ai/ai-competence-report.json',
+    notes: [
+      'Compare identical fixture checksums and settings; lower oracle regret and catastrophic-regret share are improvements.',
+      'The largest-budget confirmatory gate is authoritative; smaller fixed-node points diagnose search efficiency.',
+    ],
+    script: 'ai:competence',
+    title: 'AI Competence Comparison',
+  },
   'ai-crossplay': {
     compareOutput: 'output/ai/ai-crossplay.compare.md',
     jsonOutput: 'output/ai/ai-crossplay-report.json',
