@@ -35,6 +35,7 @@ type Profile = 'full' | 'smoke';
 type SplitSelection = StrengthFixtureSplit | 'all';
 
 type Settings = {
+  adjudicateHorizon: boolean;
   candidateDifficulty: AiDifficulty;
   maxPlies: number;
   nodeBudget: number;
@@ -137,6 +138,9 @@ function parseArgs(argv: string[]): {
       args.get('out') ??
       path.join(process.cwd(), 'output', 'ai', 'ai-reference-strength'),
     settings: {
+      adjudicateHorizon:
+        args.get('adjudicate-horizon') === 'true' ||
+        (args.get('adjudicate-horizon') === undefined && profile === 'full'),
       candidateDifficulty,
       maxPlies: parsePositiveInteger(
         args.get('max-plies') ?? (profile === 'full' ? '160' : '24'),
@@ -257,6 +261,10 @@ function markdown(report: {
     '',
     `Candidate point share over resolved pairs: ${report.summary.candidatePointShareByPair.mean} (naive bootstrap 95% CI ${report.summary.candidatePointShareByPair.meanCi95.low}–${report.summary.candidatePointShareByPair.meanCi95.high})`,
     '',
+    report.settings.adjudicateHorizon
+      ? `Fixed-horizon adjudicated point share: ${report.summary.candidatePointShareByAdjudicatedPair.mean} (95% CI ${report.summary.candidatePointShareByAdjudicatedPair.meanCi95.low}–${report.summary.candidatePointShareByAdjudicatedPair.meanCi95.high}).`
+      : 'Fixed-horizon adjudication is disabled for this run.',
+    '',
     '| Stratum | Resolved pairs | Point share | 95% CI |',
     '| --- | ---: | ---: | ---: |',
   ];
@@ -349,6 +357,7 @@ async function main(): Promise<void> {
     }
 
     const pair = runReferenceStrengthPair({
+      adjudicateHorizon: settings.adjudicateHorizon,
       candidateDifficulty: settings.candidateDifficulty,
       candidateSeed: 0x51f15e + job.pairIndex * 2 + job.fixtureIndex * 101,
       fixture: fixtures[job.fixtureIndex],

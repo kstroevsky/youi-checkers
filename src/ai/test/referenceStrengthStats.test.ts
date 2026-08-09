@@ -76,4 +76,25 @@ describe('paired frozen-reference strength statistics', () => {
     expect(summary.power.minimumDetectableDifference80).toBeGreaterThan(0);
     expect(summary.power.requiredPairsPerStratum80).toBeGreaterThan(1);
   });
+
+  it('keeps natural resolution separate from an available adjudicated endpoint', () => {
+    const summary = summarizePairedStrengthNonInferiority(
+      [
+        {
+          baseline: 0.5,
+          baselineResolved: false,
+          candidate: 0.75,
+          candidateResolved: false,
+          pairId: 'a1',
+          stratumId: 'a',
+        },
+      ],
+      { bootstrapIterations: 200, scoreMargin: 0.03 },
+    );
+
+    expect(summary.score.observationCount).toBe(1);
+    expect(summary.censoring.baselineResolvedPairs).toBe(0);
+    expect(summary.censoring.candidateResolvedPairs).toBe(0);
+    expect(summary.censoring.jointlyResolvedPairs).toBe(0);
+  });
 });

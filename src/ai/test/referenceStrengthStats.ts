@@ -1,6 +1,8 @@
 export type PairedStrengthObservation = {
   baseline: number | null;
+  baselineResolved?: boolean;
   candidate: number | null;
+  candidateResolved?: boolean;
   pairId: string;
   stratumId: string;
 };
@@ -198,10 +200,16 @@ export function summarizePairedStrengthNonInferiority(
           },
         ],
   );
+  const isBaselineResolved = (
+    observation: PairedStrengthObservation,
+  ): boolean => observation.baselineResolved ?? observation.baseline !== null;
+  const isCandidateResolved = (
+    observation: PairedStrengthObservation,
+  ): boolean => observation.candidateResolved ?? observation.candidate !== null;
   const resolutionObservations = observations.map((observation) => ({
     difference:
-      Number(observation.candidate !== null) -
-      Number(observation.baseline !== null),
+      Number(isCandidateResolved(observation)) -
+      Number(isBaselineResolved(observation)),
     stratumId: observation.stratumId,
   }));
   const score = summarizeEffect(jointlyResolved, scoreMargin, iterations);
@@ -273,13 +281,16 @@ export function summarizePairedStrengthNonInferiority(
 
   return {
     censoring: {
-      baselineResolvedPairs: observations.filter(
-        (observation) => observation.baseline !== null,
+      baselineResolvedPairs: observations.filter((observation) =>
+        isBaselineResolved(observation),
       ).length,
-      candidateResolvedPairs: observations.filter(
-        (observation) => observation.candidate !== null,
+      candidateResolvedPairs: observations.filter((observation) =>
+        isCandidateResolved(observation),
       ).length,
-      jointlyResolvedPairs: jointlyResolved.length,
+      jointlyResolvedPairs: observations.filter(
+        (observation) =>
+          isBaselineResolved(observation) && isCandidateResolved(observation),
+      ).length,
       pairCount: observations.length,
     },
     overallVerdict,

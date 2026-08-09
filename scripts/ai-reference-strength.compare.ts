@@ -16,7 +16,7 @@ type StrengthReport = {
     referencePoolSha256: string;
   };
   schemaVersion: number;
-  settings: unknown;
+  settings: { adjudicateHorizon?: boolean } & Record<string, unknown>;
 };
 
 function parseArgs(argv: string[]): Record<string, string> {
@@ -104,6 +104,7 @@ function markdown(report: {
   baselineRevision: string;
   candidateRevision: string;
   comparison: ReturnType<typeof summarizePairedStrengthNonInferiority>;
+  endpoint: 'fixedHorizonDomainTiebreak' | 'naturalCompletedGame';
 }) {
   const { comparison } = report;
   return [
@@ -115,12 +116,16 @@ function markdown(report: {
     '',
     `Release verdict: **${comparison.overallVerdict}**`,
     '',
+    `Primary score endpoint: **${report.endpoint}**`,
+    '',
     '| Gate | Estimate | Fixed-portfolio 95% CI | Hierarchical 95% CI | Margin | Verdict |',
     '| --- | ---: | ---: | ---: | ---: | --- |',
     `| Paired score delta | ${comparison.score.estimate} | [${comparison.score.ci95.low}, ${comparison.score.ci95.high}] | [${comparison.score.generalizationCi95.low}, ${comparison.score.generalizationCi95.high}] | ${comparison.score.margin} | ${comparison.score.verdict} |`,
     `| Resolved-pair share delta | ${comparison.resolution.estimate} | [${comparison.resolution.ci95.low}, ${comparison.resolution.ci95.high}] | [${comparison.resolution.generalizationCi95.low}, ${comparison.resolution.generalizationCi95.high}] | ${comparison.resolution.margin} | ${comparison.resolution.verdict} |`,
     '',
-    `Jointly resolved pairs: ${comparison.censoring.jointlyResolvedPairs}/${comparison.censoring.pairCount}.`,
+    `Primary-endpoint paired observations: ${comparison.score.observationCount}/${comparison.censoring.pairCount}.`,
+    '',
+    `Natural resolution: baseline ${comparison.censoring.baselineResolvedPairs}/${comparison.censoring.pairCount}; candidate ${comparison.censoring.candidateResolvedPairs}/${comparison.censoring.pairCount}; jointly resolved ${comparison.censoring.jointlyResolvedPairs}/${comparison.censoring.pairCount}.`,
     '',
     `Variance components: between-stratum ${comparison.variance.betweenStratumVariance}; within-stratum ${comparison.variance.withinStratumVariance}; fixture share ${comparison.variance.fixtureSeedVarianceShare}.`,
     '',
@@ -128,7 +133,9 @@ function markdown(report: {
       ? `Power diagnostic: current SE ${comparison.power.currentStandardError}; 80% minimum detectable difference ${comparison.power.minimumDetectableDifference80}; approximately ${comparison.power.requiredPairsPerStratum80} pairs per stratum required for the declared score margin.`
       : 'Power diagnostic: insufficient replicated within-stratum variance; run at least two resolved pairs in multiple strata before calibrating sample size.',
     '',
-    'The gate passes only when both lower confidence bounds stay above their predeclared negative margins. Score effects use only jointly resolved color-swapped pairs; resolution is a separate guardrail against favorable censoring.',
+    report.endpoint === 'fixedHorizonDomainTiebreak'
+      ? 'The gate passes only when both lower confidence bounds stay above their predeclared negative margins. The primary endpoint uses the game-rule tiebreak at the fixed horizon; natural resolution remains a separate censoring guardrail.'
+      : 'The gate passes only when both lower confidence bounds stay above their predeclared negative margins. Score effects use only jointly naturally resolved color-swapped pairs; resolution is a separate guardrail against favorable censoring.',
     '',
   ].join('\n');
 }
@@ -163,8 +170,10 @@ async function main(): Promise<void> {
         throw new Error(`Stratum mismatch for ${pairId}.`);
       }
       return {
-        baseline: baseline.pairScore,
-        candidate: candidate.pairScore,
+        baseline: baseline.adjudicatedPairScore ?? baseline.pairScore,
+        baselineResolved: baseline.pairScore !== null,
+        candidate: candidate.adjudicatedPairScore ?? candidate.pairScore,
+        candidateResolved: candidate.pairScore !== null,
         pairId,
         stratumId: baseline.stratumId,
       };
@@ -192,6 +201,9 @@ async function main(): Promise<void> {
     baselineRevision: baselineReport.provenance.gitRevision,
     candidateRevision: candidateReport.provenance.gitRevision,
     comparison,
+    endpoint: candidateReport.settings.adjudicateHorizon
+      ? ('fixedHorizonDomainTiebreak' as const)
+      : ('naturalCompletedGame' as const),
     generatedAt: new Date().toISOString(),
     schemaVersion: AI_REFERENCE_STRENGTH_SCHEMA_VERSION,
   };

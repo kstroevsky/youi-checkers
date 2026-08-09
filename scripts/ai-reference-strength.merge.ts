@@ -105,6 +105,8 @@ function markdown(report: {
     '',
     `Candidate point share: ${report.summary.candidatePointShareByPair.mean} (95% CI ${report.summary.candidatePointShareByPair.meanCi95.low}–${report.summary.candidatePointShareByPair.meanCi95.high}).`,
     '',
+    `Fixed-horizon adjudicated point share: ${report.summary.candidatePointShareByAdjudicatedPair.mean} (95% CI ${report.summary.candidatePointShareByAdjudicatedPair.meanCi95.low}–${report.summary.candidatePointShareByAdjudicatedPair.meanCi95.high}).`,
+    '',
     'Shard identity, raw checksums, pair uniqueness, and complete campaign coverage were validated before merge.',
     '',
   ].join('\n');

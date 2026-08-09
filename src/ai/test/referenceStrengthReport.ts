@@ -58,6 +58,9 @@ export function summarizeReferenceStrengthPairs(
   const resolvedPairs = pairs.flatMap((pair) =>
     pair.pairScore === null ? [] : [pair.pairScore],
   );
+  const adjudicatedPairs = pairs.flatMap((pair) =>
+    pair.adjudicatedPairScore === null ? [] : [pair.adjudicatedPairScore],
+  );
   const candidatePlies = games
     .flatMap((game) => game.plies)
     .filter((ply) => ply.actorKind === 'candidate');
@@ -92,6 +95,8 @@ export function summarizeReferenceStrengthPairs(
       candidatePlies.length,
     ),
     candidatePointShareByGame: summarizeNumericDistribution(resolvedGames),
+    candidatePointShareByAdjudicatedPair:
+      summarizeNumericDistribution(adjudicatedPairs),
     candidatePointShareByPair: summarizeNumericDistribution(resolvedPairs),
     candidateZeroDepthShare: summarizeProportion(
       candidatePlies.filter((ply) => ply.searchResult?.completedDepth === 0)

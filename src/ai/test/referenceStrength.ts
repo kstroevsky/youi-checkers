@@ -17,8 +17,9 @@ import {
   type Victory,
 } from '@/domain';
 import type { AiDifficulty } from '@/shared/types/session';
+import { resolveDrawOutcome } from '@/domain/rules/victory';
 
-export const AI_REFERENCE_STRENGTH_SCHEMA_VERSION = 1 as const;
+export const AI_REFERENCE_STRENGTH_SCHEMA_VERSION = 2 as const;
 
 export type StrengthFixtureSplit = 'development' | 'holdout';
 
@@ -40,6 +41,8 @@ export type ReferenceStrengthPly = {
 };
 
 export type ReferenceStrengthGame = {
+  adjudicatedCandidatePoints: number | null;
+  adjudicationType: 'horizonDomainTiebreak' | 'natural' | 'none';
   candidateColor: Player;
   candidatePoints: number | null;
   candidateSeed: number;
@@ -55,6 +58,7 @@ export type ReferenceStrengthGame = {
 };
 
 export type ReferenceStrengthPair = {
+  adjudicatedPairScore: number | null;
   candidateSeed: number;
   fixtureBucket: string;
   fixtureId: string;
@@ -98,7 +102,17 @@ function pointsForCandidate(
   return 0.5;
 }
 
+function horizonAdjudicatedPoints(
+  state: GameState,
+  candidateColor: Player,
+): number {
+  const outcome = resolveDrawOutcome(state, 'stalemate');
+  if ('winner' in outcome) return outcome.winner === candidateColor ? 1 : 0;
+  return 0.5;
+}
+
 export function runReferenceStrengthGame({
+  adjudicateHorizon,
   candidateColor,
   candidateDifficulty,
   candidateSeed,
@@ -110,6 +124,7 @@ export function runReferenceStrengthGame({
   referenceSeed,
   ruleConfig,
 }: {
+  adjudicateHorizon: boolean;
   candidateColor: Player;
   candidateDifficulty: AiDifficulty;
   candidateSeed: number;
@@ -171,9 +186,21 @@ export function runReferenceStrengthGame({
     state = nextState;
   }
 
+  const naturalPoints = pointsForCandidate(state, candidateColor);
   return {
+    adjudicatedCandidatePoints:
+      naturalPoints ??
+      (adjudicateHorizon
+        ? horizonAdjudicatedPoints(state, candidateColor)
+        : null),
+    adjudicationType:
+      naturalPoints !== null
+        ? 'natural'
+        : adjudicateHorizon
+          ? 'horizonDomainTiebreak'
+          : 'none',
     candidateColor,
-    candidatePoints: pointsForCandidate(state, candidateColor),
+    candidatePoints: naturalPoints,
     candidateSeed,
     fixtureId: fixture.id,
     gameId,
@@ -191,6 +218,7 @@ export function runReferenceStrengthGame({
 }
 
 export function runReferenceStrengthPair({
+  adjudicateHorizon,
   candidateDifficulty,
   candidateSeed,
   fixture,
@@ -201,6 +229,7 @@ export function runReferenceStrengthPair({
   referenceSeed,
   ruleConfig,
 }: {
+  adjudicateHorizon: boolean;
   candidateDifficulty: AiDifficulty;
   candidateSeed: number;
   fixture: StrengthFixture;
@@ -214,6 +243,7 @@ export function runReferenceStrengthPair({
   const pairId = `${fixture.id}/${referenceId}/seed-${pairIndex}`;
   const createGame = (candidateColor: Player): ReferenceStrengthGame =>
     runReferenceStrengthGame({
+      adjudicateHorizon,
       candidateColor,
       candidateDifficulty,
       candidateSeed,
@@ -232,8 +262,17 @@ export function runReferenceStrengthPair({
   const resolved = games.flatMap((game) =>
     game.candidatePoints === null ? [] : [game.candidatePoints],
   );
+  const adjudicated = games.flatMap((game) =>
+    game.adjudicatedCandidatePoints === null
+      ? []
+      : [game.adjudicatedCandidatePoints],
+  );
 
   return {
+    adjudicatedPairScore:
+      adjudicated.length === games.length
+        ? adjudicated.reduce((sum, value) => sum + value, 0) / games.length
+        : null,
     candidateSeed,
     fixtureBucket: fixture.bucket,
     fixtureId: fixture.id,
