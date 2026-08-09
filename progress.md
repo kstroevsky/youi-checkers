@@ -652,3 +652,36 @@ Verification 2026-07-19 (multiplayer history and input follow-up):
 - The required bundled web-game Playwright client created a waiting room from the production build and exported the expanded state (`historyLength`, `lastMove`, rule selection, selection state) without a console-error artifact; reviewed `/tmp/youi-multiplayer-followup/shot-0.png` and `state-0.json`.
 - The repository-wide run completed 324 passing tests and one intentional skip; the known resource-sensitive finishing-plan test failed while the 63-second benchmark saturated the runner, then passed all 3 tests immediately in isolation.
 - `git diff --check` passes. No production deployment was attempted from this branch because local `main` contains the previously deployed but still-unpushed AI measurement commit, while this review branch intentionally excludes it.
+
+Update 2026-08-04 (AI measurement semantic contract, Phase 1A):
+
+- Split terminality from utility in ordered/root candidates. Every candidate now reports `isTerminal` plus actor-relative `terminalUtility`; `isForced` is deliberately restricted to immediate actor wins, so terminal draws/losses no longer bypass safety, novelty, repetition, or draw-risk policy.
+- Made final decision score ownership explicit. Search results now report `bestSearchAction`/`bestSearchScore`, `selectedActionScore`, and `selectionRegret`; legacy `score` is a documented alias of the selected action's score. The fields are derived from the full internal root ranking before diagnostic candidate truncation.
+- Replaced heterogeneous mobility subtraction with an actor-aware transition record: actor branching before, same-player continuation branching, opponent reply branching, whether the post-state count was measured, and whether the actor kept the turn. Compatibility `mobilityDelta` is now same-actor-only and is zero across turn changes.
+- Traces now preserve the decision score contract and actor-aware mobility. Root regret is sourced from the search result instead of being reconstructed from the possibly truncated/diversified public root-candidate list.
+- Intent switching now compares each player with that player's previous decision; its denominator is the number of valid same-player comparisons rather than adjacent, usually opposing-player plies.
+- Repaired long scenario construction in `ai:measure`: cyclic late-game replay fixtures are built with draw termination disabled, then normalized into active continuation states. This prevents the threefold measurement rule from terminating fixture construction before the scenario can be sampled.
+- Made the long finishing-plan correctness replay use a deterministic clock; budget-exhaustion behavior remains covered by its dedicated test.
+
+Verification 2026-08-04 (AI measurement semantic contract, Phase 1A):
+
+- Red/green focused regressions cover neutral threefold terminal classification, selected-vs-best score ownership, actor-explicit mobility, and same-player intent transitions.
+- `tsc --noEmit`, changed-file ESLint, and production `vite build` pass.
+- Focused AI verification passes 42 tests with one intentional skip across behavior, variety, quiescence, and finishing search.
+- A fixed-node `ai:measure` smoke traversed all nine scenario buckets, including cyclic turn-25 through turn-200 fixtures, and emitted raw JSONL/report artifacts without path-construction failures. Sampled decisions satisfy `score === selectedActionScore` and contain explicit score/mobility/terminal fields.
+- Production preview browser acceptance passed: after starting an Easy computer match, White played A1 -> B2 and the AI replied C4 -> B3; exported state showed move 3, White to act, two history entries, no selection, and an active game. The final board screenshot was visually reviewed. The only console error was the expected local-preview 404 for the Worker-only telemetry endpoint.
+- Repository-wide Vitest reached 330 passing tests and one skip; nine unrelated UI tests failed under benchmark/soak saturation. Rerunning the two affected UI files reduced this to one pre-existing lazy-game-tab order-sensitive failure; that test also fails alone before any AI path is exercised.
+
+Update 2026-08-04 (advanced interestingness estimators, Phase 1B):
+
+- Sample entropy now returns `null` for short/no-match series instead of conflating insufficient evidence with perfectly regular zero entropy. Advanced summaries average only finite estimates and publish the contributing trace count.
+- Replaced character-substring Lempel-Ziv parsing with token-level phrase parsing and reused the same implementation in both core variety and advanced reports. The metric is now invariant under bijective renaming or different-length spellings of action/position tokens.
+- Loop-escape rates now condition on traces that actually entered risk/repetition/self-undo pressure. Reports publish eligible and observed-escape counts; no eligible traces produce `null`, not a manufactured zero.
+- Frontier compression now uses only measured same-player continuation transitions and publishes its sample count. It no longer interprets opponent reply branching as compression of the actor's action space.
+- Added evidence-count columns to loop and position-bucket Markdown reports and documented missingness/conditioning rules. Bumped the lossless `ai:measure` schema to version 2 so old/new raw contracts cannot be paired silently.
+
+Verification 2026-08-04 (advanced interestingness estimators, Phase 1B):
+
+- Red/green regressions cover sample-entropy insufficiency, Lempel-Ziv token-label invariance, loop-pressure denominator conditioning, and missing frontier-compression evidence.
+- Advanced plus core AI focused verification passes 50 tests with one intentional skip; `tsc --noEmit` and changed-file ESLint pass.
+- A one-pair/four-ply loop-report smoke emitted explicit `null` estimates and evidence counts, while loop-pressure buckets produced conditioned escape rates. The tracked baseline artifacts were restored after inspection.
