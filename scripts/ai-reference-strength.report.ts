@@ -121,7 +121,7 @@ function parseArgs(argv: string[]): {
     throw new Error('--references contains an unknown frozen reference id.');
   }
   const filteredScenarioCount = POSITION_BUCKET_SCENARIOS.filter(
-    (_, index) => split === 'all' || getFixtureSplit(index) === split,
+    (scenario) => split === 'all' || scenario.strengthSplit === split,
   ).length;
   const scenarioLimit = parsePositiveInteger(
     args.get('scenario-limit') ??
@@ -180,19 +180,15 @@ function parseArgs(argv: string[]): {
   };
 }
 
-function getFixtureSplit(index: number): StrengthFixtureSplit {
-  return index % 3 === 1 ? 'holdout' : 'development';
-}
-
 function buildFixtures(settings: Settings): StrengthFixture[] {
   const ruleConfig = withRuleDefaults({
     drawRule: 'threefold',
     scoringMode: 'off',
   });
-  return POSITION_BUCKET_SCENARIOS.map((scenario, index) => ({
+  return POSITION_BUCKET_SCENARIOS.map((scenario) => ({
     bucket: scenario.bucket,
     id: scenario.label,
-    split: getFixtureSplit(index),
+    split: scenario.strengthSplit,
     state: buildScenarioState(scenario, ruleConfig),
   }))
     .filter(
