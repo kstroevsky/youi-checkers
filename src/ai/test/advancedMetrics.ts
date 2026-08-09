@@ -54,10 +54,12 @@ function standardDeviation(values: number[]): number {
   }
 
   const mean = average(values);
-  const variance = average(values.map((value) => {
-    const delta = value - mean;
-    return delta * delta;
-  }));
+  const variance = average(
+    values.map((value) => {
+      const delta = value - mean;
+      return delta * delta;
+    }),
+  );
 
   return Math.sqrt(variance);
 }
@@ -71,7 +73,7 @@ function isPressureEvent(ply: AiTracePly): boolean {
     ply.freezeSwingBonus > 0 ||
     ply.tags.includes('captureControl') ||
     ply.tags.includes('freezeBlock') ||
-    ply.mobilityDelta <= -2 ||
+    (ply.opponentReplyCompression ?? 0) >= 0.15 ||
     getPlanProgress(ply) >= 0.04
   );
 }
@@ -140,7 +142,11 @@ export function computeRecurrenceQuantification(
   const diagonalLengths: number[] = [];
   const verticalLengths: number[] = [];
 
-  for (let offset = -(sequence.length - 1); offset <= sequence.length - 1; offset += 1) {
+  for (
+    let offset = -(sequence.length - 1);
+    offset <= sequence.length - 1;
+    offset += 1
+  ) {
     if (offset === 0) {
       continue;
     }
@@ -170,13 +176,22 @@ export function computeRecurrenceQuantification(
     verticalLengths.push(...collectRunLengths(vertical));
   }
 
-  const longDiagonal = diagonalLengths.filter((length) => length >= minLineLength);
-  const longVertical = verticalLengths.filter((length) => length >= minLineLength);
-  const deterministicPoints = longDiagonal.reduce((sum, length) => sum + length, 0);
+  const longDiagonal = diagonalLengths.filter(
+    (length) => length >= minLineLength,
+  );
+  const longVertical = verticalLengths.filter(
+    (length) => length >= minLineLength,
+  );
+  const deterministicPoints = longDiagonal.reduce(
+    (sum, length) => sum + length,
+    0,
+  );
   const laminarPoints = longVertical.reduce((sum, length) => sum + length, 0);
 
   return {
-    determinism: roundMetric(deterministicPoints / Math.max(1, recurrencePoints)),
+    determinism: roundMetric(
+      deterministicPoints / Math.max(1, recurrencePoints),
+    ),
     laminarity: roundMetric(laminarPoints / Math.max(1, recurrencePoints)),
     maxDiagonalLine: Math.max(0, ...diagonalLengths),
     maxVerticalLine: Math.max(0, ...verticalLengths),
@@ -209,7 +224,9 @@ export function computeSampleEntropy(
       let matches = true;
 
       for (let offset = 0; offset < embedding; offset += 1) {
-        if (Math.abs(values[left + offset] - values[right + offset]) > tolerance) {
+        if (
+          Math.abs(values[left + offset] - values[right + offset]) > tolerance
+        ) {
           matches = false;
           break;
         }
@@ -221,7 +238,10 @@ export function computeSampleEntropy(
 
       mMatches += 1;
 
-      if (Math.abs(values[left + embedding] - values[right + embedding]) <= tolerance) {
+      if (
+        Math.abs(values[left + embedding] - values[right + embedding]) <=
+        tolerance
+      ) {
         mPlusOneMatches += 1;
       }
     }
@@ -284,7 +304,10 @@ export function computePermutationEntropy(
     distribution[pattern] = (distribution[pattern] ?? 0) + 1;
   }
 
-  const total = Object.values(distribution).reduce((sum, value) => sum + value, 0);
+  const total = Object.values(distribution).reduce(
+    (sum, value) => sum + value,
+    0,
+  );
 
   if (total <= 0) {
     return 0;
@@ -372,7 +395,11 @@ export function findLoopEscapePly(
     baseline.sixStackProgress.black,
   );
 
-  for (let start = activationIndex; start <= trace.plies.length - window; start += 1) {
+  for (
+    let start = activationIndex;
+    start <= trace.plies.length - window;
+    start += 1
+  ) {
     const slice = trace.plies.slice(start, start + window);
     const last = slice.at(-1) as AiTracePly;
     const noRepeat = slice.every((ply) => !ply.isRepetition);
@@ -385,7 +412,8 @@ export function findLoopEscapePly(
         last.homeFieldProgress.black,
         last.sixStackProgress.white,
         last.sixStackProgress.black,
-      ) >= baselineProgress + 0.04;
+      ) >=
+        baselineProgress + 0.04;
 
     if (noRepeat && noUndo && (progressed || displacement >= 0.075)) {
       return start - activationIndex + 1;
@@ -401,21 +429,35 @@ function hasLoopPressureActivation(trace: AiGameTrace): boolean {
   );
 }
 
-export function summarizeAdvancedTraceMetrics(traces: AiGameTrace[]): AdvancedTraceSummary {
+export function summarizeAdvancedTraceMetrics(
+  traces: AiGameTrace[],
+): AdvancedTraceSummary {
   const recurrence = traces.map((trace) =>
-    computeRecurrenceQuantification(trace.plies.map((ply) => ply.afterPositionKey)),
+    computeRecurrenceQuantification(
+      trace.plies.map((ply) => ply.afterPositionKey),
+    ),
   );
   const positionLempelZiv = average(
-    traces.map((trace) => computeNormalizedLempelZiv(trace.plies.map((ply) => ply.afterPositionKey))),
+    traces.map((trace) =>
+      computeNormalizedLempelZiv(
+        trace.plies.map((ply) => ply.afterPositionKey),
+      ),
+    ),
   );
   const scoreSampleEntropyValues = traces
-    .map((trace) => computeSampleEntropy(trace.plies.map((ply) => ply.normalizedWhiteScore)))
+    .map((trace) =>
+      computeSampleEntropy(trace.plies.map((ply) => ply.normalizedWhiteScore)),
+    )
     .filter((value): value is number => value !== null);
   const scoreSampleEntropy = scoreSampleEntropyValues.length
     ? average(scoreSampleEntropyValues)
     : null;
   const scorePermutationEntropy = average(
-    traces.map((trace) => computePermutationEntropy(trace.plies.map((ply) => ply.normalizedWhiteScore))),
+    traces.map((trace) =>
+      computePermutationEntropy(
+        trace.plies.map((ply) => ply.normalizedWhiteScore),
+      ),
+    ),
   );
   const loopEligibleTraces = traces.filter(hasLoopPressureActivation);
   const loopEscapePlies = loopEligibleTraces
@@ -424,18 +466,14 @@ export function summarizeAdvancedTraceMetrics(traces: AiGameTrace[]): AdvancedTr
   const allPlies = traces.flatMap((trace) => trace.plies);
   const riskPlies = allPlies.filter((ply) => ply.riskMode !== 'normal');
   const pressureEventRate = average(
-    traces.map((trace) => average(trace.plies.map((ply) => (isPressureEvent(ply) ? 1 : 0)))),
+    traces.map((trace) =>
+      average(trace.plies.map((ply) => (isPressureEvent(ply) ? 1 : 0))),
+    ),
   );
   const frontierCompressionSamples = allPlies
-    .filter(
-      (ply) =>
-        ply.mobility.measuredAfter && ply.mobility.samePlayerContinuation,
-    )
-    .map(
-      (ply) =>
-        Math.max(0, -ply.mobilityDelta) /
-        Math.max(1, ply.mobility.actorBefore),
-    );
+    .map((ply) => ply.opponentReplyCompression)
+    .filter((value): value is number => value !== null)
+    .map((value) => Math.max(0, value));
   const frontierCompressionRate = frontierCompressionSamples.length
     ? average(frontierCompressionSamples)
     : null;
@@ -458,15 +496,24 @@ export function summarizeAdvancedTraceMetrics(traces: AiGameTrace[]): AdvancedTr
       : null,
     pressureEventRate: roundMetric(pressureEventRate),
     positionLempelZiv: roundMetric(positionLempelZiv),
-    recurrenceDeterminism: roundMetric(average(recurrence.map((entry) => entry.determinism))),
-    recurrenceLaminarity: roundMetric(average(recurrence.map((entry) => entry.laminarity))),
-    recurrenceRate: roundMetric(average(recurrence.map((entry) => entry.recurrenceRate))),
+    recurrenceDeterminism: roundMetric(
+      average(recurrence.map((entry) => entry.determinism)),
+    ),
+    recurrenceLaminarity: roundMetric(
+      average(recurrence.map((entry) => entry.laminarity)),
+    ),
+    recurrenceRate: roundMetric(
+      average(recurrence.map((entry) => entry.recurrenceRate)),
+    ),
     riskProgressShare: roundMetric(
-      riskPlies.filter((ply) => ply.isRiskProgressCertified).length / Math.max(1, riskPlies.length),
+      riskPlies.filter((ply) => ply.isRiskProgressCertified).length /
+        Math.max(1, riskPlies.length),
     ),
     scorePermutationEntropy: roundMetric(scorePermutationEntropy),
     scoreSampleEntropy: roundOptionalMetric(scoreSampleEntropy),
     scoreSampleEntropyTraceCount: scoreSampleEntropyValues.length,
-    trappingTime: roundMetric(average(recurrence.map((entry) => entry.trappingTime))),
+    trappingTime: roundMetric(
+      average(recurrence.map((entry) => entry.trappingTime)),
+    ),
   };
 }

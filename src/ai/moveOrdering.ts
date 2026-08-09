@@ -100,6 +100,8 @@ export type OrderMovesOptions = {
   /** Numeric action IDs of killer moves at this depth. */
   killerIds?: number[];
   now?: () => number;
+  /** Called after each candidate's engine transition is generated. */
+  onPreparedTransition?: () => void;
   participationState?: ParticipationState | null;
   perfCache?: SearchPerfCache | null;
   policyPriors?: Float32Array | null;
@@ -408,6 +410,7 @@ export function precomputeOrderedActions(
     diagnostics = null,
     grandparentPositionKey = null,
     now,
+    onPreparedTransition,
     participationState = null,
     perfCache = null,
     policyPriors = null,
@@ -423,6 +426,7 @@ export function precomputeOrderedActions(
     | 'diagnostics'
     | 'grandparentPositionKey'
     | 'now'
+    | 'onPreparedTransition'
     | 'participationState'
     | 'perfCache'
     | 'policyPriors'
@@ -466,6 +470,7 @@ export function precomputeOrderedActions(
       ruleConfig,
       { positionCountStorage: 'overlay' },
     );
+    onPreparedTransition?.();
     const nextState = transition.state;
     const nextPerfBundle = getStatePerfBundle(
       nextState,

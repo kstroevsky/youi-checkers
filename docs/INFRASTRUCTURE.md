@@ -179,9 +179,9 @@ The repository also keeps historical comparison artifacts:
 
 The comparison file is now generated from JSON by [`scripts/compare-perf-reports.mjs`](../scripts/compare-perf-reports.mjs). That keeps the comparison reproducible and prevents the Markdown from drifting away from the underlying measurements.
 
-## AI Variety Report Pipeline
+## Legacy AI Behavior Regression Pipeline
 
-[`scripts/ai-variety.report.ts`](../scripts/ai-variety.report.ts) runs the offline self-play behavior suite defined in [`src/ai/test/metrics.ts`](../src/ai/test/metrics.ts).
+[`scripts/ai-variety.report.ts`](../scripts/ai-variety.report.ts) runs the offline self-play behavior suite defined in [`src/ai/test/metrics.ts`](../src/ai/test/metrics.ts). Its filename and command remain stable for compatibility, but its composite, drama, and tension values are uncalibrated trace proxies—not measures of player enjoyment and not release gates.
 
 Outputs:
 
@@ -211,7 +211,7 @@ The current harness intentionally exercises the same product behavior that ships
 - each search trace records the returned `behaviorProfileId` and `riskMode`;
 - late or stagnating games therefore show up in the report as deliberate style/risk changes rather than as unexplained variance.
 
-The Markdown summary is intentionally opinionated rather than exhaustive. It now foregrounds decisive-play health through `decisiveResultShare` alongside repetition, stagnation, decompression, mobility release, tension, and composite interestingness. Participation is guarded directly through `meanParticipationDelta` and `positiveParticipationPlyShare`; these values are aggregated from every traced selected candidate and are checked against the versioned baseline.
+The Markdown summary is intentionally opinionated rather than exhaustive. It foregrounds decisive-play health alongside repetition, stagnation, decompression, mobility release, and the explicitly legacy composite proxies. Participation is guarded directly through `meanParticipationDelta` and `positiveParticipationPlyShare`; these values are aggregated from every traced selected candidate and are checked against the versioned baseline.
 
 The complementary stage report exists because the aggregate suite can hide where a behavioral change really helps or hurts. `npm run ai:stage-variety` reruns the same mirrored self-play metrics from all six performance scenarios: the normal opening, two seeded realistic midgames, two deterministic loop-pressure positions, and one sparse late loop position. Each fixture is generated with draws disabled and then normalized into a playable continuation state by keeping the six most recent history records, rebuilding repetition counts from that window, and clearing terminal status; otherwise the shipped threefold rule can make a loop-derived imported position terminal before the AI is evaluated. The report also summarizes `riskMode` activation shares, so a latency change can be interpreted alongside the amount of actual stagnation/late-risk behavior being exercised. Because the normalization intentionally discards long-range repetition memory, early `stagnation` activation can look weaker there than on raw full-history loop fixtures; the stage report and perf fixtures should therefore be read together.
 

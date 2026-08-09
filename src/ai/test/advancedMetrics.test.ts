@@ -50,6 +50,7 @@ function createPly(overrides: Partial<AiTracePly> = {}): AiTracePly {
     mobilityDelta: 0,
     movedMass: 1,
     normalizedWhiteScore: 0,
+    opponentReplyCompression: null,
     participationDelta: 0,
     partialDepth: null,
     partialRootMoves: 0,
@@ -95,8 +96,22 @@ function createTrace(plies: AiTracePly[]): AiGameTrace {
 
 describe('advanced trace analytics', () => {
   it('reports higher recurrence structure for looping sequences', () => {
-    const looping = computeRecurrenceQuantification(['a', 'b', 'a', 'b', 'a', 'b']);
-    const diverse = computeRecurrenceQuantification(['a', 'b', 'c', 'd', 'e', 'f']);
+    const looping = computeRecurrenceQuantification([
+      'a',
+      'b',
+      'a',
+      'b',
+      'a',
+      'b',
+    ]);
+    const diverse = computeRecurrenceQuantification([
+      'a',
+      'b',
+      'c',
+      'd',
+      'e',
+      'f',
+    ]);
 
     expect(looping.recurrenceRate).toBeGreaterThan(diverse.recurrenceRate);
     expect(looping.determinism).toBeGreaterThan(diverse.determinism);
@@ -112,7 +127,9 @@ describe('advanced trace analytics', () => {
 
   it('drops sample entropy toward zero for constant score sequences', () => {
     expect(computeSampleEntropy([0, 0, 0, 0, 0, 0])).toBe(0);
-    expect(computeSampleEntropy([0, 1, 0, 1, 0, 2, 0, 1, 0, 1])).toBeGreaterThan(0);
+    expect(
+      computeSampleEntropy([0, 1, 0, 1, 0, 2, 0, 1, 0, 1]),
+    ).toBeGreaterThan(0);
   });
 
   it('marks sample entropy as unavailable when evidence is insufficient', () => {
@@ -128,9 +145,7 @@ describe('advanced trace analytics', () => {
   });
 
   it('keeps token Lempel-Ziv invariant under symbolic relabeling', () => {
-    expect(
-      computeNormalizedLempelZiv(['a', 'b', 'a', 'b', 'a', 'b']),
-    ).toBe(
+    expect(computeNormalizedLempelZiv(['a', 'b', 'a', 'b', 'a', 'b'])).toBe(
       computeNormalizedLempelZiv([
         'long-token-with-shared-characters',
         'another|token',
@@ -213,7 +228,10 @@ describe('advanced trace analytics', () => {
       createPly({ ply: 4 }),
       createPly({ ply: 5 }),
     ]);
-    const summary = summarizeAdvancedTraceMetrics([pressureTrace, ordinaryTrace]);
+    const summary = summarizeAdvancedTraceMetrics([
+      pressureTrace,
+      ordinaryTrace,
+    ]);
 
     expect(summary.loopEscapeEligibleTraceCount).toBe(1);
     expect(summary.loopEscapeObservedCount).toBe(1);
@@ -224,5 +242,37 @@ describe('advanced trace analytics', () => {
     const noPressureSummary = summarizeAdvancedTraceMetrics([ordinaryTrace]);
     expect(noPressureSummary.loopEscapeEligibleTraceCount).toBe(0);
     expect(noPressureSummary.loopEscapeRate8).toBeNull();
+  });
+
+  it('measures pressure from opponent restriction, not actor continuation mobility', () => {
+    const actorContinuation = createPly({
+      mobility: {
+        actorBefore: 6,
+        actorContinuationAfter: 2,
+        measuredAfter: true,
+        opponentReplyAfter: null,
+        samePlayerContinuation: true,
+      },
+      mobilityDelta: -4,
+      opponentReplyCompression: null,
+    });
+    const opponentRestriction = createPly({
+      opponentReplyCompression: 0.7,
+      ply: 2,
+    });
+
+    const continuationOnly = summarizeAdvancedTraceMetrics([
+      createTrace([actorContinuation]),
+    ]);
+    const restrictedOpponent = summarizeAdvancedTraceMetrics([
+      createTrace([opponentRestriction]),
+    ]);
+
+    expect(continuationOnly.pressureEventRate).toBe(0);
+    expect(continuationOnly.frontierCompressionSampleCount).toBe(0);
+    expect(continuationOnly.frontierCompressionRate).toBeNull();
+    expect(restrictedOpponent.pressureEventRate).toBe(1);
+    expect(restrictedOpponent.frontierCompressionSampleCount).toBe(1);
+    expect(restrictedOpponent.frontierCompressionRate).toBe(0.7);
   });
 });

@@ -842,9 +842,9 @@ The metric vocabulary in [`test/metrics.ts`](./test/metrics.ts) is intentionally
 | `meanBoardDisplacement`         | average number of changed cells per ply                                                                                                     |
 | `meanParticipationDelta`        | mean signed contribution of the chosen moves' participation profiles; preserves the actual heuristic signal, not merely move diversity      |
 | `positiveParticipationPlyShare` | share of plies whose chosen move has `participationDelta > 0`; guards against broad averages hiding consistently non-positive participation |
-| `drama`                         | mean absolute score swing between consecutive plies                                                                                         |
-| `tension`                       | average closeness of normalized scores to zero                                                                                              |
-| `compositeInterestingness`      | target-band composite built from opening diversity, repetition pressure, decompression, drama, and decisive-result share                    |
+| `drama`                         | legacy, uncalibrated mean absolute score swing between consecutive plies                                                                    |
+| `tension`                       | legacy, uncalibrated average closeness of normalized scores to zero                                                                         |
+| `compositeInterestingness`      | legacy, uncalibrated target-band proxy; useful for regression triage, not as an enjoyment claim or release gate                             |
 | `behaviorSpaceCoverage`         | fraction of coarse behavior bins actually occupied by the trace set                                                                         |
 
 The newer nonlinear metrics in [`test/advancedMetrics.ts`](./test/advancedMetrics.ts) answer a different question: not "did the engine vary?" but "what kind of dynamical system did the trace behave like?" Those metrics are used by the loop, threat, cross-play, and position-bucket reports:
@@ -860,8 +860,8 @@ The newer nonlinear metrics in [`test/advancedMetrics.ts`](./test/advancedMetric
 | `positionLempelZiv`       | token-level symbolic complexity of the visited-position sequence, invariant to token spelling    |
 | `loopEscapeRate8/16/24`   | share of loop-pressure-eligible traces that escape within 8, 16, or 24 plies; eligibility N is reported |
 | `meanLoopEscapePly`       | average number of plies needed to escape once loop pressure becomes active                       |
-| `pressureEventRate`       | share of plies that create freeze pressure, frontier compression, or direct conversion pressure  |
-| `frontierCompressionRate` | how often the chosen move shrinks the opponent reply frontier                                    |
+| `pressureEventRate`       | share of plies that create freeze pressure, candidate-relative opponent-reply compression, or direct conversion pressure |
+| `frontierCompressionRate` | mean positive log reduction of opponent replies versus the median legal root candidate; terminal/continuation plies are excluded |
 | `riskProgressShare`       | share of risk-mode plies that satisfy the engine's certified progress test                       |
 
 ### Report comparison wrappers

@@ -50,7 +50,7 @@ function buildMarkdown(rows: ThreatRow[], pairCount: number, maxTurns: number): 
     'Methodology:',
     '- Pressure diagnostics are computed from the selected move traces rather than from static board snapshots.',
     '- `pressureEventRate` counts plies that create freeze pressure, capture-control pressure, frontier compression, or direct win-condition progress.',
-    '- `frontierCompressionRate` measures how often moves shrink the reply frontier instead of just shuffling pieces.',
+    '- `frontierCompressionRate` is the mean positive log reduction in the opponent reply count relative to the median legal root candidate; its sample count excludes terminal moves and same-player continuations.',
     `- Report settings: ${pairCount} mirrored seed pairs per row, ${maxTurns} continuation plies per trace.`,
     '',
     '| Scenario | Difficulty | Pressure Rate | Frontier Compression | Risk Progress Share | Mobility Slope | Decompression Slope | Drama | Tension | Decisive |',

@@ -71,6 +71,8 @@ export type AiTracePly = {
   legalRootCandidateCount: number;
   mobility: AiMobilityTransition;
   mobilityDelta: number;
+  /** Candidate-relative log compression of the opponent's immediate reply set. */
+  opponentReplyCompression: number | null;
   movedMass: number;
   normalizedWhiteScore: number;
   participationDelta: number;
@@ -488,6 +490,52 @@ function deriveCandidateSignals(
       afterProgress.sixStackProgress[actor] -
       beforeProgress.sixStackProgress[actor],
   };
+}
+
+function median(values: number[]): number | null {
+  if (!values.length) {
+    return null;
+  }
+
+  const ordered = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(ordered.length / 2);
+
+  return ordered.length % 2 === 0
+    ? ((ordered[middle - 1] ?? 0) + (ordered[middle] ?? 0)) / 2
+    : (ordered[middle] ?? null);
+}
+
+/**
+ * Compares the chosen move's immediate opponent mobility with the alternatives
+ * available in the same root position. Positive values mean the chosen move
+ * restricts the opponent more than the median candidate does.
+ */
+function getOpponentReplyCompression(
+  candidates: AiRootCandidate[],
+  selectedCandidate: AiRootCandidate | null,
+): number | null {
+  const selectedReplies = selectedCandidate?.mobility.opponentReplyAfter;
+
+  if (selectedReplies === null || selectedReplies === undefined) {
+    return null;
+  }
+
+  const baselineReplies = median(
+    candidates.flatMap((candidate) => {
+      const replies = candidate.mobility.opponentReplyAfter;
+      return candidate.mobility.measuredAfter &&
+        !candidate.mobility.samePlayerContinuation &&
+        replies !== null
+        ? [replies]
+        : [];
+    }),
+  );
+
+  if (baselineReplies === null) {
+    return null;
+  }
+
+  return roundMetric(Math.log((baselineReplies + 1) / (selectedReplies + 1)));
 }
 
 function computeDistributionEntropy(
@@ -1115,6 +1163,7 @@ export function runAiGameTrace({
         : effectiveBlackStableCalls;
     const result = chooseComputerAction({
       behaviorProfile: activeBehaviorProfile,
+      diagnosticRootCandidateLimit: beforeLegalMoveCount,
       difficulty: activeDifficulty,
       ...(searchBudget
         ? { searchBudget }
@@ -1138,6 +1187,10 @@ export function runAiGameTrace({
       result.rootCandidates.find(
         (candidate) => actionKey(candidate.action) === actionKey(chosenAction),
       ) ?? null;
+    const opponentReplyCompression = getOpponentReplyCompression(
+      result.rootCandidates,
+      selectedCandidate,
+    );
     const nextState = applyAction(state, chosenAction, ruleConfig);
     const afterProgress = createScoreProgress(nextState);
     const afterHistogram = createStackHeightHistogram(nextState);
@@ -1219,6 +1272,7 @@ export function runAiGameTrace({
       legalRootCandidateCount: result.rootCandidates.length,
       mobility: derivedSignals.mobility,
       mobilityDelta: derivedSignals.mobilityDelta,
+      opponentReplyCompression,
       movedMass: selectedCandidate?.movedMass ?? 0,
       normalizedWhiteScore: roundMetric(
         clamp(whitePerspectiveScore / MAX_SCORE_FOR_TENSION, -1, 1),

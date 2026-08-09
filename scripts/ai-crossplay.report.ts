@@ -258,13 +258,13 @@ function buildMarkdown(
   ];
 
   lines.push(...buildMatrixTable('### Point Share', difficultyMatrix, (cell) => cell.pointShare));
-  lines.push(...buildMatrixTable('### Composite Interestingness', difficultyMatrix, (cell) => cell.compositeInterestingness));
+  lines.push(...buildMatrixTable('### Legacy Composite Proxy', difficultyMatrix, (cell) => cell.compositeInterestingness));
   lines.push(...buildMatrixTable('### Loop Escape <= 8 Plies', difficultyMatrix, (cell) => cell.loopEscapeRate8));
   lines.push(...buildMatrixTable('### Pressure Event Rate', difficultyMatrix, (cell) => cell.pressureEventRate));
   lines.push('## Persona Matrix (`hard` only)');
   lines.push('');
   lines.push(...buildMatrixTable('### Point Share', personaMatrix, (cell) => cell.pointShare));
-  lines.push(...buildMatrixTable('### Composite Interestingness', personaMatrix, (cell) => cell.compositeInterestingness));
+  lines.push(...buildMatrixTable('### Legacy Composite Proxy', personaMatrix, (cell) => cell.compositeInterestingness));
   lines.push(...buildMatrixTable('### Recurrence Laminarity', personaMatrix, (cell) => cell.recurrenceLaminarity));
   lines.push(...buildMatrixTable('### Decisive Result Share', personaMatrix, (cell) => cell.decisiveResultShare));
 

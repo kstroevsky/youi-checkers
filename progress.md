@@ -749,3 +749,17 @@ Verification 2026-08-09 (final AI measurement and strategy tranche):
 - Browser verification rendered the real board, selected A1, opened the localized move dialog, and exposed the expected `pieceSelected` game state without a console-error artifact. The multi-game browser E2E then imported a finishing position, accepted the human move, exercised the worker-backed computer reply, and reached the completed finishing result.
 - The regenerated 64-game-per-difficulty variety corpus reports strategic-intent switch rates of 0.047476 (Easy), 0.047877 (Medium), and 0.036258 (Hard), down 80.35%, 75.13%, and 81.79% from commit `69872da`. Repetition ply share remains 0.003711, 0.004492, and 0.006445 respectively.
 - The same corpus remains entirely horizon-censored at 80 plies and still violates several historical absolute target bands. Its composite score must therefore not be treated as evidence of real-player enjoyment or strength. The fresh schema-v3 paired holdout campaign and blinded human study remain the required promotion evidence.
+
+Update 2026-08-09 (measurement-validity corrections):
+
+- Final style selection now runs once, after iterative deepening has finished or stopped. The strength-best root action—not a persona/RNG-selected action—seeds the next principal variation, so fixed-work search evidence is invariant to final style sampling.
+- Removed the policy prior from final behavioral reranking. It remains a search-ordering signal but is no longer counted twice when choosing within the explicit strength-regret band.
+- Replaced the ambiguous same-player mobility proxy for frontier pressure with candidate-relative opponent-reply compression. Each eligible ply compares the selected move's opponent reply count with the median legal root candidate; terminal moves and same-player continuations produce missing evidence rather than a synthetic zero.
+- Root-preparation diagnostics now increment after every generated root transition, including the completed prefix when a deadline interrupts preparation. Fixed-node results therefore expose mandatory work outside the evaluated-node counter without pretending both counters are equivalent.
+- Renamed the generated variety summary in-place as a legacy behavior-regression dashboard. Compatibility commands and artifact paths remain stable, while drama, tension, and composite-interestingness are explicitly documented as uncalibrated trace proxies rather than enjoyment measures or release gates.
+
+Verification 2026-08-09 (measurement-validity corrections):
+
+- Added regressions proving fixed-node candidates/scores/depth evidence do not change with style RNG, policy priors do not affect final behavioral sampling, continuation mobility is not mislabeled as opponent pressure, and root-preparation counts remain deterministic across wall-clock implementations.
+- Focused selection, behavior, variety, timeout, budget, move-ordering, advanced-metric, and measurement suites pass; TypeScript and changed-file ESLint pass.
+- A one-pair/two-ply legacy-report smoke generated the new report kind, heading, and calibration warning. Its expected non-zero exit reflected deliberately tiny-sample baseline regressions; generated tracked artifacts were restored after inspection.

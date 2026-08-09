@@ -83,7 +83,7 @@ tests them separately:
 
 For AI changes, safety also includes the offline behavior surface. A throughput
 gain is not sufficient when variety, participation, repetition, persona share,
-or composite interestingness regresses. Use the immutable-revision variety and
+or the legacy composite behavior proxy regresses. Use the immutable-revision variety and
 stage-variety comparisons for this check; direct participation aggregates are
 `meanParticipationDelta` and `positiveParticipationPlyShare`.
 

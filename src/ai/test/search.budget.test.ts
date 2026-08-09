@@ -58,6 +58,10 @@ describe('computer opponent measurement budgets', () => {
 
     expect(first.evaluatedNodes).toBe(1);
     expect(second.evaluatedNodes).toBe(1);
+    expect(first.diagnostics.rootPreparationTransitions).toBeGreaterThan(0);
+    expect(second.diagnostics.rootPreparationTransitions).toBe(
+      first.diagnostics.rootPreparationTransitions,
+    );
     expect(actionKey(first.action)).toBe(actionKey(second.action));
     expect(first.searchBudget).toEqual({
       exhaustedBy: 'nodes',

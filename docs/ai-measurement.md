@@ -15,8 +15,10 @@ but ambiguous "interestingness" number:
 5. Is a before/after difference larger than measurement uncertainty?
 6. Is game-level strength non-inferior across a fixed opponent portfolio?
 
-The existing variety, stage, loop, threat, bucket, and cross-play reports remain
-useful specialized views. A quality claim should first pass `ai:measure`, because
+The existing variety command is retained as a legacy behavior-regression dashboard;
+the stage, loop, threat, bucket, and cross-play reports remain useful specialized
+views. Its drama, tension, and composite-interestingness values are uncalibrated
+trace proxies, not enjoyment measures or release gates. A quality claim should first pass `ai:measure`, because
 behavior measured from depth-zero fallback or from an unintended clock model is
 not evidence about the intended AI.
 

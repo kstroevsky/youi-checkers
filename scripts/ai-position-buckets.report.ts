@@ -55,7 +55,7 @@ function buildMarkdown(rows: BucketRow[], pairCount: number, maxTurns: number): 
     '- For non-opening buckets, `openingEntropy` means first-reply entropy from that bucket state, not literal game openings.',
     `- Report settings: ${pairCount} mirrored seed pairs per scenario, ${maxTurns} continuation plies per trace.`,
     '',
-    '| Bucket | Difficulty | Scenarios | Opening Entropy | Unique Lines | Repetition | Stagnation | Escape eligible N | Loop Escape<=8 | Pressure | Pos LZC | SampEn | SampEn N | PermEn | Interestingness |',
+    '| Bucket | Difficulty | Scenarios | Opening Entropy | Unique Lines | Repetition | Stagnation | Escape eligible N | Loop Escape<=8 | Pressure | Pos LZC | SampEn | SampEn N | PermEn | Legacy composite proxy |',
     '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
   ];
 
