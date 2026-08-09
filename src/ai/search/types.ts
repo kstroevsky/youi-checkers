@@ -54,6 +54,8 @@ export type RootRankedAction = Pick<
   | 'isRepetition'
   | 'isSelfUndo'
   | 'isTactical'
+  | 'isTerminal'
+  | 'mobility'
   | 'mobilityDelta'
   | 'movedMass'
   | 'participationDelta'
@@ -62,6 +64,7 @@ export type RootRankedAction = Pick<
   | 'sixStackDelta'
   | 'sourceFamily'
   | 'tags'
+  | 'terminalUtility'
   | 'tiebreakEdgeKind'
 > & {
   score: number;

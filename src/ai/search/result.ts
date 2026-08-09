@@ -40,6 +40,8 @@ export function createEmptyResult(action: TurnAction | null, score: number): AiS
   return {
     action,
     behaviorProfileId: null,
+    bestSearchAction: action,
+    bestSearchScore: score,
     completedDepth: 0,
     completedRootMoves: action ? 1 : 0,
     diagnostics: createSearchDiagnostics(),
@@ -62,6 +64,14 @@ export function createEmptyResult(action: TurnAction | null, score: number): AiS
             isRepetition: false,
             isSelfUndo: false,
             isTactical: false,
+            isTerminal: false,
+            mobility: {
+              actorBefore: 0,
+              actorContinuationAfter: null,
+              opponentReplyAfter: null,
+              measuredAfter: false,
+              samePlayerContinuation: false,
+            },
             mobilityDelta: 0,
             movedMass: 0,
             participationDelta: 0,
@@ -71,13 +81,46 @@ export function createEmptyResult(action: TurnAction | null, score: number): AiS
             sixStackDelta: 0,
             sourceFamily: 'none',
             tags: [],
+            terminalUtility: null,
             tiebreakEdgeKind: 'tied',
           },
         ]
       : [],
     score,
+    selectedActionScore: score,
+    selectionRegret: 0,
     strategicIntent: 'hybrid',
     timedOut: false,
+  };
+}
+
+/** Derives score ownership from the full internal ranking, before diagnostic truncation. */
+export function summarizeDecisionScores(
+  ranked: RootRankedAction[],
+  selectedAction: TurnAction | null,
+  fallbackScore: number,
+): Pick<
+  AiSearchResult,
+  | 'bestSearchAction'
+  | 'bestSearchScore'
+  | 'score'
+  | 'selectedActionScore'
+  | 'selectionRegret'
+> {
+  const best = ranked[0] ?? null;
+  const selectedActionId = selectedAction ? actionId(selectedAction) : null;
+  const selected = selectedActionId === null
+    ? null
+    : ranked.find((entry) => actionId(entry.action) === selectedActionId) ?? null;
+  const bestSearchScore = best?.score ?? fallbackScore;
+  const selectedActionScore = selected?.score ?? best?.score ?? fallbackScore;
+
+  return {
+    bestSearchAction: best?.action ?? selectedAction,
+    bestSearchScore,
+    score: selectedActionScore,
+    selectedActionScore,
+    selectionRegret: Math.max(0, bestSearchScore - selectedActionScore),
   };
 }
 

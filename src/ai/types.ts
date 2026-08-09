@@ -109,6 +109,28 @@ export type AiModelGuidance = {
   valueEstimate: number | null;
 };
 
+/** Terminal outcome of a candidate, always expressed from the acting player's perspective. */
+export type AiTerminalUtility =
+  | 'win'
+  | 'loss'
+  | 'favorableDraw'
+  | 'neutralDraw'
+  | 'unfavorableDraw'
+  | null;
+
+/** Actor-aware branching counts around one candidate transition. */
+export type AiMobilityTransition = {
+  /** Legal actions available to the actor before the candidate. */
+  actorBefore: number;
+  /** Actor actions after a same-player continuation, when measured. */
+  actorContinuationAfter: number | null;
+  /** Opponent replies after a turn pass, when measured. */
+  opponentReplyAfter: number | null;
+  /** Whether the active post-transition player's branching count was measured. */
+  measuredAfter: boolean;
+  samePlayerContinuation: boolean;
+};
+
 export type AiRootCandidate = {
   action: TurnAction;
   drawTrapRisk: number;
@@ -121,6 +143,9 @@ export type AiRootCandidate = {
   isRepetition: boolean;
   isSelfUndo: boolean;
   isTactical: boolean;
+  isTerminal: boolean;
+  mobility: AiMobilityTransition;
+  /** Same-actor continuation delta. Zero when the candidate passes the turn. */
   mobilityDelta: number;
   movedMass: number;
   participationDelta: number;
@@ -130,6 +155,7 @@ export type AiRootCandidate = {
   sixStackDelta: number;
   sourceFamily: string;
   tags: AiStrategicTag[];
+  terminalUtility: AiTerminalUtility;
   tiebreakEdgeKind: AiTiebreakEdgeKind;
 };
 
@@ -155,6 +181,10 @@ export type AiSearchDiagnostics = {
 export type AiSearchResult = {
   action: TurnAction | null;
   behaviorProfileId: AiBehaviorProfileId | null;
+  /** Highest-scoring action before bounded variety/persona selection. */
+  bestSearchAction: TurnAction | null;
+  /** Score owned by bestSearchAction. */
+  bestSearchScore: number;
   /** Complete after-win action line. Present only when finishing search reaches victory. */
   completionPlan?: TurnAction[];
   completedDepth: number;
@@ -168,7 +198,12 @@ export type AiSearchResult = {
   rootCandidates: AiRootCandidate[];
   /** Exact resource contract exercised by this decision. */
   searchBudget?: AiSearchBudgetReport;
+  /** Backward-compatible alias for selectedActionScore. */
   score: number;
+  /** Score owned by action, after the final candidate selection. */
+  selectedActionScore: number;
+  /** Non-negative score sacrificed by bounded variety/persona selection. */
+  selectionRegret: number;
   strategicIntent: AiStrategicIntent;
   timedOut: boolean;
 };

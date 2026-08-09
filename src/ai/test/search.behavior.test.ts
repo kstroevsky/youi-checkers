@@ -303,6 +303,50 @@ describe('computer opponent search', () => {
     expect(result.completedRootMoves).toBe(1);
   });
 
+  it('classifies an immediate threefold draw as terminal but not as a forced win', () => {
+    resetFactoryIds();
+    const drawRuleConfig = withConfig({ drawRule: 'threefold' });
+    const noDrawConfig = withConfig({ drawRule: 'none' });
+    const drawingAction: TurnAction = {
+      type: 'moveSingleToEmpty',
+      source: 'B1',
+      target: 'B2',
+    };
+    const baseState = gameStateWithBoard(
+      boardWithPieces({
+        B1: [checker('black')],
+        F4: [checker('white')],
+      }),
+      { currentPlayer: 'black' },
+    );
+    const repeatedState = applyAction(baseState, drawingAction, noDrawConfig);
+    const repeatedHash = hashPosition(repeatedState);
+    const state: GameState = {
+      ...baseState,
+      positionCounts: {
+        ...baseState.positionCounts,
+        [repeatedHash]: 2,
+      },
+    };
+    const ordered = orderMoves(
+      state,
+      state.currentPlayer,
+      drawRuleConfig,
+      AI_DIFFICULTY_PRESETS.hard,
+      { includeAllQuietMoves: true },
+    );
+    const drawingEntry = ordered.find(
+      (entry) => actionKey(entry.action) === actionKey(drawingAction),
+    );
+
+    expect(drawingEntry).toBeDefined();
+    expect(drawingEntry?.nextState.victory).toEqual({ type: 'threefoldDraw' });
+    expect(drawingEntry?.isTerminal).toBe(true);
+    expect(drawingEntry?.terminalUtility).toBe('neutralDraw');
+    expect(drawingEntry?.winsImmediately).toBe(false);
+    expect(drawingEntry?.isForced).toBe(false);
+  });
+
   it('blocks the opponent from winning on the next move', () => {
     resetFactoryIds();
     const state = createOpponentThreatState();
@@ -489,6 +533,75 @@ describe('computer opponent search', () => {
   expect(result.rootCandidates.every((candidate) => Array.isArray(candidate.tags))).toBe(true);
   }, 30_000);
 
+  it('reports scores for both the selected action and the search-best action', () => {
+    const config = withConfig();
+    const state = createInitialState(config);
+    const originalHardPreset = { ...AI_DIFFICULTY_PRESETS.hard };
+    let result;
+
+    Object.assign(AI_DIFFICULTY_PRESETS.hard, {
+      maxDepth: 1,
+      timeBudgetMs: 2_000,
+      varietyTemperature: 0.6,
+      varietyThreshold: 1,
+      varietyTopCount: 3,
+    });
+
+    try {
+      result = chooseComputerAction({
+        difficulty: 'hard',
+        now: createTickingClock(0.01),
+        random: () => 0.999_999,
+        ruleConfig: config,
+        state,
+      });
+    } finally {
+      Object.assign(AI_DIFFICULTY_PRESETS.hard, originalHardPreset);
+    }
+
+    const selectedCandidate = result.rootCandidates.find(
+      (candidate) => actionKey(candidate.action) === actionKey(result.action),
+    );
+    const bestCandidate = result.rootCandidates.reduce((best, candidate) =>
+      candidate.score > best.score ? candidate : best,
+    );
+
+    expect(selectedCandidate).toBeDefined();
+    expect(result.score).toBe(selectedCandidate?.score);
+    expect(result.selectedActionScore).toBe(selectedCandidate?.score);
+    expect(result.bestSearchScore).toBe(bestCandidate.score);
+    expect(actionKey(result.bestSearchAction)).toBe(actionKey(bestCandidate.action));
+    expect(result.selectionRegret).toBe(
+      Math.max(0, bestCandidate.score - (selectedCandidate?.score ?? bestCandidate.score)),
+    );
+  }, 30_000);
+
+  it('keeps mobility ownership explicit when a normal action passes the turn', () => {
+    const config = withConfig();
+    const state = createInitialState(config);
+    const beforeLegalMoveCount = getLegalActions(state, config).length;
+    const ordered = orderMoves(
+      state,
+      state.currentPlayer,
+      config,
+      AI_DIFFICULTY_PRESETS.hard,
+      { includeAllQuietMoves: true, riskMode: 'stagnation' },
+    );
+    const entry = ordered.find(
+      (candidate) => candidate.nextState.currentPlayer !== state.currentPlayer,
+    );
+
+    expect(entry).toBeDefined();
+    expect(entry?.mobility).toEqual({
+      actorBefore: beforeLegalMoveCount,
+      actorContinuationAfter: null,
+      opponentReplyAfter: entry ? getLegalActions(entry.nextState, config).length : null,
+      measuredAfter: true,
+      samePlayerContinuation: false,
+    });
+    expect(entry?.mobilityDelta).toBe(0);
+  });
+
   it('demotes flat manual unfreezes when safer progress exists on a draw-prone board', () => {
     const config = withConfig({ drawRule: 'threefold' });
     const baseState = gameStateWithBoard(
@@ -602,6 +715,14 @@ describe('computer opponent search', () => {
           isRepetition: false,
           isSelfUndo: false,
           isTactical: false,
+          isTerminal: false,
+          mobility: {
+            actorBefore: 0,
+            actorContinuationAfter: null,
+            opponentReplyAfter: null,
+            measuredAfter: false,
+            samePlayerContinuation: false,
+          },
           mobilityDelta: 1,
           movedMass: 1,
           participationDelta: 40,
@@ -611,6 +732,7 @@ describe('computer opponent search', () => {
           sixStackDelta: 0,
           sourceFamily: 'white-001',
           tags: ['advanceMass'],
+          terminalUtility: null,
           tiebreakEdgeKind: 'tied',
         },
         {
@@ -625,6 +747,14 @@ describe('computer opponent search', () => {
           isRepetition: false,
           isSelfUndo: false,
           isTactical: false,
+          isTerminal: false,
+          mobility: {
+            actorBefore: 0,
+            actorContinuationAfter: null,
+            opponentReplyAfter: null,
+            measuredAfter: false,
+            samePlayerContinuation: false,
+          },
           mobilityDelta: 2,
           movedMass: 1,
           participationDelta: 80,
@@ -634,6 +764,7 @@ describe('computer opponent search', () => {
           sixStackDelta: 0,
           sourceFamily: 'white-002',
           tags: ['openLane'],
+          terminalUtility: null,
           tiebreakEdgeKind: 'tied',
         },
         {
@@ -648,6 +779,14 @@ describe('computer opponent search', () => {
           isRepetition: false,
           isSelfUndo: false,
           isTactical: false,
+          isTerminal: false,
+          mobility: {
+            actorBefore: 0,
+            actorContinuationAfter: null,
+            opponentReplyAfter: null,
+            measuredAfter: false,
+            samePlayerContinuation: false,
+          },
           mobilityDelta: 0,
           movedMass: 1,
           participationDelta: 60,
@@ -657,6 +796,7 @@ describe('computer opponent search', () => {
           sixStackDelta: 0.08,
           sourceFamily: 'white-003',
           tags: ['frontBuild'],
+          terminalUtility: null,
           tiebreakEdgeKind: 'tied',
         },
       ];
@@ -683,6 +823,14 @@ describe('computer opponent search', () => {
         isRepetition: false,
         isSelfUndo: false,
         isTactical: false,
+        isTerminal: false,
+        mobility: {
+          actorBefore: 0,
+          actorContinuationAfter: null,
+          opponentReplyAfter: null,
+          measuredAfter: false,
+          samePlayerContinuation: false,
+        },
         mobilityDelta: 0,
         movedMass: 1,
         participationDelta: 30,
@@ -692,6 +840,7 @@ describe('computer opponent search', () => {
         sixStackDelta: 0,
         sourceFamily: 'white-001',
         tags: ['advanceMass'],
+        terminalUtility: null,
         tiebreakEdgeKind: 'tied',
       },
       {
@@ -706,6 +855,14 @@ describe('computer opponent search', () => {
         isRepetition: false,
         isSelfUndo: false,
         isTactical: false,
+        isTerminal: false,
+        mobility: {
+          actorBefore: 0,
+          actorContinuationAfter: null,
+          opponentReplyAfter: null,
+          measuredAfter: false,
+          samePlayerContinuation: false,
+        },
         mobilityDelta: 3,
         movedMass: 1,
         participationDelta: 25,
@@ -715,6 +872,7 @@ describe('computer opponent search', () => {
         sixStackDelta: 0,
         sourceFamily: 'white-002',
         tags: ['decompress', 'openLane'],
+        terminalUtility: null,
         tiebreakEdgeKind: 'tied',
       },
     ];
@@ -742,6 +900,14 @@ describe('computer opponent search', () => {
         isRepetition: false,
         isSelfUndo: false,
         isTactical: false,
+        isTerminal: false,
+        mobility: {
+          actorBefore: 0,
+          actorContinuationAfter: null,
+          opponentReplyAfter: null,
+          measuredAfter: false,
+          samePlayerContinuation: false,
+        },
         mobilityDelta: 0,
         movedMass: 1,
         participationDelta: 30,
@@ -751,6 +917,7 @@ describe('computer opponent search', () => {
         sixStackDelta: 0,
         sourceFamily: 'white-001',
         tags: ['advanceMass'],
+        terminalUtility: null,
         tiebreakEdgeKind: 'tied',
       },
       {
@@ -765,6 +932,14 @@ describe('computer opponent search', () => {
         isRepetition: false,
         isSelfUndo: false,
         isTactical: false,
+        isTerminal: false,
+        mobility: {
+          actorBefore: 0,
+          actorContinuationAfter: null,
+          opponentReplyAfter: null,
+          measuredAfter: false,
+          samePlayerContinuation: false,
+        },
         mobilityDelta: 1,
         movedMass: 1,
         participationDelta: 28,
@@ -774,6 +949,7 @@ describe('computer opponent search', () => {
         sixStackDelta: 0,
         sourceFamily: 'white-002',
         tags: ['advanceMass'],
+        terminalUtility: null,
         tiebreakEdgeKind: 'tied',
       },
     ];
@@ -801,6 +977,14 @@ describe('computer opponent search', () => {
         isRepetition: false,
         isSelfUndo: false,
         isTactical: false,
+        isTerminal: false,
+        mobility: {
+          actorBefore: 0,
+          actorContinuationAfter: null,
+          opponentReplyAfter: null,
+          measuredAfter: false,
+          samePlayerContinuation: false,
+        },
         mobilityDelta: 0,
         movedMass: 0,
         participationDelta: 18,
@@ -810,6 +994,7 @@ describe('computer opponent search', () => {
         sixStackDelta: 0,
         sourceFamily: 'white-001',
         tags: ['rescue'],
+        terminalUtility: null,
         tiebreakEdgeKind: 'behind',
       },
       {
@@ -824,6 +1009,14 @@ describe('computer opponent search', () => {
         isRepetition: false,
         isSelfUndo: false,
         isTactical: false,
+        isTerminal: false,
+        mobility: {
+          actorBefore: 0,
+          actorContinuationAfter: null,
+          opponentReplyAfter: null,
+          measuredAfter: false,
+          samePlayerContinuation: false,
+        },
         mobilityDelta: 1,
         movedMass: 1,
         participationDelta: 20,
@@ -833,6 +1026,7 @@ describe('computer opponent search', () => {
         sixStackDelta: 0,
         sourceFamily: 'white-002',
         tags: ['advanceMass'],
+        terminalUtility: null,
         tiebreakEdgeKind: 'tied',
       },
     ];
@@ -859,6 +1053,14 @@ describe('computer opponent search', () => {
         isRepetition: false,
         isSelfUndo: false,
         isTactical: false,
+        isTerminal: false,
+        mobility: {
+          actorBefore: 0,
+          actorContinuationAfter: null,
+          opponentReplyAfter: null,
+          measuredAfter: false,
+          samePlayerContinuation: false,
+        },
         mobilityDelta: 3,
         movedMass: 1,
         participationDelta: 30,
@@ -868,6 +1070,7 @@ describe('computer opponent search', () => {
         sixStackDelta: 0,
         sourceFamily: 'white-001',
         tags: ['decompress', 'openLane'],
+        terminalUtility: null,
         tiebreakEdgeKind: 'tied',
       },
       {
@@ -882,6 +1085,14 @@ describe('computer opponent search', () => {
         isRepetition: false,
         isSelfUndo: false,
         isTactical: false,
+        isTerminal: false,
+        mobility: {
+          actorBefore: 0,
+          actorContinuationAfter: null,
+          opponentReplyAfter: null,
+          measuredAfter: false,
+          samePlayerContinuation: false,
+        },
         mobilityDelta: 1,
         movedMass: 1,
         participationDelta: 30,
@@ -891,6 +1102,7 @@ describe('computer opponent search', () => {
         sixStackDelta: 0.07,
         sourceFamily: 'white-002',
         tags: ['frontBuild'],
+        terminalUtility: null,
         tiebreakEdgeKind: 'tied',
       },
     ];
@@ -921,6 +1133,14 @@ describe('computer opponent search', () => {
         isRepetition: false,
         isSelfUndo: false,
         isTactical: true,
+        isTerminal: false,
+        mobility: {
+          actorBefore: 0,
+          actorContinuationAfter: null,
+          opponentReplyAfter: null,
+          measuredAfter: false,
+          samePlayerContinuation: false,
+        },
         mobilityDelta: 2,
         movedMass: 1,
         participationDelta: 30,
@@ -930,6 +1150,7 @@ describe('computer opponent search', () => {
         sixStackDelta: 0,
         sourceFamily: 'white-001',
         tags: ['advanceMass', 'openLane'],
+        terminalUtility: null,
         tiebreakEdgeKind: 'tied',
       },
       {
@@ -944,6 +1165,14 @@ describe('computer opponent search', () => {
         isRepetition: false,
         isSelfUndo: false,
         isTactical: true,
+        isTerminal: false,
+        mobility: {
+          actorBefore: 0,
+          actorContinuationAfter: null,
+          opponentReplyAfter: null,
+          measuredAfter: false,
+          samePlayerContinuation: false,
+        },
         mobilityDelta: 3,
         movedMass: 1,
         participationDelta: 24,
@@ -953,6 +1182,7 @@ describe('computer opponent search', () => {
         sixStackDelta: 0,
         sourceFamily: 'white-002',
         tags: ['decompress', 'rescue'],
+        terminalUtility: null,
         tiebreakEdgeKind: 'tied',
       },
     ];

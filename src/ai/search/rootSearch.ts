@@ -40,6 +40,7 @@ import {
   orderRootCandidates,
   selectCandidateAction,
   sortRankedActions,
+  summarizeDecisionScores,
 } from '@/ai/search/result';
 import {
   actionId,
@@ -64,6 +65,8 @@ function createRootFallbackCandidate(
     emptyCellsDelta?: number;
     freezeSwingBonus?: number;
     homeFieldDelta?: number;
+    isTerminal?: boolean;
+    mobility?: RootRankedAction['mobility'];
     mobilityDelta?: number;
     movedMass: number;
     participationDelta: number;
@@ -71,6 +74,7 @@ function createRootFallbackCandidate(
     repeatedPositionCount?: number;
     sixStackDelta?: number;
     sourceFamily: string;
+    terminalUtility?: RootRankedAction['terminalUtility'];
     tiebreakEdgeKind?: AiSearchResult['rootCandidates'][number]['tiebreakEdgeKind'];
   },
   score: number,
@@ -88,6 +92,14 @@ function createRootFallbackCandidate(
     isRepetition: false,
     isSelfUndo: false,
     isTactical: false,
+    isTerminal: entry.isTerminal ?? false,
+    mobility: entry.mobility ?? {
+      actorBefore: 0,
+      actorContinuationAfter: null,
+      opponentReplyAfter: null,
+      measuredAfter: false,
+      samePlayerContinuation: false,
+    },
     mobilityDelta: entry.mobilityDelta ?? 0,
     movedMass: entry.movedMass,
     participationDelta: entry.participationDelta,
@@ -97,6 +109,7 @@ function createRootFallbackCandidate(
     sixStackDelta: entry.sixStackDelta ?? 0,
     sourceFamily: entry.sourceFamily,
     tags: [],
+    terminalUtility: entry.terminalUtility ?? null,
     tiebreakEdgeKind: entry.tiebreakEdgeKind ?? 'tied',
   };
 }
@@ -180,6 +193,8 @@ function toFallbackRanked(orderedMoves: OrderedAction[]): RootRankedAction[] {
       isRepetition: entry.isRepetition,
       isSelfUndo: entry.isSelfUndo,
       isTactical: entry.isTactical,
+      isTerminal: entry.isTerminal,
+      mobility: entry.mobility,
       mobilityDelta: entry.mobilityDelta,
       movedMass: entry.movedMass,
       participationDelta: entry.participationDelta,
@@ -189,6 +204,7 @@ function toFallbackRanked(orderedMoves: OrderedAction[]): RootRankedAction[] {
       sixStackDelta: entry.sixStackDelta,
       sourceFamily: entry.sourceFamily,
       tags: entry.tags,
+      terminalUtility: entry.terminalUtility,
       tiebreakEdgeKind: entry.tiebreakEdgeKind,
     })),
   );
@@ -450,6 +466,8 @@ export function chooseComputerAction({
                 isRepetition: entry.isRepetition,
                 isSelfUndo: entry.isSelfUndo,
                 isTactical: entry.isTactical,
+                isTerminal: entry.isTerminal,
+                mobility: entry.mobility,
                 mobilityDelta: entry.mobilityDelta,
                 movedMass: entry.movedMass,
                 participationDelta: entry.participationDelta,
@@ -459,13 +477,18 @@ export function chooseComputerAction({
                 sixStackDelta: entry.sixStackDelta,
                 sourceFamily: entry.sourceFamily,
                 tags: entry.tags,
+                terminalUtility: entry.terminalUtility,
                 tiebreakEdgeKind: entry.tiebreakEdgeKind,
               },
             ],
             preset.rootCandidateLimit,
           ),
           searchBudget: reportSearchBudget(resolvedBudget, 'none'),
+          bestSearchAction: entry.action,
+          bestSearchScore: 1_000_000,
           score: 1_000_000,
+          selectedActionScore: 1_000_000,
+          selectionRegret: 0,
           strategicIntent,
           timedOut: false,
         };
@@ -490,9 +513,28 @@ export function chooseComputerAction({
       : null;
     const orderedFallbackScore = fallbackRanked[0]?.score ?? getFallbackScore();
 
+    const fallbackAction =
+      fallbackBest?.action ?? rootOrderedMoves[0]?.action ?? legalActions[0];
+    const fallbackCandidates = fallbackRanked.length
+      ? fallbackRanked
+      : [
+          createRootFallbackCandidate(
+            {
+              action: legalActions[0],
+              movedMass: 0,
+              participationDelta: 0,
+              policyPrior: policyPriors
+                ? (policyPriors[actionId(legalActions[0])] ?? 0)
+                : 0,
+              sourceFamily: 'none',
+            },
+            orderedFallbackScore,
+            strategicIntent,
+          ),
+        ];
+
     return {
-      action:
-        fallbackBest?.action ?? rootOrderedMoves[0]?.action ?? legalActions[0],
+      action: fallbackAction,
       behaviorProfileId: behaviorProfile?.id ?? null,
       completedDepth: 0,
       completedRootMoves: 0,
@@ -501,34 +543,22 @@ export function chooseComputerAction({
       evaluatedNodes: 0,
       fallbackKind: 'orderedRoot',
       principalVariation: [
-        fallbackBest?.action ?? rootOrderedMoves[0]?.action ?? legalActions[0],
+        fallbackAction,
       ],
       riskMode: effectiveRiskMode,
       rootCandidates: orderRootCandidates(
-        fallbackRanked.length
-          ? fallbackRanked
-          : [
-              createRootFallbackCandidate(
-                {
-                  action: legalActions[0],
-                  movedMass: 0,
-                  participationDelta: 0,
-                  policyPrior: policyPriors
-                    ? (policyPriors[actionId(legalActions[0])] ?? 0)
-                    : 0,
-                  sourceFamily: 'none',
-                },
-                orderedFallbackScore,
-                strategicIntent,
-              ),
-            ],
+        fallbackCandidates,
         preset.rootCandidateLimit,
       ),
       searchBudget: reportSearchBudget(
         resolvedBudget,
         context.budgetExhaustion,
       ),
-      score: orderedFallbackScore,
+      ...summarizeDecisionScores(
+        fallbackCandidates,
+        fallbackAction,
+        orderedFallbackScore,
+      ),
       strategicIntent,
       timedOut: true,
     };
@@ -616,6 +646,8 @@ export function chooseComputerAction({
         isRepetition: entry.isRepetition,
         isSelfUndo: entry.isSelfUndo,
         isTactical: entry.isTactical,
+        isTerminal: entry.isTerminal,
+        mobility: entry.mobility,
         mobilityDelta: entry.mobilityDelta,
         movedMass: entry.movedMass,
         participationDelta: entry.participationDelta,
@@ -625,6 +657,7 @@ export function chooseComputerAction({
         sixStackDelta: entry.sixStackDelta,
         sourceFamily: entry.sourceFamily,
         tags: entry.tags,
+        terminalUtility: entry.terminalUtility,
         tiebreakEdgeKind: entry.tiebreakEdgeKind,
       });
     }
@@ -801,7 +834,7 @@ export function chooseComputerAction({
       resolvedBudget,
       context.budgetExhaustion,
     ),
-    score: bestScore,
+    ...summarizeDecisionScores(rootCandidates, bestAction, bestScore),
     strategicIntent,
     timedOut,
   };

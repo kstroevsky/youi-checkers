@@ -116,6 +116,8 @@ export function createAiResult(overrides: Partial<AiSearchResult> = {}): AiSearc
   return {
     action: null,
     behaviorProfileId: null,
+    bestSearchAction: null,
+    bestSearchScore: 10,
     completedDepth: 1,
     completedRootMoves: 1,
     diagnostics: {
@@ -142,6 +144,8 @@ export function createAiResult(overrides: Partial<AiSearchResult> = {}): AiSearc
     riskMode: 'normal',
     rootCandidates: [],
     score: 10,
+    selectedActionScore: 10,
+    selectionRegret: 0,
     strategicIntent: 'hybrid',
     timedOut: false,
     ...overrides,
