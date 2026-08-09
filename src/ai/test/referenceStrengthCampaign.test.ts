@@ -12,7 +12,14 @@ import type {
 } from '@/ai/test/referenceStrength';
 
 function fakeFixture(id: string): StrengthFixture {
-  return { bucket: 'test', id, split: 'development', state: {} as never };
+  return {
+    bucket: 'test',
+    id,
+    mirror: 'original',
+    origin: 'initial',
+    split: 'development',
+    state: {} as never,
+  };
 }
 
 function fakePair(pairId: string): ReferenceStrengthPair {

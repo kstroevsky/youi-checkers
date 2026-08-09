@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  expandStrengthFixtureSymmetry,
   runReferenceStrengthGame,
   runReferenceStrengthPair,
   type StrengthFixture,
@@ -16,6 +17,8 @@ describe('reference strength horizon adjudication', () => {
   const opening: StrengthFixture = {
     bucket: 'opening',
     id: 'opening-test',
+    mirror: 'original',
+    origin: 'initial',
     split: 'development',
     state: createInitialState(ruleConfig),
   };
@@ -53,6 +56,8 @@ describe('reference strength horizon adjudication', () => {
       fixture: {
         bucket: 'tactical',
         id: tactical.id,
+        mirror: 'original',
+        origin: 'initial',
         split: 'development',
         state: tactical.state,
       },
@@ -86,5 +91,17 @@ describe('reference strength horizon adjudication', () => {
     expect(pair.pairScore).toBeNull();
     expect(pair.resolvedGameCount).toBe(0);
     expect(pair.adjudicatedPairScore).toBe(0.5);
+  });
+
+  it('expands every scenario into an original and true horizontal mirror', () => {
+    const [original, mirrored] = expandStrengthFixtureSymmetry(opening);
+
+    expect(original).toBe(opening);
+    expect(mirrored.id).toBe('opening-test-mirror-horizontal');
+    expect(mirrored.mirror).toBe('horizontal');
+    expect(mirrored.origin).toBe('initial');
+    expect(() => expandStrengthFixtureSymmetry(mirrored)).toThrow(
+      /original strength fixture/u,
+    );
   });
 });

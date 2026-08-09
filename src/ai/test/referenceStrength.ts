@@ -22,14 +22,17 @@ import {
 } from '@/domain';
 import type { AiDifficulty } from '@/shared/types/session';
 import { resolveDrawOutcome } from '@/domain/rules/victory';
+import { mirrorGameStateHorizontally } from '@/ai/test/symmetry';
 
-export const AI_REFERENCE_STRENGTH_SCHEMA_VERSION = 2 as const;
+export const AI_REFERENCE_STRENGTH_SCHEMA_VERSION = 3 as const;
 
 export type StrengthFixtureSplit = 'development' | 'holdout';
 
 export type StrengthFixture = {
   bucket: string;
   id: string;
+  mirror: 'horizontal' | 'original';
+  origin: 'initial' | 'randomLegal' | 'syntheticLoop';
   split: StrengthFixtureSplit;
   state: GameState;
 };
@@ -66,6 +69,8 @@ export type ReferenceStrengthPair = {
   candidateSeed: number;
   fixtureBucket: string;
   fixtureId: string;
+  fixtureMirror: StrengthFixture['mirror'];
+  fixtureOrigin: StrengthFixture['origin'];
   games: [ReferenceStrengthGame, ReferenceStrengthGame];
   kind: 'strengthPair';
   pairId: string;
@@ -76,6 +81,27 @@ export type ReferenceStrengthPair = {
   resolvedGameCount: number;
   stratumId: string;
 };
+
+/** Expands one scenario into a true geometric pair while retaining provenance. */
+export function expandStrengthFixtureSymmetry(
+  fixture: StrengthFixture,
+): [StrengthFixture, StrengthFixture] {
+  if (fixture.mirror !== 'original') {
+    throw new Error(
+      'Only an original strength fixture can be symmetry-expanded.',
+    );
+  }
+
+  return [
+    fixture,
+    {
+      ...fixture,
+      id: `${fixture.id}-mirror-horizontal`,
+      mirror: 'horizontal',
+      state: mirrorGameStateHorizontally(fixture.state),
+    },
+  ];
+}
 
 function createSeededRandom(seed: number): () => number {
   let current = seed >>> 0;
@@ -283,6 +309,8 @@ export function runReferenceStrengthPair({
     candidateSeed,
     fixtureBucket: fixture.bucket,
     fixtureId: fixture.id,
+    fixtureMirror: fixture.mirror,
+    fixtureOrigin: fixture.origin,
     games,
     kind: 'strengthPair',
     pairId,

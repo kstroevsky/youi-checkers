@@ -11,6 +11,7 @@ import {
 } from '@/ai/test/frozenReferencePool';
 import {
   AI_REFERENCE_STRENGTH_SCHEMA_VERSION,
+  expandStrengthFixtureSymmetry,
   runReferenceStrengthPair,
   type ReferenceStrengthPair,
   type StrengthFixture,
@@ -185,16 +186,26 @@ function buildFixtures(settings: Settings): StrengthFixture[] {
     drawRule: 'threefold',
     scoringMode: 'off',
   });
-  return POSITION_BUCKET_SCENARIOS.map((scenario) => ({
-    bucket: scenario.bucket,
-    id: scenario.label,
-    split: scenario.strengthSplit,
-    state: buildScenarioState(scenario, ruleConfig),
-  }))
-    .filter(
-      (fixture) => settings.split === 'all' || fixture.split === settings.split,
-    )
-    .slice(0, settings.scenarioLimit);
+  return POSITION_BUCKET_SCENARIOS.filter(
+    (scenario) =>
+      settings.split === 'all' || scenario.strengthSplit === settings.split,
+  )
+    .slice(0, settings.scenarioLimit)
+    .flatMap((scenario) =>
+      expandStrengthFixtureSymmetry({
+        bucket: scenario.bucket,
+        id: scenario.label,
+        mirror: 'original',
+        origin:
+          scenario.turnCount === 0
+            ? 'initial'
+            : scenario.randomPlay
+              ? 'randomLegal'
+              : 'syntheticLoop',
+        split: scenario.strengthSplit,
+        state: buildScenarioState(scenario, ruleConfig),
+      }),
+    );
 }
 
 function gitRevision(): string {
@@ -307,6 +318,8 @@ async function main(): Promise<void> {
   const fixtureManifest = fixtures.map((fixture) => ({
     bucket: fixture.bucket,
     id: fixture.id,
+    mirror: fixture.mirror,
+    origin: fixture.origin,
     positionHash: hashPosition(fixture.state),
     split: fixture.split,
   }));
