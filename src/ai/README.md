@@ -874,6 +874,14 @@ behavior, spatial equivariance, and human experience as separate evidence
 families. See [`docs/ai-measurement.md`](../../docs/ai-measurement.md) for the
 contract and commands.
 
+The companion `ai:competence` command owns tactical correctness and equal-work
+strength curves. It validates rule-derived unique wins/defenses under true
+mirrors, searches each subject at increasing fixed-node budgets, and rescores
+the chosen action against a complete deeper root. Its regret, catastrophic-error,
+fallback, root-coverage, and missing-oracle denominators remain separate from
+the behavioral dashboards; confirmatory gates inspect only the largest measured
+budget for each difficulty.
+
 [`scripts/run-git-report-compare.mjs`](../../scripts/run-git-report-compare.mjs) is the generic compare entry point behind the `*:compare` npm scripts. It materializes the `before` and `after` snapshots, reruns the requested pipeline for each snapshot, flattens the numeric leaves of both JSON reports, and emits a Markdown diff under `output/`.
 
 The wrappers accept `--before=<ref|working>` and `--after=<ref|working>`. In practice that supports:

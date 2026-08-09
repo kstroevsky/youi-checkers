@@ -685,3 +685,11 @@ Verification 2026-08-04 (advanced interestingness estimators, Phase 1B):
 - Red/green regressions cover sample-entropy insufficiency, Lempel-Ziv token-label invariance, loop-pressure denominator conditioning, and missing frontier-compression evidence.
 - Advanced plus core AI focused verification passes 50 tests with one intentional skip; `tsc --noEmit` and changed-file ESLint pass.
 - A one-pair/four-ply loop-report smoke emitted explicit `null` estimates and evidence counts, while loop-pressure buckets produced conditioned escape rates. The tracked baseline artifacts were restored after inspection.
+
+Update 2026-08-09 (competence and fixed-node oracle foundation, Phase 2A):
+
+- Added a rule-derived tactical catalog for unique home-field wins, unique six-stack wins, and unique immediate defenses. Every fixture has a true geometric mirror, and catalog construction fails unless both variants have exactly one correct action.
+- Added a measurement-only root-candidate limit override. Production presets remain unchanged, while a deeper fixed-depth oracle can expose every searched root score needed to rescore a subject action.
+- Added fixed-node regret curves across difficulty and work budgets, with oracle agreement, unique-win/defense accuracy, p95 regret, catastrophic-regret rate, root coverage, fallback, zero-depth, and explicit oracle-missing denominators.
+- Added largest-budget confirmatory gates with difficulty-specific regret tolerances. Smoke curves remain exploratory unless `--enforce-gates=true` is requested.
+- Added lossless raw JSONL, checksummed fixture manifests, complete settings, Git/runtime provenance, a Markdown review surface, and the authoritative `ai:competence` command.

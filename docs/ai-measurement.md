@@ -2,14 +2,16 @@
 
 ## Purpose
 
-`ai:measure` is the validity layer for AI-quality experiments. It answers four
-different questions without collapsing them into one attractive but ambiguous
-"interestingness" number:
+`ai:measure` is the validity layer for broad AI-quality experiments, while
+`ai:competence` is the tactical-oracle and equal-work strength layer. Together
+they answer five different questions without collapsing them into one attractive
+but ambiguous "interestingness" number:
 
-1. Did the requested search actually run?
-2. What game outcomes resulted?
-3. What observable kinds of play occurred?
-4. Is a before/after difference larger than measurement uncertainty?
+1. Does the AI choose the uniquely winning or uniquely defensive move?
+2. Did the requested search actually run?
+3. What game outcomes resulted?
+4. What observable kinds of play occurred?
+5. Is a before/after difference larger than measurement uncertainty?
 
 The existing variety, stage, loop, threat, bucket, and cross-play reports remain
 useful specialized views. A quality claim should first pass `ai:measure`, because
@@ -18,6 +20,36 @@ not evidence about the intended AI.
 
 This infrastructure does not change the shipped difficulty presets or move
 selection. A future strategy change needs a separate adoption decision.
+
+## Tactical competence and fixed-node regret
+
+`ai:competence` measures the first Phase 2 strength contract. Its fixture catalog
+contains rule-derived unique-win and unique-defense positions. Each source
+fixture is paired with a true horizontal mirror, and construction fails unless
+the domain rules find exactly one correct action in both variants. This prevents
+stale handwritten action labels from becoming an oracle.
+
+Every subject decision is repeated over a fixed-node curve. The default full
+curve is 64, 128, 256, 512, 1024, and 2048 evaluated nodes. A complete
+fixed-depth Hard search supplies the deeper reference root. The selected action
+is looked up in that deeper root and receives:
+
+- deeper-oracle regret and p95 regret;
+- catastrophic-regret classification at a declared score threshold;
+- oracle agreement;
+- unique-win or unique-defense accuracy;
+- oracle coverage, root coverage, fallback, and zero-depth denominators.
+
+An action absent from the complete oracle root has `null` regret and increments
+missing coverage. It never receives a convenient zero. Confirmatory gates apply
+only to the largest measured node budget for each difficulty; smaller budgets
+remain diagnostic curve points. `--enforce-gates=true` converts a failed final
+gate into a non-zero command exit.
+
+This oracle is deliberately internal and bounded: it is a stronger, complete
+search under the same evaluator, not solved-game truth. The curated tactical
+labels provide independent rule truth for immediate wins and defenses; future
+portfolio work should add deeper generated and human-incident holdouts.
 
 ## Search execution contracts
 
@@ -158,6 +190,18 @@ Fast deterministic path smoke:
 
 ```bash
 pnpm ai:measure -- --profile=smoke --budget=fixedDepth --max-depth=1
+```
+
+Tactical-oracle and fixed-node curve smoke:
+
+```bash
+pnpm ai:competence -- --profile=smoke
+```
+
+Full confirmatory competence curve:
+
+```bash
+pnpm ai:competence -- --profile=full --enforce-gates=true
 ```
 
 Reproducible full suite:
