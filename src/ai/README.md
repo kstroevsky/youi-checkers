@@ -855,10 +855,10 @@ The newer nonlinear metrics in [`test/advancedMetrics.ts`](./test/advancedMetric
 | `recurrenceDeterminism`   | share of recurrence points that lie on diagonal replay lines rather than isolated revisits       |
 | `recurrenceLaminarity`    | share of recurrence points that lie on vertical dwell lines, which is a strong loop/stall signal |
 | `trappingTime`            | average vertical dwell length inside recurrence plots                                            |
-| `scoreSampleEntropy`      | irregularity of the evaluation-score time series under tolerance-based matching                  |
+| `scoreSampleEntropy`      | irregularity of eligible evaluation-score series; `null` means no finite estimate, with an explicit trace count |
 | `scorePermutationEntropy` | ordinal complexity of local score windows, insensitive to absolute scale                         |
-| `positionLempelZiv`       | symbolic complexity of the visited-position sequence                                             |
-| `loopEscapeRate8/16/24`   | share of traces that break repetition/undo pressure within the next 8, 16, or 24 plies           |
+| `positionLempelZiv`       | token-level symbolic complexity of the visited-position sequence, invariant to token spelling    |
+| `loopEscapeRate8/16/24`   | share of loop-pressure-eligible traces that escape within 8, 16, or 24 plies; eligibility N is reported |
 | `meanLoopEscapePly`       | average number of plies needed to escape once loop pressure becomes active                       |
 | `pressureEventRate`       | share of plies that create freeze pressure, frontier compression, or direct conversion pressure  |
 | `frontierCompressionRate` | how often the chosen move shrinks the opponent reply frontier                                    |

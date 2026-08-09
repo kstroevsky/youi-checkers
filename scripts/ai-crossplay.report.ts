@@ -22,7 +22,7 @@ type CellSummary = {
   compositeInterestingness: number;
   decisiveResultShare: number;
   drawShare: number;
-  loopEscapeRate8: number;
+  loopEscapeRate8: number | null;
   pointShare: number;
   pressureEventRate: number;
   recurrenceLaminarity: number;
@@ -220,7 +220,7 @@ function buildMatrixReport<TKey extends string>(
 function buildMatrixTable<TKey extends string>(
   title: string,
   matrix: MatrixReport<TKey>,
-  selector: (cell: CellSummary) => number,
+  selector: (cell: CellSummary) => number | null,
 ): string[] {
   const lines = [title, '', `| row \\ col | ${matrix.labels.join(' | ')} |`, `| --- | ${matrix.labels.map(() => '---:').join(' | ')} |`];
 

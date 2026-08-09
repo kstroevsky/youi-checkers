@@ -53,13 +53,13 @@ function buildMarkdown(rows: LoopBenchmarkRow[], pairCount: number, maxTurns: nu
     '- Core loop metrics come from `src/ai/test/metrics.ts`; advanced recurrence and escape metrics come from `src/ai/test/advancedMetrics.ts`.',
     `- Report settings: ${pairCount} mirrored seed pairs per row, ${maxTurns} continuation plies per trace.`,
     '',
-    '| Scenario | Difficulty | Repetition | Undo | Stagnation | Recurrence RR | DET | LAM | Trap Time | Escape<=8 | Escape<=16 | Mean Escape Ply | Pos LZC | Score SampEn | Score PermEn |',
-    '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Scenario | Difficulty | Repetition | Undo | Stagnation | Recurrence RR | DET | LAM | Trap Time | Escape eligible N | Escape<=8 | Escape<=16 | Mean Escape Ply | Pos LZC | Score SampEn | SampEn N | Score PermEn |',
+    '| --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
   ];
 
   for (const row of rows) {
     lines.push(
-      `| ${row.label} | ${row.difficulty} | ${row.summary.metrics.repetitionPlyShare} | ${row.summary.metrics.twoPlyUndoRate} | ${row.summary.metrics.stagnationWindowRate} | ${row.advanced.recurrenceRate} | ${row.advanced.recurrenceDeterminism} | ${row.advanced.recurrenceLaminarity} | ${row.advanced.trappingTime} | ${row.advanced.loopEscapeRate8} | ${row.advanced.loopEscapeRate16} | ${row.advanced.meanLoopEscapePly} | ${row.advanced.positionLempelZiv} | ${row.advanced.scoreSampleEntropy} | ${row.advanced.scorePermutationEntropy} |`,
+      `| ${row.label} | ${row.difficulty} | ${row.summary.metrics.repetitionPlyShare} | ${row.summary.metrics.twoPlyUndoRate} | ${row.summary.metrics.stagnationWindowRate} | ${row.advanced.recurrenceRate} | ${row.advanced.recurrenceDeterminism} | ${row.advanced.recurrenceLaminarity} | ${row.advanced.trappingTime} | ${row.advanced.loopEscapeEligibleTraceCount} | ${row.advanced.loopEscapeRate8} | ${row.advanced.loopEscapeRate16} | ${row.advanced.meanLoopEscapePly} | ${row.advanced.positionLempelZiv} | ${row.advanced.scoreSampleEntropy} | ${row.advanced.scoreSampleEntropyTraceCount} | ${row.advanced.scorePermutationEntropy} |`,
     );
   }
 

@@ -10,11 +10,14 @@ export type RecurrenceQuantification = {
 };
 
 export type AdvancedTraceSummary = {
-  frontierCompressionRate: number;
-  loopEscapeRate16: number;
-  loopEscapeRate24: number;
-  loopEscapeRate8: number;
-  meanLoopEscapePly: number;
+  frontierCompressionRate: number | null;
+  frontierCompressionSampleCount: number;
+  loopEscapeEligibleTraceCount: number;
+  loopEscapeObservedCount: number;
+  loopEscapeRate16: number | null;
+  loopEscapeRate24: number | null;
+  loopEscapeRate8: number | null;
+  meanLoopEscapePly: number | null;
   pressureEventRate: number;
   positionLempelZiv: number;
   recurrenceDeterminism: number;
@@ -22,7 +25,8 @@ export type AdvancedTraceSummary = {
   recurrenceRate: number;
   riskProgressShare: number;
   scorePermutationEntropy: number;
-  scoreSampleEntropy: number;
+  scoreSampleEntropy: number | null;
+  scoreSampleEntropyTraceCount: number;
   trappingTime: number;
 };
 
@@ -30,6 +34,10 @@ const LOOP_ESCAPE_WINDOW = 4;
 
 function roundMetric(value: number, digits = 6): number {
   return Number(value.toFixed(digits));
+}
+
+function roundOptionalMetric(value: number | null, digits = 6): number | null {
+  return value === null ? null : roundMetric(value, digits);
 }
 
 function average(values: number[]): number {
@@ -181,9 +189,9 @@ export function computeSampleEntropy(
   values: number[],
   embedding = 2,
   toleranceScale = 0.2,
-): number {
+): number | null {
   if (values.length <= embedding + 1) {
-    return 0;
+    return null;
   }
 
   const deviation = standardDeviation(values);
@@ -220,11 +228,14 @@ export function computeSampleEntropy(
   }
 
   if (mMatches === 0) {
-    return 0;
+    return null;
   }
 
-  const smoothedRatio = (mPlusOneMatches + 1e-9) / (mMatches + 1e-9);
-  return roundMetric(Math.max(0, -Math.log(smoothedRatio)));
+  if (mPlusOneMatches === 0) {
+    return null;
+  }
+
+  return roundMetric(Math.max(0, -Math.log(mPlusOneMatches / mMatches)));
 }
 
 function factorial(value: number): number {
@@ -298,35 +309,40 @@ export function computeNormalizedLempelZiv(sequence: string[]): number {
     return 0;
   }
 
-  const joined = sequence.join('|');
-  let complexity = 1;
+  let complexity = 0;
   let start = 0;
-  let substringLength = 1;
-  let maxMatched = 1;
 
-  while (true) {
-    if (start + substringLength > joined.length) {
-      complexity += 1;
-      break;
-    }
+  while (start < n) {
+    let phraseLength = 1;
 
-    const candidate = joined.slice(start, start + substringLength);
-    const searchSpace = joined.slice(0, start);
+    while (start + phraseLength <= n) {
+      const candidate = sequence.slice(start, start + phraseLength);
+      let seen = false;
 
-    if (searchSpace.includes(candidate)) {
-      substringLength += 1;
-      maxMatched = Math.max(maxMatched, substringLength);
-      continue;
+      for (
+        let searchStart = 0;
+        searchStart + phraseLength <= start;
+        searchStart += 1
+      ) {
+        if (
+          candidate.every(
+            (token, offset) => sequence[searchStart + offset] === token,
+          )
+        ) {
+          seen = true;
+          break;
+        }
+      }
+
+      if (!seen) {
+        break;
+      }
+
+      phraseLength += 1;
     }
 
     complexity += 1;
-    start += maxMatched;
-    substringLength = 1;
-    maxMatched = 1;
-
-    if (start >= joined.length) {
-      break;
-    }
+    start += Math.min(phraseLength, n - start);
   }
 
   return roundMetric((complexity * Math.log2(n)) / n);
@@ -379,6 +395,12 @@ export function findLoopEscapePly(
   return null;
 }
 
+function hasLoopPressureActivation(trace: AiGameTrace): boolean {
+  return trace.plies.some(
+    (ply) => ply.riskMode !== 'normal' || ply.isRepetition || ply.isSelfUndo,
+  );
+}
+
 export function summarizeAdvancedTraceMetrics(traces: AiGameTrace[]): AdvancedTraceSummary {
   const recurrence = traces.map((trace) =>
     computeRecurrenceQuantification(trace.plies.map((ply) => ply.afterPositionKey)),
@@ -386,13 +408,17 @@ export function summarizeAdvancedTraceMetrics(traces: AiGameTrace[]): AdvancedTr
   const positionLempelZiv = average(
     traces.map((trace) => computeNormalizedLempelZiv(trace.plies.map((ply) => ply.afterPositionKey))),
   );
-  const scoreSampleEntropy = average(
-    traces.map((trace) => computeSampleEntropy(trace.plies.map((ply) => ply.normalizedWhiteScore))),
-  );
+  const scoreSampleEntropyValues = traces
+    .map((trace) => computeSampleEntropy(trace.plies.map((ply) => ply.normalizedWhiteScore)))
+    .filter((value): value is number => value !== null);
+  const scoreSampleEntropy = scoreSampleEntropyValues.length
+    ? average(scoreSampleEntropyValues)
+    : null;
   const scorePermutationEntropy = average(
     traces.map((trace) => computePermutationEntropy(trace.plies.map((ply) => ply.normalizedWhiteScore))),
   );
-  const loopEscapePlies = traces
+  const loopEligibleTraces = traces.filter(hasLoopPressureActivation);
+  const loopEscapePlies = loopEligibleTraces
     .map((trace) => findLoopEscapePly(trace))
     .filter((value): value is number => value !== null);
   const allPlies = traces.flatMap((trace) => trace.plies);
@@ -400,20 +426,36 @@ export function summarizeAdvancedTraceMetrics(traces: AiGameTrace[]): AdvancedTr
   const pressureEventRate = average(
     traces.map((trace) => average(trace.plies.map((ply) => (isPressureEvent(ply) ? 1 : 0)))),
   );
-  const frontierCompressionRate = average(
-    traces.map((trace) =>
-      average(
-        trace.plies.map((ply) => Math.max(0, -ply.mobilityDelta) / Math.max(1, ply.beforeLegalMoveCount)),
-      ),
-    ),
-  );
+  const frontierCompressionSamples = allPlies
+    .filter(
+      (ply) =>
+        ply.mobility.measuredAfter && ply.mobility.samePlayerContinuation,
+    )
+    .map(
+      (ply) =>
+        Math.max(0, -ply.mobilityDelta) /
+        Math.max(1, ply.mobility.actorBefore),
+    );
+  const frontierCompressionRate = frontierCompressionSamples.length
+    ? average(frontierCompressionSamples)
+    : null;
+  const loopEscapeRate = (limit: number): number | null =>
+    loopEligibleTraces.length
+      ? loopEscapePlies.filter((value) => value <= limit).length /
+        loopEligibleTraces.length
+      : null;
 
   return {
-    frontierCompressionRate: roundMetric(frontierCompressionRate),
-    loopEscapeRate16: roundMetric(loopEscapePlies.filter((value) => value <= 16).length / Math.max(1, traces.length)),
-    loopEscapeRate24: roundMetric(loopEscapePlies.filter((value) => value <= 24).length / Math.max(1, traces.length)),
-    loopEscapeRate8: roundMetric(loopEscapePlies.filter((value) => value <= 8).length / Math.max(1, traces.length)),
-    meanLoopEscapePly: roundMetric(average(loopEscapePlies)),
+    frontierCompressionRate: roundOptionalMetric(frontierCompressionRate),
+    frontierCompressionSampleCount: frontierCompressionSamples.length,
+    loopEscapeEligibleTraceCount: loopEligibleTraces.length,
+    loopEscapeObservedCount: loopEscapePlies.length,
+    loopEscapeRate16: roundOptionalMetric(loopEscapeRate(16)),
+    loopEscapeRate24: roundOptionalMetric(loopEscapeRate(24)),
+    loopEscapeRate8: roundOptionalMetric(loopEscapeRate(8)),
+    meanLoopEscapePly: loopEscapePlies.length
+      ? roundMetric(average(loopEscapePlies))
+      : null,
     pressureEventRate: roundMetric(pressureEventRate),
     positionLempelZiv: roundMetric(positionLempelZiv),
     recurrenceDeterminism: roundMetric(average(recurrence.map((entry) => entry.determinism))),
@@ -423,7 +465,8 @@ export function summarizeAdvancedTraceMetrics(traces: AiGameTrace[]): AdvancedTr
       riskPlies.filter((ply) => ply.isRiskProgressCertified).length / Math.max(1, riskPlies.length),
     ),
     scorePermutationEntropy: roundMetric(scorePermutationEntropy),
-    scoreSampleEntropy: roundMetric(scoreSampleEntropy),
+    scoreSampleEntropy: roundOptionalMetric(scoreSampleEntropy),
+    scoreSampleEntropyTraceCount: scoreSampleEntropyValues.length,
     trappingTime: roundMetric(average(recurrence.map((entry) => entry.trappingTime))),
   };
 }

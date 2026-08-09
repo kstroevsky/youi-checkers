@@ -4,6 +4,7 @@ import {
   computeRecurrenceQuantification,
   computeSampleEntropy,
   findLoopEscapePly,
+  summarizeAdvancedTraceMetrics,
 } from '@/ai/test/advancedMetrics';
 import type { AiGameTrace, AiTracePly } from '@/ai/test/metrics';
 import { createSearchDiagnostics } from '@/ai/search/result';
@@ -18,6 +19,7 @@ function createPly(overrides: Partial<AiTracePly> = {}): AiTracePly {
     afterLegalMoveCount: 6,
     afterPositionKey: `position-${overrides.ply ?? 1}`,
     behaviorProfileId: 'expander',
+    bestSearchScore: 0,
     beforeLegalMoveCount: 6,
     boardDisplacement: 0.08,
     completedDepth: 1,
@@ -38,6 +40,13 @@ function createPly(overrides: Partial<AiTracePly> = {}): AiTracePly {
     isSelfUndo: false,
     isTactical: false,
     legalRootCandidateCount: 2,
+    mobility: {
+      actorBefore: 6,
+      actorContinuationAfter: null,
+      measuredAfter: true,
+      opponentReplyAfter: 6,
+      samePlayerContinuation: false,
+    },
     mobilityDelta: 0,
     movedMass: 1,
     normalizedWhiteScore: 0,
@@ -48,6 +57,8 @@ function createPly(overrides: Partial<AiTracePly> = {}): AiTracePly {
     rootScoreRegret: 0,
     riskMode: 'normal',
     score: 0,
+    selectedActionScore: 0,
+    selectionRegret: 0,
     searchBudget: null,
     sixStackDelta: 0,
     sixStackProgress: { black: 0, white: 0 },
@@ -99,7 +110,12 @@ describe('advanced trace analytics', () => {
 
   it('drops sample entropy toward zero for constant score sequences', () => {
     expect(computeSampleEntropy([0, 0, 0, 0, 0, 0])).toBe(0);
-    expect(computeSampleEntropy([0, 0.2, 0.4, 0.2, 0.4, 0.6, 0.4, 0.6, 0.8])).toBeGreaterThan(0);
+    expect(computeSampleEntropy([0, 1, 0, 1, 0, 2, 0, 1, 0, 1])).toBeGreaterThan(0);
+  });
+
+  it('marks sample entropy as unavailable when evidence is insufficient', () => {
+    expect(computeSampleEntropy([0, 1, 2])).toBeNull();
+    expect(computeSampleEntropy([0, 1, 4, 9, 16])).toBeNull();
   });
 
   it('gives lower Lempel-Ziv complexity to repeated symbolic loops', () => {
@@ -107,6 +123,21 @@ describe('advanced trace analytics', () => {
     const diverse = computeNormalizedLempelZiv(['a', 'b', 'c', 'd', 'e', 'f']);
 
     expect(looping).toBeLessThan(diverse);
+  });
+
+  it('keeps token Lempel-Ziv invariant under symbolic relabeling', () => {
+    expect(
+      computeNormalizedLempelZiv(['a', 'b', 'a', 'b', 'a', 'b']),
+    ).toBe(
+      computeNormalizedLempelZiv([
+        'long-token-with-shared-characters',
+        'another|token',
+        'long-token-with-shared-characters',
+        'another|token',
+        'long-token-with-shared-characters',
+        'another|token',
+      ]),
+    );
   });
 
   it('detects a loop escape once repetition and self-undo pressure stop', () => {
@@ -163,5 +194,33 @@ describe('advanced trace analytics', () => {
     ]);
 
     expect(findLoopEscapePly(trace)).toBe(3);
+  });
+
+  it('conditions loop-escape rates on traces that actually enter loop pressure', () => {
+    const pressureTrace = createTrace([
+      createPly({ isRepetition: true, ply: 1, riskMode: 'stagnation' }),
+      createPly({ boardDisplacement: 0.08, ply: 2 }),
+      createPly({ boardDisplacement: 0.08, ply: 3 }),
+      createPly({ boardDisplacement: 0.08, ply: 4 }),
+      createPly({ boardDisplacement: 0.08, ply: 5 }),
+    ]);
+    const ordinaryTrace = createTrace([
+      createPly({ ply: 1 }),
+      createPly({ ply: 2 }),
+      createPly({ ply: 3 }),
+      createPly({ ply: 4 }),
+      createPly({ ply: 5 }),
+    ]);
+    const summary = summarizeAdvancedTraceMetrics([pressureTrace, ordinaryTrace]);
+
+    expect(summary.loopEscapeEligibleTraceCount).toBe(1);
+    expect(summary.loopEscapeObservedCount).toBe(1);
+    expect(summary.loopEscapeRate8).toBe(1);
+    expect(summary.frontierCompressionSampleCount).toBe(0);
+    expect(summary.frontierCompressionRate).toBeNull();
+
+    const noPressureSummary = summarizeAdvancedTraceMetrics([ordinaryTrace]);
+    expect(noPressureSummary.loopEscapeEligibleTraceCount).toBe(0);
+    expect(noPressureSummary.loopEscapeRate8).toBeNull();
   });
 });
