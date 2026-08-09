@@ -882,6 +882,14 @@ fallback, completed-root, partial-depth, and missing-oracle denominators remain 
 the behavioral dashboards; confirmatory gates inspect only the largest measured
 budget for each difficulty.
 
+The game-level `ai:strength` protocol then evaluates retained revisions against
+the same checksummed, deterministic opponent pool. Its raw unit is a seeded
+color-swapped game pair; unfinished games remain censored. The paired file
+comparator equal-weights fixture × reference strata, reports fixed-portfolio and
+hierarchical bootstrap intervals, and requires both point-share and resolved-
+pair-share non-inferiority. This is the long-horizon strength gate; it is still
+not a substitute for human challenge, flow, or enjoyment evidence.
+
 [`scripts/run-git-report-compare.mjs`](../../scripts/run-git-report-compare.mjs) is the generic compare entry point behind the `*:compare` npm scripts. It materializes the `before` and `after` snapshots, reruns the requested pipeline for each snapshot, flattens the numeric leaves of both JSON reports, and emits a Markdown diff under `output/`.
 
 The wrappers accept `--before=<ref|working>` and `--after=<ref|working>`. In practice that supports:

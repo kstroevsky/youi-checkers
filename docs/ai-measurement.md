@@ -3,8 +3,9 @@
 ## Purpose
 
 `ai:measure` is the validity layer for broad AI-quality experiments, while
-`ai:competence` is the tactical-oracle and equal-work strength layer. Together
-they answer five different questions without collapsing them into one attractive
+`ai:competence` is the tactical-oracle and equal-work decision layer, while
+`ai:strength` measures game-level results against immutable reference policies.
+Together they answer six different questions without collapsing them into one attractive
 but ambiguous "interestingness" number:
 
 1. Does the AI choose the uniquely winning or uniquely defensive move?
@@ -12,6 +13,7 @@ but ambiguous "interestingness" number:
 3. What game outcomes resulted?
 4. What observable kinds of play occurred?
 5. Is a before/after difference larger than measurement uncertainty?
+6. Is game-level strength non-inferior across a fixed opponent portfolio?
 
 The existing variety, stage, loop, threat, bucket, and cross-play reports remain
 useful specialized views. A quality claim should first pass `ai:measure`, because
@@ -50,6 +52,47 @@ This oracle is deliberately internal and bounded: it is a stronger, complete
 search under the same evaluator, not solved-game truth. The curated tactical
 labels provide independent rule truth for immediate wins and defenses; future
 portfolio work should add deeper generated and human-incident holdouts.
+
+## Frozen-reference game strength
+
+`ai:strength` closes the gap between tactical decisions and complete-game
+outcomes. The candidate plays two games per statistical unit, once as White and
+once as Black, against the same versioned reference policy with the same
+candidate/reference seeds, fixture, fixed-node budget, rules, and horizon. The
+reference pool is deliberately not another invocation of the mutable AI:
+
+- `canonical-legal-v1` is a deterministic legal-order floor;
+- `seeded-legal-v1` is a seeded uniform legal policy;
+- `tactical-greedy-v1` takes immediate wins, avoids one-reply losses when
+  possible, then applies a frozen score formula.
+
+The pool implementation source, domain-rule source, and fixture positions are
+checksummed. Changing any of them makes old and new runs incomparable. Scenario fixtures are preassigned to
+`development` or `holdout`; the `full` profile defaults to holdout so tuning on
+the same confirmatory positions is not the normal workflow.
+
+A color-swapped pair receives a score only when both games terminate. A win is
+1, an actual draw is 0.5, and a loss is 0. A horizon-limited game is `unfinished`
+and censored, never converted into a draw. Every raw pair retains both complete
+game traces, state hashes, reference candidate rankings, and candidate search
+results.
+
+`ai:strength:compare-files` joins baseline and candidate pairs by stable ID and
+rejects schema, settings, fixture, pool, or stratum mismatches. It estimates
+candidate-minus-baseline point-share change with equal weight per
+fixture × reference stratum. Two deterministic bootstrap intervals are emitted:
+
+- a fixed-portfolio interval resamples seeds within each declared stratum and
+  drives the release gate;
+- a hierarchical interval resamples strata and then seeds, exposing uncertainty
+  when generalizing beyond the exact portfolio.
+
+The default smallest practically important loss is three percentage points and
+must be chosen before inspecting the candidate. Non-inferiority requires the
+entire fixed-portfolio interval to remain above `-margin`. A separate resolved-
+pair-share gate prevents a candidate from appearing stronger merely because
+more unfavorable games became censored. Between-stratum and within-stratum
+variance are reported independently so fixture sensitivity is visible.
 
 ## Search execution contracts
 
@@ -158,6 +201,11 @@ A verdict is made only when the entire paired-bootstrap interval clears a
 metric-specific practical threshold; otherwise the verdict is `inconclusive`.
 Search-depth, root-coverage, and fallback regressions override latency gains.
 
+The game-strength comparator uses the stricter one-sided non-inferiority
+interpretation described above. An empty jointly resolved set is
+`inconclusive`, including when comparing an artifact with itself; zero evidence
+cannot pass a release gate.
+
 The comparator deliberately calls its result a **search-execution verdict**, not
 an AI-quality or enjoyment verdict. When many exploratory behavior metrics are
 eventually promoted to hypothesis tests, use a declared primary endpoint and a
@@ -173,6 +221,11 @@ Each run writes ignored, reproducible artifacts under `output/ai/`:
 - `ai-measurement-report.md`: short review surface;
 - `ai-measurement-samples.jsonl`: lossless decision results and complete game
   traces, including root candidates and diagnostics.
+- `ai-reference-strength.{json,md}` and
+  `ai-reference-strength.samples.jsonl`: frozen-pool workload, descriptive
+  strength summary, and lossless color-swapped pairs;
+- `ai-reference-strength-paired.{json,md}`: paired non-inferiority decision,
+  censoring guardrail, stratum effects, and variance components.
 
 Schema version 3 makes terminal utility, score ownership, selection regret,
 actor-aware mobility, and completed-versus-partial iterative-deepening evidence
@@ -207,6 +260,29 @@ Full confirmatory competence curve:
 
 ```bash
 pnpm ai:competence -- --profile=full --enforce-gates=true
+```
+
+Frozen-reference wiring smoke:
+
+```bash
+pnpm ai:strength -- --profile=smoke
+```
+
+Run a retained revision on the confirmatory holdout portfolio:
+
+```bash
+pnpm ai:strength -- --profile=full --split=holdout --out=<artifact-dir>/strength
+```
+
+Compare two identically configured retained runs:
+
+```bash
+pnpm ai:strength:compare-files -- \
+  --baseline-report=<baseline>/strength.json \
+  --baseline-raw=<baseline>/strength.samples.jsonl \
+  --candidate-report=<candidate>/strength.json \
+  --candidate-raw=<candidate>/strength.samples.jsonl \
+  --score-margin=0.03 --resolution-margin=0.03 --enforce-gate=true
 ```
 
 Reproducible full suite:
@@ -247,6 +323,10 @@ the raw-file comparator for an uncertainty-aware paired decision.
 6. Require fixture-level and difficulty-level inspection before accepting an
    aggregate improvement.
 7. Confirm player-experience claims with humans.
+8. Predeclare the strength margin and holdout split; never tune them after
+   reading the candidate interval.
+9. Require enough resolved color-swapped pairs. An inconclusive censor-heavy
+   run should be extended or redesigned, not reclassified as a draw-heavy pass.
 
 ## Academic basis
 
@@ -256,6 +336,10 @@ the raw-file comparator for an uncertainty-aware paired decision.
 - Bradley Efron, “Bootstrap Methods: Another Look at the Jackknife,” _The
   Annals of Statistics_ 7(1), 1979. DOI:
   <https://doi.org/10.1214/aos/1176344552>.
+- Gilda Piaggio et al., “Reporting of Noninferiority and Equivalence Randomized
+  Trials,” _JAMA_ 295(10), 2006. DOI:
+  <https://doi.org/10.1001/jama.295.10.1152>. The protocol adapts the principle
+  of a prespecified non-inferiority margin; it is not a clinical-trial analysis.
 - M. O. Hill, “Diversity and Evenness: A Unifying Notation and Its
   Consequences,” _Ecology_ 54(2), 1973. DOI:
   <https://doi.org/10.2307/1934352>.

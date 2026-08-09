@@ -701,3 +701,19 @@ Update 2026-08-09 (completed versus partial search evidence, Phase 2B):
 - Added partial-depth distributions and shares to the authoritative measurement report, paired comparison guardrails, and competence curves. Immediate unique-win proofs count as completed-root coverage without pretending all losing root moves were searched.
 - Added completed root-preparation transition counts to search diagnostics, the general measurement summaries, and fixed-node competence curves so equal-node results also expose mandatory root work.
 - Bumped lossless `ai:measure` artifacts to schema version 3 so the corrected search-path semantics cannot be silently compared with earlier traces.
+
+Update 2026-08-09 (frozen-reference strength and non-inferiority, Phase 2C):
+
+- Added a versioned deterministic opponent pool with canonical, seeded-uniform, and tactical-greedy policies. Pool and fixture checksums prevent silent comparison across workload changes.
+- Added `ai:strength`, which runs fixed-node candidate search in seeded color-swapped pairs across development/holdout scenario strata and retains lossless per-ply game/search evidence.
+- Unfinished games are censored rather than scored as draws; a pair score exists only when both colors resolve.
+- Added `ai:strength:compare-files` with stable pair matching, equal fixture × reference weighting, fixed-portfolio and hierarchical paired bootstrap intervals, a predeclared score non-inferiority margin, a separate resolution/censoring guardrail, and fixture/seed variance components.
+- Added deterministic policy and statistical-contract regressions. Product AI presets and move-selection policy remain unchanged.
+
+Verification 2026-08-09 (Phase 2C):
+
+- `npm run test:run -- src/ai/test/frozenReferencePool.test.ts src/ai/test/referenceStrengthStats.test.ts`
+- focused ESLint and TypeScript checks passed for the new runner, comparator, policies, and tests.
+- A minimal strength/report/identical-artifact comparator smoke emitted valid artifacts; because the eight-ply opening had no resolved pair, the score gate correctly returned `inconclusive` instead of manufacturing a draw or passing zero evidence.
+- A 160-ply holdout slice resolved both color assignments; its identical-artifact comparison passed the score and resolution gates. The default six-stratum smoke, full build, lint, and documentation link checks also passed.
+- The full test suite reached 354 passing tests and one intentional skip; the existing App tab-state test timed out at its five-second limit both in the concurrent suite and alone. No production/UI code changed in this phase.

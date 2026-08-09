@@ -258,6 +258,8 @@ Key commands:
 - `npm run ai:loop-benchmark`: measure recurrence, trapping, and loop-escape behavior on late benchmark states
 - `pnpm ai:measure -- --profile=full`: validate the exercised search path and emit uncertainty-aware outcome/behavior artifacts
 - `pnpm ai:measure:compare-files -- ...`: compare two retained raw measurement runs with paired bootstrap intervals
+- `pnpm ai:strength -- --profile=full`: run color-swapped games against the versioned frozen reference pool
+- `pnpm ai:strength:compare-files -- ...`: gate a candidate with stratified paired non-inferiority intervals and a censoring guardrail
 - `npm run ai:position-buckets`: aggregate interestingness metrics over structural position buckets
 - `npm run ai:stage-variety`: generate opening-versus-late-stage AI variety reports
 - `npm run ai:threat`: measure pressure creation, frontier compression, and certified risk progress

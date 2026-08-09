@@ -221,6 +221,7 @@ The wider report family exists because "interestingness" is not one scalar:
 - `npm run ai:loop-benchmark` isolates the cyclic late-stage fixtures and measures recurrence, laminarity, trapping time, loop-escape rates, and symbolic complexity.
 - `npm run ai:position-buckets` aggregates scenarios into structural buckets (`opening`, `congested`, `loopPressure`, `conversionRace`, `lateSparse`) so one pathological fixture does not overrule the whole judgment.
 - `npm run ai:threat` measures pressure creation directly from chosen moves: freeze swings, frontier compression, and certified risk progress.
+- `npm run ai:strength` measures complete-game point share against versioned deterministic references using seeded color swaps; `ai:strength:compare-files` supplies the non-inferiority and censoring gates.
 
 `pnpm ai:measure` is the validity layer in front of that family. It gives search
 experiments an explicit fixed-depth, fixed-node, wall-clock, or shipped-preset
@@ -243,9 +244,10 @@ When the intended shipped AI behavior changes materially, the workflow is:
 1. run `npm run ai:variety`;
 2. run `npm run ai:stage-variety` when a change is specifically meant to affect flat midgame or late-game behavior;
 3. run one or more focused pipelines (`ai:loop-benchmark`, `ai:threat`, `ai:position-buckets`, `ai:crossplay`) when the change claims to improve loops, pressure, or style diversity rather than only aggregate variety;
-4. inspect the generated JSON and Markdown;
-5. update `src/ai/test/fixtures/ai-variety-baselines.json` only if the new aggregate behavior is the new accepted baseline;
-6. keep `src/ai/test/fixtures/ai-variety-target-bands.json` as the longer-lived product target file rather than rewriting it for every iteration.
+4. run identical retained baseline/candidate `ai:strength` workloads and apply `ai:strength:compare-files` before accepting a strategy change;
+5. inspect the generated JSON and Markdown;
+6. update `src/ai/test/fixtures/ai-variety-baselines.json` only if the new aggregate behavior is the new accepted baseline;
+7. keep `src/ai/test/fixtures/ai-variety-target-bands.json` as the longer-lived product target file rather than rewriting it for every iteration.
 
 ## Git-Aware Report Comparison
 
@@ -282,6 +284,8 @@ The repository exposes the infrastructure/report commands through `package.json`
 - `npm run ai:loop-benchmark`
 - `npm run ai:measure`
 - `npm run ai:measure:compare-files`
+- `npm run ai:strength`
+- `npm run ai:strength:compare-files`
 - `npm run ai:position-buckets`
 - `npm run perf:report`
 - `npm run perf:compare`
