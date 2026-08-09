@@ -273,6 +273,46 @@ counterbalanced human playtests and validated player-experience instruments.
 They belong in the next measurement layer, joined to anonymous build, difficulty,
 and session metadata—not inferred from self-play alone.
 
+That next layer is now executable through `npm run ai:human-calibration`. The
+versioned protocol combines a within-participant, order-counterbalanced blinded
+full-game crossover with shorter blinded replay comparisons. Public assignments
+contain only `condition-1`/`condition-2`; the policy mapping is returned as a
+separate private artifact and must remain sealed until exclusions and analysis
+are locked. Participant identifiers are pseudonymous inputs; the report neither
+needs nor stores names, contact details, or free-form text.
+
+Overall left/right/tie preference is the primary human label. The eleven miniPXI
+construct scores remain separate secondary outcomes rather than being summed
+into a new “fun” scalar. This is deliberately conservative: the miniPXI
+validation used three studies and 628 players, but reported nuanced single-item
+reliability and confirmed validity for nine constructs, so one compact item
+should not be treated as a perfectly measured latent trait:
+<https://doi.org/10.1145/3549507>.
+
+Preference fitting uses inverse-propensity-weighted, regularized logistic MAP as
+a practical mixed-effects Bradley–Terry approximation. Shrunk participant and
+scenario effects account for repeated, correlated judgments; confirmatory
+metrics are computed on participants never used for fitting and therefore omit
+their random effects. The rationale follows paired-comparison work that models
+judge preference as random to separate judge variation and within-judge
+dependence from treatment effects:
+<https://pubmed.ncbi.nlm.nih.gov/6871353/>. This lightweight implementation is
+not presented as a full maximum-likelihood GLMM; a publication-grade study
+should replicate the locked analysis in a dedicated statistical package.
+
+Replay selection reserves 20% random exploration and otherwise favors uncertain,
+under-sampled comparisons with high approximate information. Every observation
+retains its selection probability; fitting applies capped inverse-propensity
+weights so active sampling does not masquerade as population prevalence. Active
+pair selection is a data-efficiency feature, not permission to remove the random
+exploration arm; experimental-design work under Bradley–Terry models motivates
+choosing informative comparisons (<https://www.ijcai.org/Proceedings/2018/304>),
+while held-out players remain the protection against fitting idiosyncratic judges.
+
+The confirmatory report stays false until at least 48 participants and a held-out
+player set exist. The checked-in JSONL is synthetic smoke data only; it verifies
+schema, fitting, and report behavior and is never human evidence.
+
 ## Uncertainty and comparison
 
 Numeric summaries retain count, range, median, p90, p95, and deterministic

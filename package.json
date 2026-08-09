@@ -7,6 +7,7 @@
     "ai:competence": "tsx scripts/ai-competence.report.ts",
     "ai:competence:compare": "node scripts/run-git-report-compare.mjs --pipeline=ai-competence",
     "ai:crossplay": "tsx scripts/ai-crossplay.report.ts",
+    "ai:human-calibration": "tsx scripts/ai-human-calibration.report.ts",
     "ai:crossplay:compare": "node scripts/run-git-report-compare.mjs --pipeline=ai-crossplay",
     "ai:loop-benchmark": "tsx scripts/ai-loop-benchmark.report.ts",
     "ai:loop-benchmark:compare": "node scripts/run-git-report-compare.mjs --pipeline=ai-loop-benchmark",

@@ -791,3 +791,17 @@ Verification 2026-08-09 (fixed-horizon pentanomial sequential protocol):
 - Unit regressions cover all five pair outcomes, unequal/equal allocation blocks, favorable and harmful non-inferiority evidence, superiority, equivalence, and deterministic null-boundary Monte Carlo calibration.
 - A two-pair current-versus-legacy smoke completed both geometric variants and both color assignments under the same current harness, emitted all JSON/Markdown/JSONL artifacts, and correctly stopped as `inconclusiveAtMaxPairs` rather than passing zero evidence.
 - Protocol, policy-boundary, and existing frozen-reference tests pass; TypeScript and changed-file ESLint pass.
+
+Update 2026-08-09 (human experience calibration infrastructure):
+
+- Added a versioned human-study protocol for blinded, within-participant full-game crossover and paired replay preference collection. Public assignments expose only opaque condition labels; policy mappings remain separate and private until the analysis lock.
+- Added strict observation validation, pseudonymous participant/scenario grouping, explicit left/right/tie preference, per-construct 1–7 miniPXI storage, and active-selection propensities. No personal details or free-form responses are required by the analysis schema.
+- Added inverse-propensity-weighted regularized logistic fitting as an explicitly approximate mixed-effects Bradley–Terry model. Shrunk participant and scenario effects handle repeated judgments, policy contrasts and automated descriptor differences remain separate coefficients, and confirmatory metrics are calculated on held-out participants without fitted participant effects.
+- Added uncertainty/information-based replay selection with under-sampling preference and a mandatory 20% random-exploration path. Propensity weights are capped in analysis to limit instability.
+- Added `ai:human-calibration`, protocol/input hashes, separate miniPXI construct summaries, study-mode counts, and a hard false `confirmatoryReady` flag below 48 participants or without held-out-player evidence.
+
+Verification 2026-08-09 (human experience calibration infrastructure):
+
+- Regressions cover opaque counterbalancing, held-out-player isolation, recovery of a known synthetic descriptor preference, uncertainty selection, and exploration propensities.
+- The synthetic five-participant/ten-observation smoke generated valid JSON and Markdown, held out one complete participant, recovered the planted productive-participation direction, and correctly reported `confirmatoryReady: false`.
+- Human-calibration tests, TypeScript, changed-file ESLint, and report execution pass. The checked-in JSONL is explicitly synthetic infrastructure data, not human evidence.

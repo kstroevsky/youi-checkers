@@ -889,6 +889,15 @@ non-inferiority, equivalence, or superiority question. Natural resolution is
 reported separately. The protocol and allocation manifests live beside the AI
 measurement fixtures and are included in provenance hashes.
 
+`npm run ai:human-calibration -- --input=<observations.jsonl>` is the distinct
+player-experience layer. It validates blinded full-game/replay observations,
+keeps miniPXI constructs separate, fits a propensity-weighted regularized
+mixed-effects Bradley–Terry approximation, and reports performance on held-out
+participants. Counterbalanced public assignments and private policy mappings are
+generated separately; uncertainty-based replay selection always retains a
+random-exploration floor. Synthetic smoke data cannot satisfy the preregistered
+48-participant confirmatory minimum.
+
 The companion `ai:competence` command owns tactical correctness and equal-work
 strength curves. It validates rule-derived unique wins/defenses under true
 mirrors, searches each subject at increasing fixed-node budgets, and rescores
