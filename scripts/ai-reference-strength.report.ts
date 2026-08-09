@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -17,9 +17,12 @@ import {
   type StrengthFixtureSplit,
 } from '@/ai/test/referenceStrength';
 import {
-  summarizeNumericDistribution,
-  summarizeProportion,
-} from '@/ai/test/measurement';
+  enumerateReferenceStrengthJobs,
+  mergeReferenceStrengthPairs,
+  parseReferenceStrengthPairsJsonl,
+  selectReferenceStrengthShard,
+} from '@/ai/test/referenceStrengthCampaign';
+import { summarizeReferenceStrengthPairs } from '@/ai/test/referenceStrengthReport';
 import { hashPosition, withRuleDefaults } from '@/domain';
 import type { AiDifficulty } from '@/shared/types/session';
 
@@ -42,6 +45,12 @@ type Settings = {
   split: SplitSelection;
 };
 
+type ExecutionSettings = {
+  resume: boolean;
+  shardCount: number;
+  shardIndex: number;
+};
+
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
@@ -54,7 +63,11 @@ function parsePositiveInteger(value: string, name: string): number {
   return parsed;
 }
 
-function parseArgs(argv: string[]): { out: string; settings: Settings } {
+function parseArgs(argv: string[]): {
+  execution: ExecutionSettings;
+  out: string;
+  settings: Settings;
+} {
   const args = new Map<string, string>();
   for (const entry of argv) {
     if (!entry.startsWith('--')) continue;
@@ -101,7 +114,25 @@ function parseArgs(argv: string[]): { out: string; settings: Settings } {
     'scenario-limit',
   );
 
+  const shardCount = parsePositiveInteger(
+    args.get('shard-count') ?? '1',
+    'shard-count',
+  );
+  const shardIndex = Number.parseInt(args.get('shard-index') ?? '0', 10);
+  if (
+    !Number.isSafeInteger(shardIndex) ||
+    shardIndex < 0 ||
+    shardIndex >= shardCount
+  ) {
+    throw new Error('--shard-index must be between zero and shard-count - 1.');
+  }
+
   return {
+    execution: {
+      resume: args.get('resume') === 'true',
+      shardCount,
+      shardIndex,
+    },
     out:
       args.get('out') ??
       path.join(process.cwd(), 'output', 'ai', 'ai-reference-strength'),
@@ -189,65 +220,15 @@ async function sourceFingerprint(filePaths: string[]): Promise<string> {
   );
 }
 
-function summarizePairs(pairs: ReferenceStrengthPair[]) {
-  const games = pairs.flatMap((pair) => pair.games);
-  const resolvedGames = games.flatMap((game) =>
-    game.candidatePoints === null ? [] : [game.candidatePoints],
-  );
-  const resolvedPairs = pairs.flatMap((pair) =>
-    pair.pairScore === null ? [] : [pair.pairScore],
-  );
-  const candidatePlies = games
-    .flatMap((game) => game.plies)
-    .filter((ply) => ply.actorKind === 'candidate');
-  const strata = Object.fromEntries(
-    [...new Set(pairs.map(({ stratumId }) => stratumId))]
-      .sort()
-      .map((stratumId) => {
-        const values = pairs
-          .filter((pair) => pair.stratumId === stratumId)
-          .flatMap((pair) => (pair.pairScore === null ? [] : [pair.pairScore]));
-        return [
-          stratumId,
-          {
-            pairScore: summarizeNumericDistribution(values),
-            resolvedPairs: summarizeProportion(
-              values.length,
-              pairs.filter((pair) => pair.stratumId === stratumId).length,
-            ),
-          },
-        ];
-      }),
-  );
-
-  return {
-    candidateDecisionCount: candidatePlies.length,
-    candidateFallbackShare: summarizeProportion(
-      candidatePlies.filter((ply) => ply.searchResult?.fallbackKind !== 'none')
-        .length,
-      candidatePlies.length,
-    ),
-    candidatePointShareByGame: summarizeNumericDistribution(resolvedGames),
-    candidatePointShareByPair: summarizeNumericDistribution(resolvedPairs),
-    candidateZeroDepthShare: summarizeProportion(
-      candidatePlies.filter((ply) => ply.searchResult?.completedDepth === 0)
-        .length,
-      candidatePlies.length,
-    ),
-    resolvedGames: summarizeProportion(resolvedGames.length, games.length),
-    resolvedPairs: summarizeProportion(resolvedPairs.length, pairs.length),
-    strata,
-    terminalCounts: games.reduce<Record<string, number>>((counts, game) => {
-      counts[game.terminalType] = (counts[game.terminalType] ?? 0) + 1;
-      return counts;
-    }, {}),
-    totalGames: games.length,
-    totalPairs: pairs.length,
-  };
-}
-
 function markdown(report: {
+  execution: {
+    completedPairCount: number;
+    plannedPairCount: number;
+    shardCount: number;
+    shardIndex: number;
+  };
   provenance: {
+    candidateSha256: string;
     domainSha256: string;
     fixtureSha256: string;
     gitRevision: string;
@@ -255,18 +236,22 @@ function markdown(report: {
     referencePoolSha256: string;
   };
   settings: Settings;
-  summary: ReturnType<typeof summarizePairs>;
+  summary: ReturnType<typeof summarizeReferenceStrengthPairs>;
 }): string {
   const lines = [
     '# AI Frozen-Reference Strength',
     '',
     `Revision: \`${report.provenance.gitRevision}\``,
     '',
+    `Candidate-source checksum: \`${report.provenance.candidateSha256}\``,
+    '',
     `Fixture checksum: \`${report.provenance.fixtureSha256}\``,
     '',
     `Reference-pool checksum: \`${report.provenance.referencePoolSha256}\``,
     '',
     `Domain-rules checksum: \`${report.provenance.domainSha256}\``,
+    '',
+    `Campaign progress: ${report.execution.completedPairCount}/${report.execution.plannedPairCount} pairs; shard ${report.execution.shardIndex + 1}/${report.execution.shardCount}.`,
     '',
     `Resolved color-swapped pairs: ${report.summary.resolvedPairs.count}/${report.summary.resolvedPairs.total} (${report.summary.resolvedPairs.share})`,
     '',
@@ -290,54 +275,118 @@ function markdown(report: {
 }
 
 async function main(): Promise<void> {
-  const { out, settings } = parseArgs(process.argv.slice(2));
+  const { execution, out, settings } = parseArgs(process.argv.slice(2));
   const fixtures = buildFixtures(settings);
   if (!fixtures.length) throw new Error('No strength fixtures selected.');
   const ruleConfig = withRuleDefaults({
     drawRule: 'threefold',
     scoringMode: 'off',
   });
-  const pairs: ReferenceStrengthPair[] = [];
-
-  for (const fixture of fixtures) {
-    for (const referenceId of settings.referenceIds) {
-      for (let pairIndex = 0; pairIndex < settings.pairCount; pairIndex += 1) {
-        const fixtureIndex = fixtures.indexOf(fixture);
-        const referenceIndex = settings.referenceIds.indexOf(referenceId);
-        pairs.push(
-          runReferenceStrengthPair({
-            candidateDifficulty: settings.candidateDifficulty,
-            candidateSeed: 0x51f15e + pairIndex * 2 + fixtureIndex * 101,
-            fixture,
-            maxPlies: settings.maxPlies,
-            nodeBudget: settings.nodeBudget,
-            pairIndex,
-            referenceId,
-            referenceSeed: 0x9e3779 + pairIndex * 2 + referenceIndex * 211,
-            ruleConfig,
-          }),
-        );
-      }
-    }
-  }
-
-  const rawText = `${pairs.map((pair) => JSON.stringify(pair)).join('\n')}\n`;
   const fixtureManifest = fixtures.map((fixture) => ({
     bucket: fixture.bucket,
     id: fixture.id,
     positionHash: hashPosition(fixture.state),
     split: fixture.split,
   }));
-  const [domainSha256, referencePoolSha256] = await Promise.all([
-    sourceFingerprint(gitTrackedFiles('src/domain')),
-    sourceFingerprint(['src/ai/test/frozenReferencePool.ts']),
-  ]);
+  const [candidateSha256, domainSha256, referencePoolSha256] =
+    await Promise.all([
+      sourceFingerprint(gitTrackedFiles('src/ai')),
+      sourceFingerprint(gitTrackedFiles('src/domain')),
+      sourceFingerprint(['src/ai/test/frozenReferencePool.ts']),
+    ]);
+  const revision = gitRevision();
+  const jobs = enumerateReferenceStrengthJobs(
+    fixtures,
+    settings.referenceIds,
+    settings.pairCount,
+  );
+  const shardJobs = selectReferenceStrengthShard(
+    jobs,
+    execution.shardIndex,
+    execution.shardCount,
+  );
+  const campaignId = sha256(
+    JSON.stringify({
+      domainSha256,
+      candidateSha256,
+      fixtureManifest,
+      referencePoolSha256,
+      revision,
+      schemaVersion: AI_REFERENCE_STRENGTH_SCHEMA_VERSION,
+      settings,
+      shardCount: execution.shardCount,
+    }),
+  );
+  const checkpointDir = `${out}.checkpoints/${campaignId}`;
+  await mkdir(checkpointDir, { recursive: true });
+  const collected: ReferenceStrengthPair[] = [];
+  let resumedPairCount = 0;
+
+  for (const job of shardJobs) {
+    const checkpointPath = path.join(
+      checkpointDir,
+      `${sha256(job.pairId)}.json`,
+    );
+    if (execution.resume) {
+      try {
+        const [pair] = parseReferenceStrengthPairsJsonl(
+          await readFile(checkpointPath, 'utf8'),
+        );
+        if (pair?.pairId !== job.pairId) {
+          throw new Error(`Checkpoint identity mismatch for ${job.pairId}.`);
+        }
+        collected.push(pair);
+        resumedPairCount += 1;
+        continue;
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          !('code' in error && error.code === 'ENOENT')
+        ) {
+          throw error;
+        }
+      }
+    }
+
+    const pair = runReferenceStrengthPair({
+      candidateDifficulty: settings.candidateDifficulty,
+      candidateSeed: 0x51f15e + job.pairIndex * 2 + job.fixtureIndex * 101,
+      fixture: fixtures[job.fixtureIndex],
+      maxPlies: settings.maxPlies,
+      nodeBudget: settings.nodeBudget,
+      pairIndex: job.pairIndex,
+      referenceId: job.referenceId,
+      referenceSeed: 0x9e3779 + job.pairIndex * 2 + job.referenceIndex * 211,
+      ruleConfig,
+    });
+    const temporaryPath = `${checkpointPath}.${process.pid}.tmp`;
+    await writeFile(temporaryPath, `${JSON.stringify(pair)}\n`, 'utf8');
+    await rename(temporaryPath, checkpointPath);
+    collected.push(pair);
+  }
+
+  const pairs = mergeReferenceStrengthPairs(
+    [collected],
+    shardJobs.map(({ pairId }) => pairId),
+  );
+  const rawText = `${pairs.map((pair) => JSON.stringify(pair)).join('\n')}\n`;
   const report = {
+    execution: {
+      campaignId,
+      completedPairCount: pairs.length,
+      plannedPairCount: jobs.length,
+      resume: execution.resume,
+      resumedPairCount,
+      shardCount: execution.shardCount,
+      shardIndex: execution.shardIndex,
+      shardPairCount: shardJobs.length,
+    },
     generatedAt: new Date().toISOString(),
     provenance: {
+      candidateSha256,
       domainSha256,
       fixtureSha256: sha256(JSON.stringify(fixtureManifest)),
-      gitRevision: gitRevision(),
+      gitRevision: revision,
       rawSha256: sha256(rawText),
       referencePoolSha256,
     },
@@ -347,7 +396,7 @@ async function main(): Promise<void> {
     },
     schemaVersion: AI_REFERENCE_STRENGTH_SCHEMA_VERSION,
     settings,
-    summary: summarizePairs(pairs),
+    summary: summarizeReferenceStrengthPairs(pairs, settings.maxPlies),
     workload: fixtureManifest,
   };
   const jsonPath = `${out}.json`;

@@ -17,6 +17,7 @@
     "ai:position-buckets:compare": "node scripts/run-git-report-compare.mjs --pipeline=ai-position-buckets",
     "ai:strength": "tsx scripts/ai-reference-strength.report.ts",
     "ai:strength:compare-files": "tsx scripts/ai-reference-strength.compare.ts",
+    "ai:strength:merge": "tsx scripts/ai-reference-strength.merge.ts",
     "ai:selfplay": "tsx scripts/ai-selfplay-dataset.ts",
     "ai:stage-variety": "tsx scripts/ai-stage-variety.report.ts",
     "ai:stage-variety:compare": "node scripts/run-git-report-compare.mjs --pipeline=ai-stage-variety",
