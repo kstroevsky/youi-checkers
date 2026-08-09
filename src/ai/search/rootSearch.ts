@@ -291,7 +291,7 @@ export function chooseComputerAction({
     riskMode = effectiveRiskMode,
     policyPriorWeight = rootPolicyPriorWeight,
   ): PrecomputedOrderedAction[] => {
-    const precomputed = precomputeOrderedActions(
+    return precomputeOrderedActions(
       state,
       state.currentPlayer,
       ruleConfig,
@@ -302,6 +302,9 @@ export function chooseComputerAction({
         diagnostics,
         grandparentPositionKey: rootSelfUndoPositionKey,
         now: useDeadline ? now : undefined,
+        onPreparedTransition: () => {
+          diagnostics.rootPreparationTransitions += 1;
+        },
         participationState: rootParticipationState,
         perfCache,
         policyPriors,
@@ -312,8 +315,6 @@ export function chooseComputerAction({
         selfUndoPenalty: preset.selfUndoPenalty,
       },
     );
-    diagnostics.rootPreparationTransitions += precomputed.length;
-    return precomputed;
   };
 
   if (effectiveRiskMode !== 'normal') {
@@ -724,21 +725,7 @@ export function chooseComputerAction({
         if (ranked.length > 0) {
           const partialBest = ranked[0];
 
-          bestAction = selectCandidateAction(ranked, preset, random, {
-            bandBoost: getSelectionBandBoost(
-              state.moveNumber,
-              effectiveRiskMode,
-              {
-                completedDepth: 0,
-                fallbackKind: 'partialCurrentDepth',
-              },
-            ),
-            behaviorProfileId: behaviorProfile?.id ?? null,
-            behaviorSeed: behaviorProfile?.seed ?? null,
-            previousStrategicTags: rootPreviousStrategicTags,
-            riskMode: effectiveRiskMode,
-            strategicIntent,
-          }).action;
+          bestAction = partialBest.action;
           bestScore = partialBest.score;
           partialDepth = depth;
           partialRootMoves = ranked.length;
@@ -781,23 +768,10 @@ export function chooseComputerAction({
                   strategicIntent,
                 ),
               ];
-          bestAction = fallbackRanked.length
-            ? selectCandidateAction(fallbackRanked, preset, random, {
-                bandBoost: getSelectionBandBoost(
-                  state.moveNumber,
-                  effectiveRiskMode,
-                  {
-                    completedDepth: 0,
-                    fallbackKind,
-                  },
-                ),
-                behaviorProfileId: behaviorProfile?.id ?? null,
-                behaviorSeed: behaviorProfile?.seed ?? null,
-                previousStrategicTags: rootPreviousStrategicTags,
-                riskMode: effectiveRiskMode,
-                strategicIntent,
-              }).action
-            : (orderedFallback?.action ?? legalActions[0]);
+          bestAction =
+            fallbackRanked[0]?.action ??
+            orderedFallback?.action ??
+            legalActions[0];
         }
 
         break;
@@ -816,20 +790,10 @@ export function chooseComputerAction({
     partialRootMoves = 0;
     rootCandidates = ranked;
     bestScore = ranked[0].score;
-    bestAction = selectCandidateAction(ranked, preset, random, {
-      bandBoost: getSelectionBandBoost(state.moveNumber, effectiveRiskMode, {
-        completedDepth: depth,
-        fallbackKind: 'none',
-      }),
-      behaviorProfileId: behaviorProfile?.id ?? null,
-      behaviorSeed: behaviorProfile?.seed ?? null,
-      previousStrategicTags: rootPreviousStrategicTags,
-      riskMode: effectiveRiskMode,
-      strategicIntent,
-    }).action;
+    bestAction = ranked[0].action;
     fallbackKind = 'none';
 
-    rootPvMoveId = actionId(bestAction);
+    rootPvMoveId = actionId(ranked[0].action);
 
     // Repository-specific history aging: shift scores right by 2 (÷4) so
     // shallow cutoff evidence fades and values stay away from saturation.
@@ -838,6 +802,23 @@ export function chooseComputerAction({
     for (let i = 0; i < context.historyScores.length; i += 1) {
       context.historyScores[i] >>= 2;
     }
+  }
+
+  if (rootCandidates.length > 0) {
+    const selectionDepth =
+      fallbackKind === 'partialCurrentDepth' ? 0 : completedDepth;
+
+    bestAction = selectCandidateAction(rootCandidates, preset, random, {
+      bandBoost: getSelectionBandBoost(state.moveNumber, effectiveRiskMode, {
+        completedDepth: selectionDepth,
+        fallbackKind,
+      }),
+      behaviorProfileId: behaviorProfile?.id ?? null,
+      behaviorSeed: behaviorProfile?.seed ?? null,
+      previousStrategicTags: rootPreviousStrategicTags,
+      riskMode: effectiveRiskMode,
+      strategicIntent,
+    }).action;
   }
 
   return {

@@ -20,6 +20,7 @@ function candidate(
     isRepetition?: boolean;
     intent?: RootRankedAction['intent'];
     participationDelta?: number;
+    policyPrior?: number;
     terminalUtility?: AiTerminalUtility;
   } = {},
 ): RootRankedAction {
@@ -46,7 +47,7 @@ function candidate(
     mobilityDelta: 0,
     movedMass: 1,
     participationDelta: options.participationDelta ?? 0,
-    policyPrior: 0,
+    policyPrior: options.policyPrior ?? 0,
     repeatedPositionCount: options.isRepetition ? 2 : 1,
     score,
     sixStackDelta: 0,
@@ -95,6 +96,76 @@ describe('root selection safety and strength budget', () => {
     expect(strengthSnapshot(builder)).toEqual(strengthSnapshot(hunter));
     expect(builder.bestSearchAction).toEqual(hunter.bestSearchAction);
     expect(builder.bestSearchScore).toBe(hunter.bestSearchScore);
+  });
+
+  it('keeps fixed-work search evidence independent from final style sampling', () => {
+    const ruleConfig = withConfig();
+    const state = { ...createInitialState(ruleConfig), moveNumber: 20 };
+    const originalHardPreset = { ...AI_DIFFICULTY_PRESETS.hard };
+    let first;
+    let second;
+
+    Object.assign(AI_DIFFICULTY_PRESETS.hard, {
+      varietyTemperature: 1,
+      varietyThreshold: 100,
+      varietyTopCount: 3,
+    });
+
+    try {
+      const request = {
+        difficulty: 'hard' as const,
+        ruleConfig,
+        searchBudget: {
+          maxDepth: 4,
+          maxEvaluatedNodes: 3_000,
+          type: 'fixedNodes' as const,
+        },
+        state,
+      };
+
+      first = chooseComputerAction({ ...request, random: () => 0 });
+      second = chooseComputerAction({ ...request, random: () => 0.99 });
+    } finally {
+      Object.assign(AI_DIFFICULTY_PRESETS.hard, originalHardPreset);
+    }
+
+    const strengthSnapshot = (result: typeof first) => ({
+      bestSearchAction: result.bestSearchAction,
+      bestSearchScore: result.bestSearchScore,
+      completedDepth: result.completedDepth,
+      fallbackKind: result.fallbackKind,
+      partialDepth: result.partialDepth,
+      partialRootMoves: result.partialRootMoves,
+      rootCandidates: result.rootCandidates.map(({ action, score }) => ({
+        action,
+        score,
+      })),
+    });
+
+    expect(strengthSnapshot(first)).toEqual(strengthSnapshot(second));
+  });
+
+  it('keeps policy priors out of final behavioral selection', () => {
+    const preset = {
+      ...AI_DIFFICULTY_PRESETS.hard,
+      varietyTemperature: 0.4,
+      varietyThreshold: 0.2,
+      varietyTopCount: 2,
+    };
+    const withoutPrior = selectCandidateAction(
+      [candidate('A1', 500), candidate('B1', 500)],
+      preset,
+      () => 0.55,
+      { bandBoost: 1 },
+    );
+    const withPrior = selectCandidateAction(
+      [candidate('A1', 500), candidate('B1', 500, { policyPrior: 2 })],
+      preset,
+      () => 0.55,
+      { bandBoost: 1 },
+    );
+
+    expect(withPrior.action).toEqual(withoutPrior.action);
   });
 
   it('preserves an immediate win before applying style', () => {

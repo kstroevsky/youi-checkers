@@ -422,7 +422,6 @@ export function selectCandidateAction(
       seededGeometryBonus +
       planCoherenceBonus +
       Math.round(entry.participationDelta * 0.2) +
-      Math.round(entry.policyPrior * 40) +
       riskBonus +
       -drawTrapPenalty +
       -getNoveltyPenalty(entry.tags, options.previousStrategicTags ?? null) +
