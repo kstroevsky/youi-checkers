@@ -881,6 +881,14 @@ fingerprinted domain rules; seeded sessions, fixed-node budgets, starting states
 horizons, adjudication, and color swaps therefore remain common. Older report
 schemas are not used as the baseline implementation.
 
+`npm run ai:policy-strength -- --profile=full` drives that boundary through the
+versioned current-versus-legacy protocol. Fixed-horizon adjudicated color swaps
+form pentanomial observations; sequential likelihood checks occur only at
+complete frozen-allocation blocks and answer an explicitly selected
+non-inferiority, equivalence, or superiority question. Natural resolution is
+reported separately. The protocol and allocation manifests live beside the AI
+measurement fixtures and are included in provenance hashes.
+
 The companion `ai:competence` command owns tactical correctness and equal-work
 strength curves. It validates rule-derived unique wins/defenses under true
 mirrors, searches each subject at increasing fixed-node budgets, and rescores

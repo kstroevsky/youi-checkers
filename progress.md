@@ -777,3 +777,17 @@ Verification 2026-08-09 (same-harness legacy policy boundary):
 - A regression proves the pinned legacy revision is exactly the parent of the first feature policy commit.
 - Both legacy and current policies returned legal moves for the same current state and fixed-node request, exposed distinct 64-character source hashes, and completed a current-harness two-game color swap.
 - Existing frozen-reference strength tests continue to pass against the shared adjudication implementation; TypeScript, changed-file ESLint, and diff hygiene pass.
+
+Update 2026-08-09 (fixed-horizon pentanomial sequential protocol):
+
+- Added a preregistered current-versus-legacy strength command whose primary endpoint is the fixed-160-ply domain-adjudicated score of a color-swapped pair. Natural game resolution remains a separately reported secondary endpoint.
+- Retained the five dependent pair outcomes as pentanomial counts. Sequential evidence uses Jeffreys-smoothed empirical shape plus hypothesis-specific exponential tilting, explicit Wald boundaries, and distinct non-inferiority, superiority, and two-one-sided equivalence modes.
+- Stopping is eligible only at complete frozen-allocation blocks containing every selected holdout scenario and horizontal mirror. The frozen allocation remains equal because the retained 18-pair pilot produced too few natural resolutions for stable variance-optimal weights.
+- Added a versioned protocol manifest fixing the primary endpoint, alpha/beta, 0.03 practical margin, Hard 2,048-node work contract, 160-ply horizon, holdout split, and balanced-block limits.
+- Report provenance independently hashes current and legacy policies, current domain rules, harness, fixtures, protocol, allocation, raw pairs, fixed-node semantics, and adjudication version.
+
+Verification 2026-08-09 (fixed-horizon pentanomial sequential protocol):
+
+- Unit regressions cover all five pair outcomes, unequal/equal allocation blocks, favorable and harmful non-inferiority evidence, superiority, equivalence, and deterministic null-boundary Monte Carlo calibration.
+- A two-pair current-versus-legacy smoke completed both geometric variants and both color assignments under the same current harness, emitted all JSON/Markdown/JSONL artifacts, and correctly stopped as `inconclusiveAtMaxPairs` rather than passing zero evidence.
+- Protocol, policy-boundary, and existing frozen-reference tests pass; TypeScript and changed-file ESLint pass.

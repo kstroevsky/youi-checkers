@@ -115,6 +115,44 @@ pair-share gate prevents a candidate from appearing stronger merely because
 more unfavorable games became censored. Between-stratum and within-stratum
 variance are reported independently so fixture sensitivity is visible.
 
+## Current-versus-legacy sequential strength
+
+`npm run ai:policy-strength -- --profile=full` is the preregistered branch-wide
+policy comparison. Its primary endpoint is the fixed-160-ply, domain-adjudicated
+point share from a color-swapped pair. A pair retains one of five outcomes—0,
+0.25, 0.5, 0.75, or 1 for the candidate—rather than flattening the two dependent
+games into independent trinomial observations. This follows the pentanomial
+modeling rationale used by Stockfish Fishtest, while the implementation here is
+local and game-specific rather than claimed to be numerically identical to
+Fishtest: <https://official-stockfish.github.io/docs/fishtest-wiki/Fishtest-Mathematics.html>.
+
+At each eligible checkpoint, Jeffreys-smoothed observed pentanomial probabilities
+are exponentially tilted to the null and alternative means, and their generalized
+log-likelihood ratio is compared with predeclared Wald boundaries. Stopping is
+checked only after a complete frozen-allocation block across every selected
+scenario and horizontal mirror. The implementation supports three explicit
+questions:
+
+- non-inferiority: null mean `0.5 - margin`, alternative `0.5`;
+- superiority: null mean `0.5`, alternative `0.5 + margin`;
+- equivalence: two one-sided sequential tests against `0.5 ± margin`, with alpha
+  split across the two sides.
+
+The versioned protocol fixes alpha 0.05, beta 0.20, a 0.03 practical margin,
+Hard at 2,048 evaluated nodes, the 160-ply horizon, and holdout-only fixtures.
+The allocation is deliberately equal: the retained 18-pair pilot had only three
+naturally resolved pairs, so estimated Neyman weights were too unstable to
+freeze responsibly. Natural resolution remains a secondary endpoint; it cannot
+replace an unfavorable primary fixed-horizon result through differential
+censoring. Policy, domain, harness, fixture, protocol, allocation, budget-
+semantics, adjudication, and raw-artifact identities are hashed independently.
+
+The test suite exercises all five outcomes, balanced-block eligibility, each
+question mode, harmful and favorable synthetic sequences, and a deterministic
+null-boundary Monte Carlo calibration. The latter is a regression alarm, not a
+mathematical proof of finite-sample error control; changing smoothing, stopping,
+or allocation requires a new simulation study and protocol version.
+
 ## Search execution contracts
 
 Normal-mode `chooseComputerAction()` accepts an optional explicit
