@@ -1,14 +1,31 @@
 import { describe, expect, it } from 'vitest';
 
 import { AI_DIFFICULTY_PRESETS, chooseComputerAction, orderMoves } from '@/ai';
-import { createAiBehaviorProfile, getBehaviorGeometryBias } from '@/ai/behavior';
+import {
+  createAiBehaviorProfile,
+  getBehaviorGeometryBias,
+} from '@/ai/behavior';
 import { selectCandidateAction } from '@/ai/search/result';
-import { DRAW_TRAP_CHECKPOINTS, createDrawTrapReplayState } from '@/ai/test/fixtures/drawTrapReplay';
+import {
+  DRAW_TRAP_CHECKPOINTS,
+  createDrawTrapReplayState,
+} from '@/ai/test/fixtures/drawTrapReplay';
 import type { RootRankedAction } from '@/ai/search/types';
-import { applyAction, createInitialState, getLegalActions, hashPosition } from '@/domain';
+import {
+  applyAction,
+  createInitialState,
+  getLegalActions,
+  hashPosition,
+} from '@/domain';
 import type { GameState, TurnAction } from '@/domain/model/types';
 import { getDrawTiebreakMetrics } from '@/domain/rules/victory';
-import { boardWithPieces, checker, gameStateWithBoard, resetFactoryIds, withConfig } from '@/test/factories';
+import {
+  boardWithPieces,
+  checker,
+  gameStateWithBoard,
+  resetFactoryIds,
+  withConfig,
+} from '@/test/factories';
 
 import {
   actionKey,
@@ -17,9 +34,12 @@ import {
   createSixStackWinState,
   createTickingClock,
   createTimeoutClock,
-  } from '@/ai/test/searchTestUtils';
+} from '@/ai/test/searchTestUtils';
 
-function getTiebreakTuple(state: GameState, player: 'white' | 'black'): [number, number] {
+function getTiebreakTuple(
+  state: GameState,
+  player: 'white' | 'black',
+): [number, number] {
   const metrics = getDrawTiebreakMetrics(state);
   const opponent = player === 'white' ? 'black' : 'white';
 
@@ -29,7 +49,10 @@ function getTiebreakTuple(state: GameState, player: 'white' | 'black'): [number,
   ];
 }
 
-function compareTiebreakTuple(left: [number, number], right: [number, number]): number {
+function compareTiebreakTuple(
+  left: [number, number],
+  right: [number, number],
+): number {
   return left[0] !== right[0] ? left[0] - right[0] : left[1] - right[1];
 }
 
@@ -47,17 +70,24 @@ function findSaferAlternative(
   const baitRisk = getRecurrenceRisk(baitState);
 
   return getLegalActions(state, config).find((candidate) => {
-    if (candidate.type === 'manualUnfreeze' || actionKey(candidate) === actionKey(baitAction)) {
+    if (
+      candidate.type === 'manualUnfreeze' ||
+      actionKey(candidate) === actionKey(baitAction)
+    ) {
       return false;
     }
 
     const candidateState = applyAction(state, candidate, config);
-    const candidateTuple = getTiebreakTuple(candidateState, state.currentPlayer);
+    const candidateTuple = getTiebreakTuple(
+      candidateState,
+      state.currentPlayer,
+    );
     const candidateRisk = getRecurrenceRisk(candidateState);
 
     return (
       compareTiebreakTuple(candidateTuple, baitTuple) > 0 ||
-      (compareTiebreakTuple(candidateTuple, baitTuple) >= 0 && candidateRisk < baitRisk)
+      (compareTiebreakTuple(candidateTuple, baitTuple) >= 0 &&
+        candidateRisk < baitRisk)
     );
   });
 }
@@ -70,6 +100,7 @@ describe('computer opponent search', () => {
         drawAversionBehindRelief: 70,
         familyVarietyWeight: 30,
         frontierWidthWeight: 20,
+        maxSelectionRegret: 960,
         timeBudgetMs: 250,
         maxDepth: 2,
         participationBias: 14,
@@ -100,6 +131,7 @@ describe('computer opponent search', () => {
         drawAversionBehindRelief: 60,
         familyVarietyWeight: 42,
         frontierWidthWeight: 28,
+        maxSelectionRegret: 480,
         timeBudgetMs: 800,
         maxDepth: 4,
         participationBias: 18,
@@ -130,6 +162,7 @@ describe('computer opponent search', () => {
         drawAversionBehindRelief: 50,
         familyVarietyWeight: 56,
         frontierWidthWeight: 36,
+        maxSelectionRegret: 240,
         timeBudgetMs: 2000,
         maxDepth: 6,
         participationBias: 24,
@@ -244,7 +277,9 @@ describe('computer opponent search', () => {
       sourceFamily: expect.any(String),
       tags: expect.any(Array),
     });
-    expect(homeFieldResult.diagnostics.aspirationResearches).toBeGreaterThanOrEqual(0);
+    expect(
+      homeFieldResult.diagnostics.aspirationResearches,
+    ).toBeGreaterThanOrEqual(0);
     expect(homeFieldResult.diagnostics.betaCutoffs).toBeGreaterThanOrEqual(0);
   });
 
@@ -360,8 +395,15 @@ describe('computer opponent search', () => {
 
     expect(result.action).not.toBeNull();
 
-    const nextState = applyAction(state, result.action as TurnAction, withConfig());
-    const opponentWinsImmediately = getLegalActions(nextState, withConfig()).some((action) => {
+    const nextState = applyAction(
+      state,
+      result.action as TurnAction,
+      withConfig(),
+    );
+    const opponentWinsImmediately = getLegalActions(
+      nextState,
+      withConfig(),
+    ).some((action) => {
       const replyState = applyAction(nextState, action, withConfig());
 
       return (
@@ -377,9 +419,15 @@ describe('computer opponent search', () => {
   it('marks and de-prioritizes self-undo moves that return to the grandparent position', () => {
     const config = withConfig();
     const state = createInitialState(config);
-    const orderedBase = orderMoves(state, state.currentPlayer, config, AI_DIFFICULTY_PRESETS.hard, {
-      includeAllQuietMoves: true,
-    });
+    const orderedBase = orderMoves(
+      state,
+      state.currentPlayer,
+      config,
+      AI_DIFFICULTY_PRESETS.hard,
+      {
+        includeAllQuietMoves: true,
+      },
+    );
     const quietCandidate = orderedBase.find(
       (entry) =>
         !entry.isTactical &&
@@ -392,11 +440,17 @@ describe('computer opponent search', () => {
       return;
     }
 
-    const ordered = orderMoves(state, state.currentPlayer, config, AI_DIFFICULTY_PRESETS.hard, {
-      grandparentPositionKey: hashPosition(quietCandidate.nextState),
-      includeAllQuietMoves: true,
-      selfUndoPenalty: 10_000,
-    });
+    const ordered = orderMoves(
+      state,
+      state.currentPlayer,
+      config,
+      AI_DIFFICULTY_PRESETS.hard,
+      {
+        grandparentPositionKey: hashPosition(quietCandidate.nextState),
+        includeAllQuietMoves: true,
+        selfUndoPenalty: 10_000,
+      },
+    );
     const baseEntry = orderedBase.find(
       (entry) => actionKey(entry.action) === actionKey(quietCandidate.action),
     );
@@ -417,10 +471,16 @@ describe('computer opponent search', () => {
   it('penalizes repeated quiet moves based on positionCounts', () => {
     const config = withConfig();
     const state = createInitialState(config);
-    const orderedBase = orderMoves(state, state.currentPlayer, config, AI_DIFFICULTY_PRESETS.hard, {
-      includeAllQuietMoves: true,
-      repetitionPenalty: 0,
-    });
+    const orderedBase = orderMoves(
+      state,
+      state.currentPlayer,
+      config,
+      AI_DIFFICULTY_PRESETS.hard,
+      {
+        includeAllQuietMoves: true,
+        repetitionPenalty: 0,
+      },
+    );
     const quietCandidate = orderedBase.find(
       (entry) =>
         !entry.isTactical &&
@@ -528,9 +588,13 @@ describe('computer opponent search', () => {
       Object.assign(AI_DIFFICULTY_PRESETS.hard, originalHardPreset);
     }
 
-  expect(result.rootCandidates.length).toBeGreaterThan(1);
-  expect(result.rootCandidates.some((candidate) => !candidate.isTactical)).toBe(true);
-  expect(result.rootCandidates.every((candidate) => Array.isArray(candidate.tags))).toBe(true);
+    expect(result.rootCandidates.length).toBeGreaterThan(1);
+    expect(
+      result.rootCandidates.some((candidate) => !candidate.isTactical),
+    ).toBe(true);
+    expect(
+      result.rootCandidates.every((candidate) => Array.isArray(candidate.tags)),
+    ).toBe(true);
   }, 30_000);
 
   it('reports scores for both the selected action and the search-best action', () => {
@@ -570,9 +634,14 @@ describe('computer opponent search', () => {
     expect(result.score).toBe(selectedCandidate?.score);
     expect(result.selectedActionScore).toBe(selectedCandidate?.score);
     expect(result.bestSearchScore).toBe(bestCandidate.score);
-    expect(actionKey(result.bestSearchAction)).toBe(actionKey(bestCandidate.action));
+    expect(actionKey(result.bestSearchAction)).toBe(
+      actionKey(bestCandidate.action),
+    );
     expect(result.selectionRegret).toBe(
-      Math.max(0, bestCandidate.score - (selectedCandidate?.score ?? bestCandidate.score)),
+      Math.max(
+        0,
+        bestCandidate.score - (selectedCandidate?.score ?? bestCandidate.score),
+      ),
     );
   }, 30_000);
 
@@ -595,7 +664,9 @@ describe('computer opponent search', () => {
     expect(entry?.mobility).toEqual({
       actorBefore: beforeLegalMoveCount,
       actorContinuationAfter: null,
-      opponentReplyAfter: entry ? getLegalActions(entry.nextState, config).length : null,
+      opponentReplyAfter: entry
+        ? getLegalActions(entry.nextState, config).length
+        : null,
       measuredAfter: true,
       samePlayerContinuation: false,
     });
@@ -624,7 +695,9 @@ describe('computer opponent search', () => {
         [hashPosition(baseState)]: 2,
       },
     };
-    const baitAction = getLegalActions(repeatedState, config).find((action) => action.type === 'manualUnfreeze');
+    const baitAction = getLegalActions(repeatedState, config).find(
+      (action) => action.type === 'manualUnfreeze',
+    );
     const saferAlternative = baitAction
       ? findSaferAlternative(repeatedState, baitAction, config)
       : undefined;
@@ -655,9 +728,15 @@ describe('computer opponent search', () => {
     const qualifyingCheckpoints = DRAW_TRAP_CHECKPOINTS.map((checkpoint) => {
       const state = createDrawTrapReplayState(checkpoint.moveNumber, config);
       const legalActions = getLegalActions(state, config);
-      const saferAlternative = findSaferAlternative(state, checkpoint.baitAction, config);
+      const saferAlternative = findSaferAlternative(
+        state,
+        checkpoint.baitAction,
+        config,
+      );
 
-      expect(legalActions.map(actionKey)).toContain(actionKey(checkpoint.baitAction));
+      expect(legalActions.map(actionKey)).toContain(
+        actionKey(checkpoint.baitAction),
+      );
 
       return {
         ...checkpoint,
@@ -687,7 +766,9 @@ describe('computer opponent search', () => {
         });
 
         expect(result.action).not.toBeNull();
-        expect(actionKey(result.action as TurnAction)).not.toBe(actionKey(checkpoint.baitAction));
+        expect(actionKey(result.action as TurnAction)).not.toBe(
+          actionKey(checkpoint.baitAction),
+        );
       }
     }
   }, 30_000);
@@ -801,8 +882,16 @@ describe('computer opponent search', () => {
         },
       ];
 
-      expect(actionKey(selectCandidateAction(ranked, AI_DIFFICULTY_PRESETS.hard, () => 0).action)).not.toBe(
-        actionKey(selectCandidateAction(ranked, AI_DIFFICULTY_PRESETS.hard, () => 0.99).action),
+      expect(
+        actionKey(
+          selectCandidateAction(ranked, AI_DIFFICULTY_PRESETS.hard, () => 0)
+            .action,
+        ),
+      ).not.toBe(
+        actionKey(
+          selectCandidateAction(ranked, AI_DIFFICULTY_PRESETS.hard, () => 0.99)
+            .action,
+        ),
       );
     } finally {
       Object.assign(AI_DIFFICULTY_PRESETS.hard, originalHardPreset);
@@ -998,7 +1087,11 @@ describe('computer opponent search', () => {
         tiebreakEdgeKind: 'behind',
       },
       {
-        action: { type: 'moveSingleToEmpty', source: 'B4', target: 'B3' } as const,
+        action: {
+          type: 'moveSingleToEmpty',
+          source: 'B4',
+          target: 'B3',
+        } as const,
         drawTrapRisk: 0,
         emptyCellsDelta: 0,
         freezeSwingBonus: 0,
@@ -1032,10 +1125,12 @@ describe('computer opponent search', () => {
     ];
 
     expect(
-      actionKey(selectCandidateAction(ranked, AI_DIFFICULTY_PRESETS.medium, () => 0, {
-        bandBoost: 1,
-        riskMode: 'normal',
-      }).action),
+      actionKey(
+        selectCandidateAction(ranked, AI_DIFFICULTY_PRESETS.medium, () => 0, {
+          bandBoost: 1,
+          riskMode: 'normal',
+        }).action,
+      ),
     ).toBe(actionKey(ranked[1].action));
   });
 
@@ -1107,16 +1202,28 @@ describe('computer opponent search', () => {
       },
     ];
 
-    const expanderChoice = selectCandidateAction(ranked, AI_DIFFICULTY_PRESETS.hard, () => 0.5, {
-      behaviorProfileId: 'expander',
-      riskMode: 'normal',
-    });
-    const builderChoice = selectCandidateAction(ranked, AI_DIFFICULTY_PRESETS.hard, () => 0.5, {
-      behaviorProfileId: 'builder',
-      riskMode: 'normal',
-    });
+    const expanderChoice = selectCandidateAction(
+      ranked,
+      AI_DIFFICULTY_PRESETS.hard,
+      () => 0.5,
+      {
+        behaviorProfileId: 'expander',
+        riskMode: 'normal',
+      },
+    );
+    const builderChoice = selectCandidateAction(
+      ranked,
+      AI_DIFFICULTY_PRESETS.hard,
+      () => 0.5,
+      {
+        behaviorProfileId: 'builder',
+        riskMode: 'normal',
+      },
+    );
 
-    expect(actionKey(expanderChoice.action)).not.toBe(actionKey(builderChoice.action));
+    expect(actionKey(expanderChoice.action)).not.toBe(
+      actionKey(builderChoice.action),
+    );
   });
 
   it('reranks non-forced tactical candidates inside the low-confidence risk band', () => {
@@ -1178,7 +1285,7 @@ describe('computer opponent search', () => {
         participationDelta: 24,
         policyPrior: 0.05,
         repeatedPositionCount: 1,
-        score: 700,
+        score: 800,
         sixStackDelta: 0,
         sourceFamily: 'white-002',
         tags: ['decompress', 'rescue'],
@@ -1199,19 +1306,43 @@ describe('computer opponent search', () => {
 
   it('exposes a geometry bias so personas can split symmetric openings', () => {
     expect(
-      getBehaviorGeometryBias('expander', { type: 'climbOne', source: 'C3', target: 'B4' }),
+      getBehaviorGeometryBias('expander', {
+        type: 'climbOne',
+        source: 'C3',
+        target: 'B4',
+      }),
     ).toBeGreaterThan(
-      getBehaviorGeometryBias('expander', { type: 'climbOne', source: 'A3', target: 'A4' }),
+      getBehaviorGeometryBias('expander', {
+        type: 'climbOne',
+        source: 'A3',
+        target: 'A4',
+      }),
     );
     expect(
-      getBehaviorGeometryBias('hunter', { type: 'climbOne', source: 'B3', target: 'B4' }),
+      getBehaviorGeometryBias('hunter', {
+        type: 'climbOne',
+        source: 'B3',
+        target: 'B4',
+      }),
     ).toBeGreaterThan(
-      getBehaviorGeometryBias('hunter', { type: 'climbOne', source: 'C3', target: 'B4' }),
+      getBehaviorGeometryBias('hunter', {
+        type: 'climbOne',
+        source: 'C3',
+        target: 'B4',
+      }),
     );
     expect(
-      getBehaviorGeometryBias('builder', { type: 'climbOne', source: 'A3', target: 'A4' }),
+      getBehaviorGeometryBias('builder', {
+        type: 'climbOne',
+        source: 'A3',
+        target: 'A4',
+      }),
     ).toBeGreaterThan(
-      getBehaviorGeometryBias('builder', { type: 'climbOne', source: 'C3', target: 'B4' }),
+      getBehaviorGeometryBias('builder', {
+        type: 'climbOne',
+        source: 'C3',
+        target: 'B4',
+      }),
     );
   });
 });

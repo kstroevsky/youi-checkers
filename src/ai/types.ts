@@ -24,6 +24,8 @@ export type AiDifficultyPreset = {
   drawAversionAhead: number;
   drawAversionBehindRelief: number;
   familyVarietyWeight: number;
+  /** Maximum root-score regret that style selection may spend. */
+  maxSelectionRegret: number;
   maxDepth: number;
   participationBias: number;
   participationWindow: number;
