@@ -36,6 +36,9 @@ export type TacticalDecisionSample = TacticalDecisionScore & {
   legalActionCount: number;
   nodeBudget: number;
   objective: TacticalObjective;
+  partialDepth: number | null;
+  partialRootMoves: number;
+  rootPreparationTransitions: number;
   seed: number;
   selectedActionKey: string;
   spatialVariant: TacticalSpatialVariant;
@@ -53,6 +56,8 @@ export type CompetenceCurvePoint = {
   oracleCoveredCount: number;
   oracleMissingCount: number;
   oracleRegret: NumericDistributionSummary | null;
+  partialDepthShare: ProportionSummary;
+  rootPreparationTransitions: NumericDistributionSummary;
   sampleCount: number;
   uniqueDefenseAccuracy: ProportionSummary | null;
   uniqueWinAccuracy: ProportionSummary | null;
@@ -151,7 +156,9 @@ export function summarizeCompetenceSamples(
         ),
         fullRootCoverageShare: summarizeProportion(
           group.filter(
-            (sample) => sample.completedRootMoves >= sample.legalActionCount,
+            (sample) =>
+              sample.completedRootMoves >= sample.legalActionCount ||
+              (sample.objective === 'uniqueWin' && sample.exactTacticalSuccess),
           ).length,
           group.length,
         ),
@@ -168,6 +175,13 @@ export function summarizeCompetenceSamples(
         oracleRegret: regrets.length
           ? summarizeNumericDistribution(regrets)
           : null,
+        partialDepthShare: summarizeProportion(
+          group.filter((sample) => sample.partialDepth !== null).length,
+          group.length,
+        ),
+        rootPreparationTransitions: summarizeNumericDistribution(
+          group.map((sample) => sample.rootPreparationTransitions),
+        ),
         sampleCount: group.length,
         uniqueDefenseAccuracy: objectiveAccuracy(group, 'uniqueDefense'),
         uniqueWinAccuracy: objectiveAccuracy(group, 'uniqueWin'),

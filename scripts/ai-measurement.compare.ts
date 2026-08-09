@@ -16,6 +16,8 @@ type DecisionSample = {
     completedRootMoves: number;
     evaluatedNodes: number;
     fallbackKind: string;
+    partialDepth: number | null;
+    partialRootMoves: number;
   };
   sampleId: string;
 };
@@ -219,11 +221,22 @@ async function main(): Promise<void> {
         { direction: 'lowerIsBetter', materialDifference: 2 },
       ),
     },
+    partialDepthShare: {
+      meaning:
+        'Lower partial-depth frequency means fewer decisions rely on interrupted root scores.',
+      summary: summarizePairedDifference(
+        pairedValues(baselineSamples, candidateSamples, (sample) =>
+          sample.result.partialDepth === null ? 0 : 1,
+        ),
+        { direction: 'lowerIsBetter', materialDifference: 0.01 },
+      ),
+    },
   };
   const guardrailNames = [
     'completedDepth',
     'completedRootMoves',
     'fallbackShare',
+    'partialDepthShare',
   ];
   const hasRegression = guardrailNames.some(
     (name) => metrics[name].summary.verdict === 'regressed',

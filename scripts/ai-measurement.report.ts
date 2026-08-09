@@ -201,6 +201,8 @@ function toSearchExecutionSample(
     elapsedMs: result.elapsedMs,
     evaluatedNodes: result.evaluatedNodes,
     fallbackKind: result.fallbackKind,
+    partialDepth: result.partialDepth,
+    partialRootMoves: result.partialRootMoves,
     rootScoreRegret: result.selectionRegret,
     searchBudget: result.searchBudget ?? null,
     timedOut: result.timedOut,
@@ -271,14 +273,14 @@ function buildMarkdown(report: Record<string, unknown>): string {
     '',
     'This report keeps search-path, outcome, and behavioral evidence separate. Raw samples are stored in `ai-measurement-samples.jsonl`.',
     '',
-    '| Difficulty | Decision depth median | Decision fallback | Game depth median | Game fallback | Spatial equivariance | Normal wins | Draws | Unfinished | Opening effective behaviors |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Difficulty | Decision depth median | Decision partial | Decision fallback | Game depth median | Game partial | Game fallback | Spatial equivariance | Normal wins | Draws | Unfinished | Opening effective behaviors |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
   ];
 
   for (const difficulty of Object.keys(summaries) as AiDifficulty[]) {
     const summary = summaries[difficulty];
     lines.push(
-      `| ${difficulty} | ${summary.decisionSearch.completedDepth.median} | ${summary.decisionSearch.fallbackShare.share} | ${summary.gameSearch.completedDepth.median} | ${summary.gameSearch.fallbackShare.share} | ${summary.spatialEquivariance.share} | ${summary.outcomes.normalGoalWins.share} | ${summary.outcomes.actualDraws.share} | ${summary.outcomes.unfinished.share} | ${summary.behavior.firstMoveDiversity.hill1EffectiveBehaviors} |`,
+      `| ${difficulty} | ${summary.decisionSearch.completedDepth.median} | ${summary.decisionSearch.partialDepthShare.share} | ${summary.decisionSearch.fallbackShare.share} | ${summary.gameSearch.completedDepth.median} | ${summary.gameSearch.partialDepthShare.share} | ${summary.gameSearch.fallbackShare.share} | ${summary.spatialEquivariance.share} | ${summary.outcomes.normalGoalWins.share} | ${summary.outcomes.actualDraws.share} | ${summary.outcomes.unfinished.share} | ${summary.behavior.firstMoveDiversity.hill1EffectiveBehaviors} |`,
     );
   }
 

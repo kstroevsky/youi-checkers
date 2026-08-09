@@ -5,7 +5,7 @@ import type {
   AiTracePly,
 } from '@/ai/test/metrics';
 
-export const AI_MEASUREMENT_SCHEMA_VERSION = 2 as const;
+export const AI_MEASUREMENT_SCHEMA_VERSION = 3 as const;
 
 export type ConfidenceInterval = {
   high: number;
@@ -66,7 +66,11 @@ export type SearchPathSummary = {
   evaluatedNodes: NumericDistributionSummary;
   fallbackCounts: Record<AiFallbackKind, number>;
   fallbackShare: ProportionSummary;
+  partialDepth: NumericDistributionSummary | null;
+  partialDepthShare: ProportionSummary;
+  partialRootMoves: NumericDistributionSummary | null;
   quiescenceNodes: NumericDistributionSummary;
+  rootPreparationTransitions: NumericDistributionSummary;
   rootScoreRegret: NumericDistributionSummary;
   timedOutShare: ProportionSummary;
   zeroDepthShare: ProportionSummary;
@@ -80,6 +84,8 @@ export type SearchExecutionSample = Pick<
   | 'elapsedMs'
   | 'evaluatedNodes'
   | 'fallbackKind'
+  | 'partialDepth'
+  | 'partialRootMoves'
   | 'rootScoreRegret'
   | 'searchBudget'
   | 'timedOut'
@@ -416,8 +422,29 @@ export function summarizeSearchExecutions(
       plies.filter((ply) => ply.fallbackKind !== 'none').length,
       plies.length,
     ),
+    partialDepth: plies.some((ply) => ply.partialDepth !== null)
+      ? summarizeNumericDistribution(
+          plies.flatMap((ply) =>
+            ply.partialDepth === null ? [] : [ply.partialDepth],
+          ),
+        )
+      : null,
+    partialDepthShare: summarizeProportion(
+      plies.filter((ply) => ply.partialDepth !== null).length,
+      plies.length,
+    ),
+    partialRootMoves: plies.some((ply) => ply.partialDepth !== null)
+      ? summarizeNumericDistribution(
+          plies.flatMap((ply) =>
+            ply.partialDepth === null ? [] : [ply.partialRootMoves],
+          ),
+        )
+      : null,
     quiescenceNodes: summarizeNumericDistribution(
       plies.map((ply) => ply.diagnostics.quiescenceNodes),
+    ),
+    rootPreparationTransitions: summarizeNumericDistribution(
+      plies.map((ply) => ply.diagnostics.rootPreparationTransitions),
     ),
     rootScoreRegret: summarizeNumericDistribution(
       plies.map((ply) => ply.rootScoreRegret),

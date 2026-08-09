@@ -28,6 +28,7 @@ export function createSearchDiagnostics(): AiSearchDiagnostics {
     pvsResearches: 0,
     quiescenceNodes: 0,
     repetitionPenalties: 0,
+    rootPreparationTransitions: 0,
     selfUndoPenalties: 0,
     sourceFamilyCollisions: 0,
     stagnationRiskTriggers: 0,
@@ -48,6 +49,8 @@ export function createEmptyResult(action: TurnAction | null, score: number): AiS
     elapsedMs: 0,
     evaluatedNodes: 0,
     fallbackKind: action ? 'legalOrder' : 'none',
+    partialDepth: null,
+    partialRootMoves: 0,
     principalVariation: action ? [action] : [],
     riskMode: 'normal',
     rootCandidates: action

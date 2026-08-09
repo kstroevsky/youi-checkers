@@ -292,24 +292,33 @@ export function chooseComputerAction({
     useDeadline: boolean,
     riskMode = effectiveRiskMode,
     policyPriorWeight = rootPolicyPriorWeight,
-  ): PrecomputedOrderedAction[] =>
-    precomputeOrderedActions(state, state.currentPlayer, ruleConfig, preset, {
-      actions: legalActions,
-      behaviorProfile,
-      deadline: useDeadline ? deadline : undefined,
-      diagnostics,
-      grandparentPositionKey: rootSelfUndoPositionKey,
-      now: useDeadline ? now : undefined,
-      participationState: rootParticipationState,
-      perfCache,
-      policyPriors,
-      policyPriorWeight,
-      previousStrategicTags: rootPreviousStrategicTags,
-      repetitionPenalty: preset.repetitionPenalty,
-      riskMode,
-      samePlayerPreviousAction: rootPreviousOwnAction,
-      selfUndoPenalty: preset.selfUndoPenalty,
-    });
+  ): PrecomputedOrderedAction[] => {
+    const precomputed = precomputeOrderedActions(
+      state,
+      state.currentPlayer,
+      ruleConfig,
+      preset,
+      {
+        actions: legalActions,
+        behaviorProfile,
+        deadline: useDeadline ? deadline : undefined,
+        diagnostics,
+        grandparentPositionKey: rootSelfUndoPositionKey,
+        now: useDeadline ? now : undefined,
+        participationState: rootParticipationState,
+        perfCache,
+        policyPriors,
+        policyPriorWeight,
+        previousStrategicTags: rootPreviousStrategicTags,
+        repetitionPenalty: preset.repetitionPenalty,
+        riskMode,
+        samePlayerPreviousAction: rootPreviousOwnAction,
+        selfUndoPenalty: preset.selfUndoPenalty,
+      },
+    );
+    diagnostics.rootPreparationTransitions += precomputed.length;
+    return precomputed;
+  };
 
   if (effectiveRiskMode !== 'normal') {
     const riskProbe = createRootPrecomputed(false);
@@ -417,6 +426,8 @@ export function chooseComputerAction({
   let bestAction = legalActions[0];
   let bestScore = getFallbackScore();
   let fallbackKind: AiSearchResult['fallbackKind'] = 'none';
+  let partialDepth: number | null = null;
+  let partialRootMoves = 0;
   let timedOut = false;
   let rootCandidates: RootRankedAction[] = [];
   let rootOrderedMoves: OrderedAction[] = [];
@@ -458,6 +469,8 @@ export function chooseComputerAction({
           elapsedMs: now() - startedAt,
           evaluatedNodes: 1,
           fallbackKind: 'none',
+          partialDepth: null,
+          partialRootMoves: 0,
           principalVariation: [entry.action],
           riskMode: effectiveRiskMode,
           rootCandidates: orderRootCandidates(
@@ -550,6 +563,8 @@ export function chooseComputerAction({
       elapsedMs: now() - startedAt,
       evaluatedNodes: 0,
       fallbackKind: 'orderedRoot',
+      partialDepth: null,
+      partialRootMoves: 0,
       principalVariation: [
         fallbackAction,
       ],
@@ -725,7 +740,8 @@ export function chooseComputerAction({
             riskMode: effectiveRiskMode,
           }).action;
           bestScore = partialBest.score;
-          completedRootMoves = ranked.length;
+          partialDepth = depth;
+          partialRootMoves = ranked.length;
           rootCandidates = ranked;
           fallbackKind = 'partialCurrentDepth';
         } else if (completedDepth > 0) {
@@ -794,6 +810,8 @@ export function chooseComputerAction({
 
     completedDepth = depth;
     completedRootMoves = ranked.length;
+    partialDepth = null;
+    partialRootMoves = 0;
     rootCandidates = ranked;
     bestScore = ranked[0].score;
     bestAction = selectCandidateAction(ranked, preset, random, {
@@ -827,6 +845,8 @@ export function chooseComputerAction({
     elapsedMs: now() - startedAt,
     evaluatedNodes: context.evaluatedNodes,
     fallbackKind,
+    partialDepth,
+    partialRootMoves,
     principalVariation: buildPrincipalVariation(
       state,
       bestAction,

@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest';
 
+import { createSearchDiagnostics } from '@/ai/search/result';
 import {
   summarizeEffectiveDiversity,
   summarizeNumericDistribution,
   summarizePairedDifference,
   summarizeProportion,
+  summarizeSearchExecutions,
 } from '@/ai/test/measurement';
 
 describe('AI measurement statistics', () => {
@@ -70,5 +72,44 @@ describe('AI measurement statistics', () => {
     expect(improved.orientedMeanDifference).toBeGreaterThan(0);
     expect(improved.pairCount).toBe(4);
     expect(noisy.verdict).toBe('inconclusive');
+  });
+
+  it('keeps partial-depth evidence separate and nullable', () => {
+    const base = {
+      completedDepth: 1,
+      completedRootMoves: 12,
+      diagnostics: createSearchDiagnostics(),
+      elapsedMs: 1,
+      evaluatedNodes: 100,
+      fallbackKind: 'none' as const,
+      partialDepth: null,
+      partialRootMoves: 0,
+      rootScoreRegret: 0,
+      searchBudget: {
+        exhaustedBy: 'none' as const,
+        maxDepth: 2,
+        maxEvaluatedNodes: 100,
+        timeBudgetMs: null,
+        type: 'fixedNodes' as const,
+      },
+      timedOut: false,
+    };
+    const withoutPartial = summarizeSearchExecutions([base]);
+    const withPartial = summarizeSearchExecutions([
+      base,
+      {
+        ...base,
+        fallbackKind: 'partialCurrentDepth',
+        partialDepth: 2,
+        partialRootMoves: 7,
+        timedOut: true,
+      },
+    ]);
+
+    expect(withoutPartial.partialDepth).toBeNull();
+    expect(withoutPartial.partialRootMoves).toBeNull();
+    expect(withPartial.partialDepth).toMatchObject({ count: 1, mean: 2 });
+    expect(withPartial.partialRootMoves).toMatchObject({ count: 1, mean: 7 });
+    expect(withPartial.partialDepthShare).toMatchObject({ count: 1, total: 2 });
   });
 });

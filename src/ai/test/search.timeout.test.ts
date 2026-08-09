@@ -84,4 +84,28 @@ describe('computer opponent search timeouts', () => {
       expect(actionKey(result.action)).toBe(actionKey(orderedRootMoves[0]?.action ?? null));
     }
   });
+
+  it('keeps completed-root evidence separate from the interrupted next depth', () => {
+    const config = withConfig();
+    const state = createInitialState(config);
+    const legalActionCount = getLegalActions(state, config).length;
+    const result = chooseComputerAction({
+      difficulty: 'hard',
+      random: () => 0,
+      ruleConfig: config,
+      searchBudget: {
+        maxDepth: 6,
+        maxEvaluatedNodes: 2_600,
+        type: 'fixedNodes',
+      },
+      state,
+    });
+
+    expect(result.completedDepth).toBe(1);
+    expect(result.completedRootMoves).toBe(legalActionCount);
+    expect(result.partialDepth).toBe(2);
+    expect(result.partialRootMoves).toBeGreaterThan(0);
+    expect(result.fallbackKind).toBe('partialCurrentDepth');
+    expect(result.timedOut).toBe(true);
+  }, 30_000);
 });

@@ -53,6 +53,8 @@ export type AiTracePly = {
   movedMass: number;
   normalizedWhiteScore: number;
   participationDelta: number;
+  partialDepth: number | null;
+  partialRootMoves: number;
   ply: number;
   repeatedPositionCount: number;
   rootCandidates: AiRootCandidate[];
@@ -1120,6 +1122,8 @@ export function runAiGameTrace({
         clamp(whitePerspectiveScore / MAX_SCORE_FOR_TENSION, -1, 1),
       ),
       participationDelta: selectedCandidate?.participationDelta ?? 0,
+      partialDepth: result.partialDepth,
+      partialRootMoves: result.partialRootMoves,
       ply: plyIndex + 1,
       repeatedPositionCount,
       rootCandidates: result.rootCandidates.map((candidate) => ({

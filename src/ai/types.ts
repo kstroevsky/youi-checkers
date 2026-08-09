@@ -173,6 +173,8 @@ export type AiSearchDiagnostics = {
   pvsResearches: number;
   quiescenceNodes: number;
   repetitionPenalties: number;
+  /** Candidate transitions simulated while preparing the root action set. */
+  rootPreparationTransitions: number;
   selfUndoPenalties: number;
   sourceFamilyCollisions: number;
   stagnationRiskTriggers: number;
@@ -190,11 +192,15 @@ export type AiSearchResult = {
   /** Complete after-win action line. Present only when finishing search reaches victory. */
   completionPlan?: TurnAction[];
   completedDepth: number;
+  /** Root actions evaluated at completedDepth; never overwritten by partial work. */
   completedRootMoves: number;
   diagnostics: AiSearchDiagnostics;
   elapsedMs: number;
   evaluatedNodes: number;
   fallbackKind: AiFallbackKind;
+  /** Interrupted iterative-deepening depth, when at least one root action completed. */
+  partialDepth: number | null;
+  partialRootMoves: number;
   principalVariation: TurnAction[];
   riskMode: AiRiskMode;
   rootCandidates: AiRootCandidate[];

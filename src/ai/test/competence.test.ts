@@ -27,6 +27,9 @@ describe('AI competence measurement', () => {
 
     expect(legalActionCount).toBeGreaterThan(6);
     expect(result.rootCandidates).toHaveLength(legalActionCount);
+    expect(result.diagnostics.rootPreparationTransitions).toBe(
+      legalActionCount,
+    );
   });
 
   it('builds unique-win and unique-defense fixtures with exact mirrors', () => {
@@ -113,6 +116,9 @@ describe('AI competence measurement', () => {
       objective: 'uniqueWin' as const,
       oracleBestActionKey: 'move:A1:B1',
       oracleBestScore: 14_000,
+      partialDepth: null,
+      partialRootMoves: 0,
+      rootPreparationTransitions: 3,
       seed: 1,
       spatialVariant: 'original' as const,
       timedOut: true,
@@ -140,6 +146,8 @@ describe('AI competence measurement', () => {
         oracleCovered: false,
         oracleRegret: null,
         oracleSelectedActionScore: null,
+        partialDepth: 1,
+        partialRootMoves: 1,
         selectedActionKey: 'move:A1:A2',
         spatialVariant: 'horizontalMirror',
       },

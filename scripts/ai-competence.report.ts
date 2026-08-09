@@ -193,15 +193,15 @@ function buildMarkdown(report: {
     '',
     'The oracle is a complete fixed-depth root search. Candidate actions are rescored on that deeper root scale; missing oracle candidates remain missing rather than becoming zero regret.',
     '',
-    '| Difficulty | Nodes | Samples | Oracle coverage | Unique-win accuracy | Unique-defense accuracy | Mean regret | P95 regret | Catastrophic regret | Full root | Fallback | Zero depth |',
-    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Difficulty | Nodes | Samples | Oracle coverage | Unique-win accuracy | Unique-defense accuracy | Mean regret | P95 regret | Catastrophic regret | Root prep transitions | Completed root | Partial depth | Fallback | Zero depth |',
+    '| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
   ];
 
   const share = (value: { share: number } | null): string =>
     value ? String(value.share) : '—';
   for (const point of report.curve) {
     lines.push(
-      `| ${point.difficulty} | ${point.nodeBudget} | ${point.sampleCount} | ${share(point.oracleCoverage)} | ${share(point.uniqueWinAccuracy)} | ${share(point.uniqueDefenseAccuracy)} | ${point.oracleRegret?.mean ?? '—'} | ${point.oracleRegret?.p95 ?? '—'} | ${share(point.catastrophicRegretShare)} | ${share(point.fullRootCoverageShare)} | ${share(point.fallbackShare)} | ${share(point.zeroDepthShare)} |`,
+      `| ${point.difficulty} | ${point.nodeBudget} | ${point.sampleCount} | ${share(point.oracleCoverage)} | ${share(point.uniqueWinAccuracy)} | ${share(point.uniqueDefenseAccuracy)} | ${point.oracleRegret?.mean ?? '—'} | ${point.oracleRegret?.p95 ?? '—'} | ${share(point.catastrophicRegretShare)} | ${point.rootPreparationTransitions.mean} | ${share(point.fullRootCoverageShare)} | ${share(point.partialDepthShare)} | ${share(point.fallbackShare)} | ${share(point.zeroDepthShare)} |`,
     );
   }
 
@@ -302,8 +302,12 @@ async function main(): Promise<void> {
             legalActionCount: oracle.legalActionCount,
             nodeBudget,
             objective: fixture.objective,
+            partialDepth: result.partialDepth,
+            partialRootMoves: result.partialRootMoves,
             positionHash: hashPosition(fixture.state),
             result,
+            rootPreparationTransitions:
+              result.diagnostics.rootPreparationTransitions,
             seed,
             selectedActionKey,
             spatialVariant: fixture.spatialVariant,

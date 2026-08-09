@@ -30,6 +30,7 @@ function createSearchContext(): SearchContext {
       pvsResearches: 0,
       quiescenceNodes: 0,
       repetitionPenalties: 0,
+      rootPreparationTransitions: 0,
       selfUndoPenalties: 0,
       sourceFamilyCollisions: 0,
       stagnationRiskTriggers: 0,

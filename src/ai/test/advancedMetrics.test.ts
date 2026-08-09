@@ -51,6 +51,8 @@ function createPly(overrides: Partial<AiTracePly> = {}): AiTracePly {
     movedMass: 1,
     normalizedWhiteScore: 0,
     participationDelta: 0,
+    partialDepth: null,
+    partialRootMoves: 0,
     ply: 1,
     repeatedPositionCount: 1,
     rootCandidates: [],
