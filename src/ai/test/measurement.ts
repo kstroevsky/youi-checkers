@@ -5,7 +5,7 @@ import type {
   AiTracePly,
 } from '@/ai/test/metrics';
 
-export const AI_MEASUREMENT_SCHEMA_VERSION = 1 as const;
+export const AI_MEASUREMENT_SCHEMA_VERSION = 2 as const;
 
 export type ConfidenceInterval = {
   high: number;

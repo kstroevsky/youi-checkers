@@ -2,6 +2,7 @@ import {
   getStableCallsForDifficulty,
   runAiGameTrace,
   runAiVarietySuite,
+  summarizeSamePlayerIntentTransitions,
   summarizeAiVariety,
   type AiGameTrace,
   type AiVarietySummary,
@@ -25,6 +26,20 @@ const RULE_CONFIG = withConfig({
   scoringMode: 'off',
 });
 const SUMMARY_CACHE = new Map<'easy' | 'medium' | 'hard', AiVarietySummary>();
+
+describe('measurement semantics', () => {
+  it('counts intent transitions only against the same player previous decision', () => {
+    const summary = summarizeSamePlayerIntentTransitions([
+      { actor: 'white', strategicIntent: 'home' },
+      { actor: 'black', strategicIntent: 'sixStack' },
+      { actor: 'white', strategicIntent: 'home' },
+      { actor: 'black', strategicIntent: 'home' },
+      { actor: 'white', strategicIntent: 'hybrid' },
+    ]);
+
+    expect(summary).toEqual({ comparisons: 3, switches: 2 });
+  });
+});
 
 function getPairCount(difficulty: 'easy' | 'medium' | 'hard'): number {
   return difficulty === 'hard' ? 4 : 4;

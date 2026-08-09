@@ -194,11 +194,6 @@ function actionKey(action: TurnAction | null): string {
 function toSearchExecutionSample(
   result: AiSearchResult,
 ): SearchExecutionSample {
-  const selected = result.rootCandidates.find(
-    (candidate) => actionKey(candidate.action) === actionKey(result.action),
-  );
-  const bestScore = result.rootCandidates[0]?.score ?? result.score;
-
   return {
     completedDepth: result.completedDepth,
     completedRootMoves: result.completedRootMoves,
@@ -206,7 +201,7 @@ function toSearchExecutionSample(
     elapsedMs: result.elapsedMs,
     evaluatedNodes: result.evaluatedNodes,
     fallbackKind: result.fallbackKind,
-    rootScoreRegret: Math.max(0, bestScore - (selected?.score ?? result.score)),
+    rootScoreRegret: result.selectionRegret,
     searchBudget: result.searchBudget ?? null,
     timedOut: result.timedOut,
   };

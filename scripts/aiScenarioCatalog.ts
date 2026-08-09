@@ -82,5 +82,13 @@ export function buildScenarioState(
     return createLateGamePerfState(0, ruleConfig);
   }
 
-  return createContinuationScenarioState(createLateGamePerfState(scenario.turnCount, ruleConfig));
+  // Long benchmark traces intentionally contain repeated cycles. Replay them
+  // without terminating on the measurement draw rule, then rebuild a valid
+  // continuation state with bounded, internally consistent history/counts.
+  return createContinuationScenarioState(
+    createLateGamePerfState(scenario.turnCount, {
+      ...ruleConfig,
+      drawRule: 'none',
+    }),
+  );
 }

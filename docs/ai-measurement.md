@@ -67,7 +67,8 @@ report and must match before raw samples may be paired.
 - evaluated and quiescence nodes;
 - elapsed time;
 - fallback, timeout, and zero-depth shares;
-- root-score regret of the selected reported candidate;
+- search-best and selected-action scores with explicit non-negative selection
+  regret, derived before diagnostic root-candidate truncation;
 - budget type and exhaustion distributions;
 - hard assertions for missing or unexpected budget metadata.
 
@@ -88,6 +89,8 @@ Turn-limit truncation is reported as unfinished. It is never counted as a draw.
 - opening action and source-family diversity;
 - participation delta and positive-participation share;
 - board displacement;
+- actor-explicit mobility (same-player continuation and opponent reply counts
+  are never subtracted from one another);
 - repetition and two-ply self-undo shares;
 - horizontal spatial equivariance.
 
@@ -134,6 +137,16 @@ Each run writes ignored, reproducible artifacts under `output/ai/`:
 - `ai-measurement-report.md`: short review surface;
 - `ai-measurement-samples.jsonl`: lossless decision results and complete game
   traces, including root candidates and diagnostics.
+
+Schema version 2 makes terminal utility, score ownership, selection regret, and
+actor-aware mobility explicit. Version-1 and version-2 artifacts are intentionally
+incompatible in the paired comparator rather than being silently mixed.
+
+Advanced loop/bucket reports preserve missingness: sample entropy is `null` when
+no finite estimate is supported, and loop-escape rates are `null` when no trace
+entered loop pressure. These conditional metrics publish their eligible sample
+counts beside the estimate. Symbolic Lempel-Ziv complexity is computed over
+tokens, so renaming a position/action token cannot change the value.
 
 The summary records Git revision/dirty state, Node and package versions, OS,
 architecture, CPU count, fixture hash, raw-sample hash, raw path, and sample

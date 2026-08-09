@@ -4,11 +4,13 @@ import {
   type AiSearchBudget,
   type AiSearchBudgetReport,
   type AiSearchDiagnostics,
+  type AiMobilityTransition,
   type AiRootCandidate,
   type AiStrategicIntent,
   type AiStrategicTag,
 } from '@/ai';
 import { createAiBehaviorProfile } from '@/ai/behavior';
+import { computeNormalizedLempelZiv } from '@/ai/test/advancedMetrics';
 import { hasCertifiedRiskProgress } from '@/ai/risk';
 import { analyzePosition } from '@/ai/strategy';
 import { getLegalActions, getScoreSummary, applyAction, createInitialState, hashPosition } from '@/domain';
@@ -25,6 +27,7 @@ export type AiTracePly = {
   afterLegalMoveCount: number;
   afterPositionKey: string;
   behaviorProfileId: AiBehaviorProfileId | null;
+  bestSearchScore: number;
   beforeLegalMoveCount: number;
   boardDisplacement: number;
   completedDepth: number;
@@ -45,6 +48,7 @@ export type AiTracePly = {
   isSelfUndo: boolean;
   isTactical: boolean;
   legalRootCandidateCount: number;
+  mobility: AiMobilityTransition;
   mobilityDelta: number;
   movedMass: number;
   normalizedWhiteScore: number;
@@ -55,6 +59,8 @@ export type AiTracePly = {
   rootScoreRegret: number;
   riskMode: AiRiskMode;
   score: number;
+  selectedActionScore: number;
+  selectionRegret: number;
   searchBudget: AiSearchBudgetReport | null;
   sixStackDelta: number;
   sixStackProgress: Record<Player, number>;
@@ -425,14 +431,31 @@ function deriveCandidateSignals(
   emptyCellsDelta: number;
   freezeSwingBonus: number;
   homeFieldDelta: number;
+  mobility: AiMobilityTransition;
   mobilityDelta: number;
   sixStackDelta: number;
 } {
+  const samePlayerContinuation =
+    nextState.status !== 'gameOver' && nextState.currentPlayer === actor;
+  const mobility: AiMobilityTransition = {
+    actorBefore: beforeLegalMoveCount,
+    actorContinuationAfter: samePlayerContinuation ? afterLegalMoveCount : null,
+    opponentReplyAfter:
+      nextState.status !== 'gameOver' && !samePlayerContinuation
+        ? afterLegalMoveCount
+        : null,
+    measuredAfter: nextState.status !== 'gameOver',
+    samePlayerContinuation,
+  };
+
   return {
     emptyCellsDelta: analyzePosition(nextState).emptyCells - analyzePosition(state).emptyCells,
     freezeSwingBonus: getDerivedFreezeSwingBonus(state, action, actor),
     homeFieldDelta: afterProgress.homeFieldProgress[actor] - beforeProgress.homeFieldProgress[actor],
-    mobilityDelta: afterLegalMoveCount - beforeLegalMoveCount,
+    mobility,
+    mobilityDelta: samePlayerContinuation
+      ? afterLegalMoveCount - beforeLegalMoveCount
+      : 0,
     sixStackDelta: afterProgress.sixStackProgress[actor] - beforeProgress.sixStackProgress[actor],
   };
 }
@@ -556,47 +579,6 @@ function computeSlope(values: number[]): number {
   }
 
   return denominator === 0 ? 0 : numerator / denominator;
-}
-
-function computeNormalizedLempelZiv(sequence: string[]): number {
-  const n = sequence.length;
-
-  if (n <= 1) {
-    return 0;
-  }
-
-  const joined = sequence.join('|');
-  let complexity = 1;
-  let start = 0;
-  let substringLength = 1;
-  let maxMatched = 1;
-
-  while (true) {
-    if (start + substringLength > joined.length) {
-      complexity += 1;
-      break;
-    }
-
-    const candidate = joined.slice(start, start + substringLength);
-    const searchSpace = joined.slice(0, start);
-
-    if (searchSpace.includes(candidate)) {
-      substringLength += 1;
-      maxMatched = Math.max(maxMatched, substringLength);
-      continue;
-    }
-
-    complexity += 1;
-    start += maxMatched;
-    substringLength = 1;
-    maxMatched = 1;
-
-    if (start >= joined.length) {
-      break;
-    }
-  }
-
-  return roundMetric((complexity * Math.log2(n)) / n);
 }
 
 function average(values: number[]): number {
@@ -1056,7 +1038,6 @@ export function runAiGameTrace({
     const selectedCandidate =
       result.rootCandidates.find((candidate) => actionKey(candidate.action) === actionKey(chosenAction)) ??
       null;
-    const bestRootScore = result.rootCandidates[0]?.score ?? result.score;
     const nextState = applyAction(state, chosenAction, ruleConfig);
     const afterProgress = createScoreProgress(nextState);
     const afterHistogram = createStackHeightHistogram(nextState);
@@ -1065,7 +1046,9 @@ export function runAiGameTrace({
     const nextPositionKey = hashPosition(nextState);
     const repeatedPositionCount = (seenPositionCounts[nextPositionKey] ?? 0) + 1;
     const whitePerspectiveScore =
-      state.currentPlayer === 'white' ? result.score : -result.score;
+      state.currentPlayer === 'white'
+        ? result.selectedActionScore
+        : -result.selectedActionScore;
     const derivedSignals = deriveCandidateSignals(
       state,
       nextState,
@@ -1102,6 +1085,7 @@ export function runAiGameTrace({
       afterLegalMoveCount,
       afterPositionKey: nextPositionKey,
       behaviorProfileId: result.behaviorProfileId,
+      bestSearchScore: result.bestSearchScore,
       beforeLegalMoveCount,
       boardDisplacement: roundMetric(countChangedCells(state, nextState) / 36),
       completedDepth: result.completedDepth,
@@ -1129,6 +1113,7 @@ export function runAiGameTrace({
       isSelfUndo: selectedCandidate?.isSelfUndo ?? false,
       isTactical: selectedCandidate?.isTactical ?? false,
       legalRootCandidateCount: result.rootCandidates.length,
+      mobility: derivedSignals.mobility,
       mobilityDelta: derivedSignals.mobilityDelta,
       movedMass: selectedCandidate?.movedMass ?? 0,
       normalizedWhiteScore: roundMetric(
@@ -1142,11 +1127,11 @@ export function runAiGameTrace({
         action: structuredClone(candidate.action),
         tags: [...candidate.tags],
       })),
-      rootScoreRegret: roundMetric(
-        Math.max(0, bestRootScore - (selectedCandidate?.score ?? result.score)),
-      ),
+      rootScoreRegret: roundMetric(result.selectionRegret),
       riskMode: result.riskMode,
-      score: result.score,
+      score: result.selectedActionScore,
+      selectedActionScore: result.selectedActionScore,
+      selectionRegret: roundMetric(result.selectionRegret),
       searchBudget: result.searchBudget ? { ...result.searchBudget } : null,
       sixStackDelta: derivedSignals.sixStackDelta,
       sixStackProgress: afterProgress.sixStackProgress,
@@ -1248,6 +1233,31 @@ export function runAiVarietySuite({
   return traces;
 }
 
+/** Counts plan changes against each actor's own previous decision. */
+export function summarizeSamePlayerIntentTransitions(
+  plies: Array<Pick<AiTracePly, 'actor' | 'strategicIntent'>>,
+): { comparisons: number; switches: number } {
+  const previousIntentByActor: Partial<Record<Player, AiStrategicIntent>> = {};
+  let comparisons = 0;
+  let switches = 0;
+
+  for (const ply of plies) {
+    const previousIntent = previousIntentByActor[ply.actor];
+
+    if (previousIntent !== undefined) {
+      comparisons += 1;
+
+      if (previousIntent !== ply.strategicIntent) {
+        switches += 1;
+      }
+    }
+
+    previousIntentByActor[ply.actor] = ply.strategicIntent;
+  }
+
+  return { comparisons, switches };
+}
+
 export function summarizeAiVariety(
   traces: AiGameTrace[],
   options: {
@@ -1272,6 +1282,7 @@ export function summarizeAiVariety(
   let maxRepeatedStateRun = 0;
   let decisiveCount = 0;
   let intentSwitchCount = 0;
+  let intentComparisonCount = 0;
   let participationDeltaSum = 0;
   let positiveParticipationCount = 0;
 
@@ -1312,11 +1323,9 @@ export function summarizeAiVariety(
       }
     }
 
-    for (let index = 1; index < trace.plies.length; index += 1) {
-      if (trace.plies[index - 1].strategicIntent !== trace.plies[index].strategicIntent) {
-        intentSwitchCount += 1;
-      }
-    }
+    const intentTransitions = summarizeSamePlayerIntentTransitions(trace.plies);
+    intentSwitchCount += intentTransitions.switches;
+    intentComparisonCount += intentTransitions.comparisons;
 
     for (const ply of trace.plies.slice(0, 4)) {
       firstFourActionKindDistribution[ply.actionKind] =
@@ -1401,7 +1410,7 @@ export function summarizeAiVariety(
     ),
     gameRefinement: computeGameRefinement(traces),
     homeProgressAuc: roundMetric(homeProgressAuc),
-    intentSwitchRate: roundMetric(intentSwitchCount / Math.max(1, totalPlies - traces.length)),
+    intentSwitchRate: roundMetric(intentSwitchCount / Math.max(1, intentComparisonCount)),
     lateSuspense: roundMetric(average(lateSuspenseValues)),
     leadChangeRate: roundMetric(leadChangeRate),
     maxRepeatedStateRun: roundMetric(maxRepeatedStateRun),
