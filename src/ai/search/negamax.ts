@@ -34,9 +34,7 @@ export function negamax(
   if (state.status === 'gameOver') {
     context.evaluatedNodes += 1;
     return evaluateState(state, state.currentPlayer, context.ruleConfig, {
-      behaviorProfile: context.behaviorProfile,
       diagnostics: context.diagnostics,
-      participationState,
       perfCache: context.perfCache,
       preset: context.preset,
       riskMode: context.riskMode,
@@ -85,7 +83,6 @@ export function negamax(
     context.ruleConfig,
     context.preset,
     {
-      behaviorProfile: context.behaviorProfile,
       deadline: context.deadline,
       grandparentPositionKey: getPreviousOwnPositionKeyFromLine(
         state.currentPlayer,
@@ -99,8 +96,6 @@ export function negamax(
       participationState,
       perfCache: context.perfCache,
       policyPriors: null,
-      previousStrategicTags:
-        currentDepth === 0 ? context.rootPreviousStrategicTags : null,
       previousActionId,
       pvMoveId: context.pvMoveByDepth.get(currentDepth) ?? null,
       repetitionPenalty: context.preset.repetitionPenalty,
@@ -119,9 +114,7 @@ export function negamax(
   if (!orderedMoves.length) {
     context.evaluatedNodes += 1;
     return evaluateState(state, state.currentPlayer, context.ruleConfig, {
-      behaviorProfile: context.behaviorProfile,
       diagnostics: context.diagnostics,
-      participationState,
       perfCache: context.perfCache,
       preset: context.preset,
       riskMode: context.riskMode,

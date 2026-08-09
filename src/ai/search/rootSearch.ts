@@ -42,11 +42,7 @@ import {
   sortRankedActions,
   summarizeDecisionScores,
 } from '@/ai/search/result';
-import {
-  actionId,
-  isSearchTimeout,
-  makeTableKey,
-} from '@/ai/search/shared';
+import { actionId, isSearchTimeout, makeTableKey } from '@/ai/search/shared';
 import type {
   RootRankedAction,
   SearchContext,
@@ -300,7 +296,6 @@ export function chooseComputerAction({
       preset,
       {
         actions: legalActions,
-        behaviorProfile,
         deadline: useDeadline ? deadline : undefined,
         diagnostics,
         grandparentPositionKey: rootSelfUndoPositionKey,
@@ -309,7 +304,6 @@ export function chooseComputerAction({
         perfCache,
         policyPriors,
         policyPriorWeight,
-        previousStrategicTags: rootPreviousStrategicTags,
         repetitionPenalty: preset.repetitionPenalty,
         riskMode,
         samePlayerPreviousAction: rootPreviousOwnAction,
@@ -340,10 +334,8 @@ export function chooseComputerAction({
   /** Lazily computes the root static fallback so timeout/error paths stay cheap unless needed. */
   function getFallbackScore(): number {
     fallbackScore ??= evaluateState(state, state.currentPlayer, ruleConfig, {
-      behaviorProfile,
       diagnostics,
       perfCache,
-      participationState: rootParticipationState,
       preset,
       riskMode: effectiveRiskMode,
     });
@@ -529,6 +521,7 @@ export function chooseComputerAction({
     const fallbackBest = fallbackRanked.length
       ? selectCandidateAction(fallbackRanked, preset, random, {
           behaviorProfileId: behaviorProfile?.id ?? null,
+          previousStrategicTags: rootPreviousStrategicTags,
           riskMode: effectiveRiskMode,
         })
       : null;
@@ -565,9 +558,7 @@ export function chooseComputerAction({
       fallbackKind: 'orderedRoot',
       partialDepth: null,
       partialRootMoves: 0,
-      principalVariation: [
-        fallbackAction,
-      ],
+      principalVariation: [fallbackAction],
       riskMode: effectiveRiskMode,
       rootCandidates: orderRootCandidates(
         fallbackCandidates,
@@ -737,6 +728,7 @@ export function chooseComputerAction({
             ),
             behaviorProfileId: behaviorProfile?.id ?? null,
             behaviorSeed: behaviorProfile?.seed ?? null,
+            previousStrategicTags: rootPreviousStrategicTags,
             riskMode: effectiveRiskMode,
           }).action;
           bestScore = partialBest.score;
@@ -793,6 +785,7 @@ export function chooseComputerAction({
                 ),
                 behaviorProfileId: behaviorProfile?.id ?? null,
                 behaviorSeed: behaviorProfile?.seed ?? null,
+                previousStrategicTags: rootPreviousStrategicTags,
                 riskMode: effectiveRiskMode,
               }).action
             : (orderedFallback?.action ?? legalActions[0]);
@@ -821,6 +814,7 @@ export function chooseComputerAction({
       }),
       behaviorProfileId: behaviorProfile?.id ?? null,
       behaviorSeed: behaviorProfile?.seed ?? null,
+      previousStrategicTags: rootPreviousStrategicTags,
       riskMode: effectiveRiskMode,
     }).action;
     fallbackKind = 'none';
@@ -854,14 +848,8 @@ export function chooseComputerAction({
       context,
     ),
     riskMode: effectiveRiskMode,
-    rootCandidates: orderRootCandidates(
-      rootCandidates,
-      rootCandidateLimit,
-    ),
-    searchBudget: reportSearchBudget(
-      resolvedBudget,
-      context.budgetExhaustion,
-    ),
+    rootCandidates: orderRootCandidates(rootCandidates, rootCandidateLimit),
+    searchBudget: reportSearchBudget(resolvedBudget, context.budgetExhaustion),
     ...summarizeDecisionScores(rootCandidates, bestAction, bestScore),
     strategicIntent,
     timedOut,

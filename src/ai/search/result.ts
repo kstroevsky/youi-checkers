@@ -20,6 +20,7 @@ import {
 import { toRootCandidate } from '@/ai/search/heuristics';
 import { actionId, makeTableKey } from '@/ai/search/shared';
 import type { RootRankedAction, SearchContext } from '@/ai/search/types';
+import { getNoveltyPenalty } from '@/ai/strategy';
 
 /** Creates the empty diagnostics payload used for all search results. */
 export function createSearchDiagnostics(): AiSearchDiagnostics {
@@ -241,6 +242,7 @@ export function selectCandidateAction(
     bandBoost?: number;
     behaviorProfileId?: AiBehaviorProfileId | null;
     behaviorSeed?: string | null;
+    previousStrategicTags?: AiRootCandidate['tags'] | null;
     riskMode?: AiRiskMode;
   } = {},
 ): RootRankedAction {
@@ -413,6 +415,7 @@ export function selectCandidateAction(
       Math.round(entry.policyPrior * 40) +
       riskBonus +
       -drawTrapPenalty +
+      -getNoveltyPenalty(entry.tags, options.previousStrategicTags ?? null) +
       (entry.intent === 'hybrid' ? 15 : 0) -
       index * 5;
 

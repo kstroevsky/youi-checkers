@@ -11,19 +11,17 @@ import {
   type StatePerfBundle,
 } from '@/ai/perf';
 import type { EngineState, Player, RuleConfig } from '@/domain';
-import type { AiBehaviorProfile } from '@/shared/types/session';
-
-import { getBehaviorStateBias } from '@/ai/behavior';
-import { getParticipationScore, type ParticipationState } from '@/ai/participation';
-import { getDynamicDrawScore, getNonterminalDrawTrapBias, getRiskStateBias } from '@/ai/risk';
+import {
+  getDynamicDrawScore,
+  getNonterminalDrawTrapBias,
+  getRiskStateBias,
+} from '@/ai/risk';
 import { getStrategicIntent, getStrategicScore } from '@/ai/strategy';
 
 const TERMINAL_SCORE = 1_000_000;
 
 type EvaluationOptions = {
-  behaviorProfile?: AiBehaviorProfile | null;
   diagnostics?: AiSearchDiagnostics | null;
-  participationState?: ParticipationState | null;
   perfBundle?: StatePerfBundle | null;
   perfCache?: SearchPerfCache | null;
   preset?: AiDifficultyPreset | null;
@@ -62,7 +60,9 @@ export function evaluateStructureState(
 
   if (state.status === 'gameOver') {
     if ('winner' in state.victory) {
-      return state.victory.winner === perspectivePlayer ? TERMINAL_SCORE : -TERMINAL_SCORE;
+      return state.victory.winner === perspectivePlayer
+        ? TERMINAL_SCORE
+        : -TERMINAL_SCORE;
     }
 
     return getDynamicDrawScore(
@@ -93,18 +93,19 @@ export function evaluateState(
   options: EvaluationOptions = {},
 ): number {
   const {
-    behaviorProfile = null,
     diagnostics = null,
-    participationState = null,
     perfBundle = null,
     preset = null,
     riskMode = 'normal',
   } = options;
-  const resolvedPerfBundle = perfBundle ?? resolvePerfBundle(state, ruleConfig, options);
+  const resolvedPerfBundle =
+    perfBundle ?? resolvePerfBundle(state, ruleConfig, options);
 
   if (state.status === 'gameOver') {
     if ('winner' in state.victory) {
-      return state.victory.winner === perspectivePlayer ? TERMINAL_SCORE : -TERMINAL_SCORE;
+      return state.victory.winner === perspectivePlayer
+        ? TERMINAL_SCORE
+        : -TERMINAL_SCORE;
     }
 
     return getDynamicDrawScore(
@@ -124,10 +125,9 @@ export function evaluateState(
   const opponentIntent = resolvedPerfBundle
     ? getPerfStrategicIntent(resolvedPerfBundle, state, opponent)
     : getStrategicIntent(state, opponent);
-  let score =
-    resolvedPerfBundle
-      ? getPerfStrategicScore(resolvedPerfBundle, state, perspectivePlayer)
-      : getStrategicScore(state, perspectivePlayer);
+  let score = resolvedPerfBundle
+    ? getPerfStrategicScore(resolvedPerfBundle, state, perspectivePlayer)
+    : getStrategicScore(state, perspectivePlayer);
 
   if (ownIntent.intent === 'home') {
     score += 120;
@@ -156,20 +156,12 @@ export function evaluateState(
     );
   }
 
-  if (behaviorProfile) {
-    score += getBehaviorStateBias(state, perspectivePlayer, behaviorProfile.id);
-  }
-
   if (riskMode !== 'normal') {
-    score += getRiskStateBias(state, perspectivePlayer, riskMode, resolvedPerfBundle);
-  }
-
-  if (preset) {
-    score += getParticipationScore(
+    score += getRiskStateBias(
       state,
       perspectivePlayer,
-      preset,
-      participationState,
+      riskMode,
+      resolvedPerfBundle,
     );
   }
 

@@ -1,4 +1,5 @@
 import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
+import { chooseComputerAction } from '@/ai';
 import {
   getSelectionRegretBudget,
   selectCandidateAction,
@@ -6,6 +7,8 @@ import {
 import type { RootRankedAction } from '@/ai/search/types';
 import type { AiTerminalUtility } from '@/ai/types';
 import type { Coord } from '@/domain';
+import { createInitialState } from '@/domain';
+import { withConfig } from '@/test/factories';
 
 import { describe, expect, it } from 'vitest';
 
@@ -54,6 +57,31 @@ function candidate(
 }
 
 describe('root selection safety and strength budget', () => {
+  it('keeps adversarial strength estimates independent of persona', () => {
+    const ruleConfig = withConfig();
+    const state = createInitialState(ruleConfig);
+    const search = (id: 'builder' | 'hunter') =>
+      chooseComputerAction({
+        behaviorProfile: { id, seed: `strength-${id}` },
+        difficulty: 'hard',
+        random: () => 0.5,
+        ruleConfig,
+        searchBudget: { depth: 1, type: 'fixedDepth' },
+        state,
+      });
+    const builder = search('builder');
+    const hunter = search('hunter');
+    const strengthSnapshot = (result: typeof builder) =>
+      result.rootCandidates.map((entry) => ({
+        action: entry.action,
+        score: entry.score,
+      }));
+
+    expect(strengthSnapshot(builder)).toEqual(strengthSnapshot(hunter));
+    expect(builder.bestSearchAction).toEqual(hunter.bestSearchAction);
+    expect(builder.bestSearchScore).toBe(hunter.bestSearchScore);
+  });
+
   it('preserves an immediate win before applying style', () => {
     const selected = selectCandidateAction(
       [

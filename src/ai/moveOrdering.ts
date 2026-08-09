@@ -5,7 +5,6 @@ import {
   type RuleConfig,
   type TurnAction,
 } from '@/domain';
-import { getBehaviorActionBias, getBehaviorGeometryBias } from '@/ai/behavior';
 import { evaluateStructureState } from '@/ai/evaluation';
 import {
   getCachedLegalActions,
@@ -25,10 +24,7 @@ import {
   getRiskCandidateAdjustment,
   getTiebreakPressureProfile,
 } from '@/ai/risk';
-import {
-  getActionStrategicProfileFromAnalysis,
-  getNoveltyPenalty,
-} from '@/ai/strategy';
+import { getActionStrategicProfileFromAnalysis } from '@/ai/strategy';
 import {
   AI_MODEL_ACTION_COUNT,
   encodeActionIndex,
@@ -51,7 +47,6 @@ import type {
   AiTerminalUtility,
   AiTiebreakEdgeKind,
 } from '@/ai/types';
-import type { AiBehaviorProfile } from '@/shared/types/session';
 
 export type OrderedAction = {
   action: TurnAction;
@@ -95,7 +90,6 @@ export type PrecomputedOrderedAction = OrderedAction & {
 
 export type OrderMovesOptions = {
   actions?: TurnAction[];
-  behaviorProfile?: AiBehaviorProfile | null;
   /** Keyed by (previousActionId * AI_MODEL_ACTION_COUNT + actionId). */
   continuationScores?: Map<number, number>;
   deadline?: number;
@@ -109,7 +103,6 @@ export type OrderMovesOptions = {
   participationState?: ParticipationState | null;
   perfCache?: SearchPerfCache | null;
   policyPriors?: Float32Array | null;
-  previousStrategicTags?: AiStrategicTag[] | null;
   /** Numeric ID of the previous action by the same player (for continuation heuristic). */
   previousActionId?: number | null;
   policyPriorWeight?: number;
@@ -411,7 +404,6 @@ export function precomputeOrderedActions(
   preset: AiDifficultyPreset,
   {
     actions,
-    behaviorProfile = null,
     deadline,
     diagnostics = null,
     grandparentPositionKey = null,
@@ -419,7 +411,6 @@ export function precomputeOrderedActions(
     participationState = null,
     perfCache = null,
     policyPriors = null,
-    previousStrategicTags = null,
     policyPriorWeight = preset.policyPriorWeight,
     repetitionPenalty = preset.repetitionPenalty,
     riskMode = 'normal',
@@ -428,7 +419,6 @@ export function precomputeOrderedActions(
   }: Pick<
     OrderMovesOptions,
     | 'actions'
-    | 'behaviorProfile'
     | 'deadline'
     | 'diagnostics'
     | 'grandparentPositionKey'
@@ -437,7 +427,6 @@ export function precomputeOrderedActions(
     | 'perfCache'
     | 'policyPriors'
     | 'policyPriorWeight'
-    | 'previousStrategicTags'
     | 'repetitionPenalty'
     | 'riskMode'
     | 'samePlayerPreviousAction'
@@ -453,16 +442,12 @@ export function precomputeOrderedActions(
     riskMode !== 'normal' ||
     candidateActions.some((action) => action.type === 'manualUnfreeze');
   const baseStructureScore = evaluateStructureState(state, actor, ruleConfig, {
-    behaviorProfile,
     diagnostics,
     perfBundle: basePerfBundle,
     preset,
     riskMode,
   });
   const baseAnalysis = getPerfAnalysis(basePerfBundle, state);
-  const behaviorProfileId = behaviorProfile?.id ?? null;
-  const behaviorSeed = behaviorProfile?.seed ?? null;
-  const useOpeningGeometryBias = state.moveNumber <= 6;
   const baseProgress = computeRiskSignals
     ? getPerfProgressSnapshot(basePerfBundle, state)
     : null;
@@ -508,15 +493,17 @@ export function precomputeOrderedActions(
       : null;
     const samePlayerContinuation =
       !isTerminal && nextState.currentPlayer === actor;
-    const nextLegalMoveCount = computeRiskSignals && !isTerminal
-      ? getPerfLegalActionCount(nextPerfBundle, nextState, ruleConfig)
-      : null;
+    const nextLegalMoveCount =
+      computeRiskSignals && !isTerminal
+        ? getPerfLegalActionCount(nextPerfBundle, nextState, ruleConfig)
+        : null;
     const mobility: AiMobilityTransition = {
       actorBefore: baseLegalMoveCount,
-      actorContinuationAfter: samePlayerContinuation ? nextLegalMoveCount : null,
-      opponentReplyAfter: !isTerminal && !samePlayerContinuation
+      actorContinuationAfter: samePlayerContinuation
         ? nextLegalMoveCount
         : null,
+      opponentReplyAfter:
+        !isTerminal && !samePlayerContinuation ? nextLegalMoveCount : null,
       measuredAfter: nextLegalMoveCount !== null,
       samePlayerContinuation,
     };
@@ -547,7 +534,6 @@ export function precomputeOrderedActions(
     );
     const staticPromise =
       evaluateStructureState(nextState, actor, ruleConfig, {
-        behaviorProfile,
         diagnostics,
         perfBundle: nextPerfBundle,
         preset,
@@ -615,10 +601,6 @@ export function precomputeOrderedActions(
       baseAnalysis,
       nextAnalysis,
     );
-    const noveltyPenalty = getNoveltyPenalty(
-      strategicProfile.tags,
-      previousStrategicTags,
-    );
     let staticScore = 0;
 
     if (winsImmediately) {
@@ -643,21 +625,8 @@ export function precomputeOrderedActions(
 
     staticScore += clampScore(staticPromise, 8_000);
     staticScore += clampScore(strategicProfile.intentDelta, 6_000);
-    // Clamp raised from 2_400: the wider participation window now produces
-    // larger deltas, and capping them too tightly would negate the variety gains.
-    staticScore += clampScore(participationProfile.participationDelta, 4_000);
     staticScore += strategicProfile.policyBias;
-    staticScore += getBehaviorActionBias(
-      behaviorProfileId,
-      strategicProfile.tags,
-    );
-    if (useOpeningGeometryBias) {
-      staticScore += Math.round(
-        getBehaviorGeometryBias(behaviorProfileId, action, behaviorSeed) * 6,
-      );
-    }
     staticScore += Math.round(policyPrior * policyPriorWeight);
-    staticScore -= noveltyPenalty;
 
     if (isRepetition) {
       staticScore -= repetitionPenalty * (repeatedPositionCount - 1);
