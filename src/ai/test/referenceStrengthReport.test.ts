@@ -17,7 +17,7 @@ function game(
     plies: [],
     terminalType: candidatePoints === null ? 'unfinished' : 'homeField',
     totalPlies,
-  } as ReferenceStrengthGame;
+  } as unknown as ReferenceStrengthGame;
 }
 
 function pair(
@@ -35,7 +35,7 @@ function pair(
           0,
         ) / 2,
     stratumId: 'fixture::reference',
-  } as ReferenceStrengthPair;
+  } as unknown as ReferenceStrengthPair;
 }
 
 describe('reference strength outcome summaries', () => {

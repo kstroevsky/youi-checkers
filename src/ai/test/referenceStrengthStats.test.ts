@@ -57,5 +57,23 @@ describe('paired frozen-reference strength statistics', () => {
     expect(summary.score.verdict).toBe('inconclusive');
     expect(summary.resolution.verdict).toBe('regressed');
     expect(summary.overallVerdict).toBe('regressed');
+    expect(summary.power.status).toBe('insufficientPilotVariance');
+  });
+
+  it('estimates campaign power only from replicated within-stratum variance', () => {
+    const summary = summarizePairedStrengthNonInferiority(
+      [
+        { baseline: 0.5, candidate: 0.6, pairId: 'a1', stratumId: 'a' },
+        { baseline: 0.5, candidate: 0.4, pairId: 'a2', stratumId: 'a' },
+        { baseline: 0.5, candidate: 0.55, pairId: 'b1', stratumId: 'b' },
+        { baseline: 0.5, candidate: 0.45, pairId: 'b2', stratumId: 'b' },
+      ],
+      { bootstrapIterations: 200, scoreMargin: 0.03 },
+    );
+
+    expect(summary.power.status).toBe('estimated');
+    expect(summary.power.currentStandardError).toBeGreaterThan(0);
+    expect(summary.power.minimumDetectableDifference80).toBeGreaterThan(0);
+    expect(summary.power.requiredPairsPerStratum80).toBeGreaterThan(1);
   });
 });

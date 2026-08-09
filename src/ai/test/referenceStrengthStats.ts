@@ -34,6 +34,14 @@ export type StrengthVarianceComponents = {
   withinStratumVariance: number;
 };
 
+export type StrengthPowerDiagnostic = {
+  currentStandardError: number | null;
+  minimumDetectableDifference80: number | null;
+  requiredPairsPerStratum80: number | null;
+  status: 'estimated' | 'insufficientPilotVariance';
+  stratumCount: number;
+};
+
 export type PairedStrengthComparison = {
   censoring: {
     baselineResolvedPairs: number;
@@ -42,6 +50,7 @@ export type PairedStrengthComparison = {
     pairCount: number;
   };
   overallVerdict: NonInferiorityVerdict;
+  power: StrengthPowerDiagnostic;
   resolution: StratifiedEffectSummary;
   score: StratifiedEffectSummary;
   strata: StrengthStratumSummary[];
@@ -211,6 +220,36 @@ export function summarizePairedStrengthNonInferiority(
   const betweenStratumVariance = sampleVariance(stratumMeans);
   const withinStratumVariance = mean(withinValues);
   const totalVariance = betweenStratumVariance + withinStratumVariance;
+  const eligibleGroups = [...groupedEligible.values()];
+  const varianceEligibleGroups = eligibleGroups.filter(
+    (values) => values.length > 1,
+  );
+  const stratumCount = eligibleGroups.length;
+  const standardErrorSquared =
+    stratumCount > 0
+      ? eligibleGroups.reduce(
+          (sum, values) =>
+            sum + sampleVariance(values) / Math.max(1, values.length),
+          0,
+        ) /
+        stratumCount ** 2
+      : 0;
+  const hasPilotVariance =
+    varianceEligibleGroups.length > 0 && withinStratumVariance > 0;
+  const currentStandardError = hasPilotVariance
+    ? Math.sqrt(standardErrorSquared)
+    : null;
+  const oneSided95PlusPower80 = 1.6448536269514722 + 0.8416212335729143;
+  const requiredPairsPerStratum80 =
+    hasPilotVariance && scoreMargin > 0 && stratumCount > 0
+      ? Math.max(
+          1,
+          Math.ceil(
+            (oneSided95PlusPower80 ** 2 * withinStratumVariance) /
+              (stratumCount * scoreMargin ** 2),
+          ),
+        )
+      : null;
   const strata = [...new Set(observations.map(({ stratumId }) => stratumId))]
     .sort()
     .map((stratumId) => {
@@ -244,6 +283,19 @@ export function summarizePairedStrengthNonInferiority(
       pairCount: observations.length,
     },
     overallVerdict,
+    power: {
+      currentStandardError:
+        currentStandardError === null
+          ? null
+          : roundMetric(currentStandardError),
+      minimumDetectableDifference80:
+        currentStandardError === null
+          ? null
+          : roundMetric(oneSided95PlusPower80 * currentStandardError),
+      requiredPairsPerStratum80,
+      status: hasPilotVariance ? 'estimated' : 'insufficientPilotVariance',
+      stratumCount,
+    },
     resolution,
     score,
     strata,

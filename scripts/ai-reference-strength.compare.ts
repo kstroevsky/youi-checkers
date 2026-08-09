@@ -124,6 +124,10 @@ function markdown(report: {
     '',
     `Variance components: between-stratum ${comparison.variance.betweenStratumVariance}; within-stratum ${comparison.variance.withinStratumVariance}; fixture share ${comparison.variance.fixtureSeedVarianceShare}.`,
     '',
+    comparison.power.status === 'estimated'
+      ? `Power diagnostic: current SE ${comparison.power.currentStandardError}; 80% minimum detectable difference ${comparison.power.minimumDetectableDifference80}; approximately ${comparison.power.requiredPairsPerStratum80} pairs per stratum required for the declared score margin.`
+      : 'Power diagnostic: insufficient replicated within-stratum variance; run at least two resolved pairs in multiple strata before calibrating sample size.',
+    '',
     'The gate passes only when both lower confidence bounds stay above their predeclared negative margins. Score effects use only jointly resolved color-swapped pairs; resolution is a separate guardrail against favorable censoring.',
     '',
   ].join('\n');
