@@ -148,10 +148,37 @@ report and must match before raw samples may be paired.
 - fallback, timeout, and zero-depth shares;
 - search-best and selected-action scores with explicit non-negative selection
   regret, derived before diagnostic root-candidate truncation;
+- difficulty-specific style-regret budgets, utilization, positive-selection
+  share, and a zero-tolerance budget-violation guardrail;
 - budget type and exhaustion distributions;
 - hard assertions for missing or unexpected budget metadata.
 
 This family is a prerequisite, not a proxy for fun.
+
+### Strength/style role contract
+
+Root choice is intentionally staged rather than one blended scalar:
+
+1. adversarial search produces strength scores without persona, participation,
+   or novelty terms;
+2. actor-relative terminal truth removes dominated losses/adverse draws and
+   preserves immediate wins;
+3. the difficulty preset admits only moves inside its absolute regret budget;
+4. plan coherence, persona, productive participation, novelty, family coverage,
+   and bounded sampling choose among the survivors.
+
+Feature ownership is explicit:
+
+| Role              | Features                                                                                         | May change adversarial value? |
+| ----------------- | ------------------------------------------------------------------------------------------------ | ----------------------------- |
+| Strength          | plan potential, control, transport, lanes, frozen debt, terminal/dynamic-draw value              | yes                           |
+| Safety            | terminal utility, repetition/self-undo and draw-trap checks, regret budget                       | gate only                     |
+| Search efficiency | TT/PV/killer/history/continuation ordering, policy prior                                         | ordering/coverage only        |
+| Style             | persona tags/geometry, participation, novelty, source-family diversity, committed-plan tie-break | no                            |
+| Diagnostic        | selected/best score, regret, mobility ownership, tags, fallback and budget path                  | no                            |
+
+This contract prevents a style feature from helping define the score band that
+is supposed to constrain that same feature.
 
 ### Outcomes
 
@@ -226,6 +253,8 @@ Each run writes ignored, reproducible artifacts under `output/ai/`:
   strength summary, and lossless color-swapped pairs;
 - `ai-reference-strength-paired.{json,md}`: paired non-inferiority decision,
   censoring guardrail, stratum effects, and variance components.
+- `git-measurement-compare/{baseline,candidate}`: immutable report/raw snapshots
+  retained by `ai:measure:compare`, plus its paired uncertainty-aware verdict.
 
 Schema version 3 makes terminal utility, score ownership, selection regret,
 actor-aware mobility, and completed-versus-partial iterative-deepening evidence
@@ -274,6 +303,49 @@ Run a retained revision on the confirmatory holdout portfolio:
 pnpm ai:strength -- --profile=full --split=holdout --out=<artifact-dir>/strength
 ```
 
+Long campaigns are deterministic, resumable, and shardable. Unknown CLI flags
+are rejected so a misspelled split cannot silently run the wrong portfolio:
+
+```bash
+pnpm ai:strength -- --profile=full --split=holdout \
+  --shard-count=4 --shard-index=0 --resume=true \
+  --out=<artifact-dir>/shard-0
+pnpm ai:strength:merge -- \
+  --inputs=<artifact-dir>/shard-0,<artifact-dir>/shard-1,<artifact-dir>/shard-2,<artifact-dir>/shard-3 \
+  --out=<artifact-dir>/strength
+```
+
+The natural completed-game endpoint remains primary evidence about actual game
+resolution. Because the historical 18-pair, 160-ply schema-v2 pilot naturally
+resolved only 3 pairs, the report also exposes a separate fixed-horizon endpoint
+using the domain's own stalemate tiebreak. It never rewrites an unfinished game
+as a natural draw or win; natural resolution and horizon adjudication are
+reported side by side.
+
+Schema v3 broadens the portfolio from nine scenarios to eighteen. Six scenarios
+are explicitly assigned to the untouched holdout: four seeded legal-play
+positions across early, middle, and later play, plus retained loop-pressure and
+conversion sentinels. Split membership lives in the catalog rather
+than being inferred from array position, so reordering cannot leak holdouts into
+development. Every selected scenario expands into an original and a true
+horizontal board mirror; raw pairs retain `origin` and `mirror` provenance.
+Consequently, the default full holdout is 6 scenarios × 2 geometries × 3 frozen
+references × 8 seeds = 288 color-swapped pairs.
+
+Each strength report also transforms paired point share and its bootstrap
+interval into a diagnostic logistic Elo difference against the frozen reference
+pool. This is a readable relative-strength scale, not the release gate and not a
+globally calibrated player rating. Exact 0/1 endpoints are reported as
+unbounded instead of silently clamped.
+
+Run and retain an immutable Git baseline/candidate strength comparison:
+
+```bash
+pnpm ai:strength:compare -- \
+  --baseline=<baseline-ref> --candidate=<candidate-ref-or-working> \
+  --profile=full --split=holdout --adjudicate-horizon=true
+```
+
 Compare two identically configured retained runs:
 
 ```bash
@@ -307,8 +379,10 @@ pnpm ai:measure:compare-files -- \
   --candidate-raw=<candidate>/ai-measurement-samples.jsonl
 ```
 
-`ai:measure:compare` remains the convenient aggregate Git-ref comparison. Use
-the raw-file comparator for an uncertainty-aware paired decision.
+`ai:measure:compare` now retains both Git-ref reports and raw JSONL files and
+automatically emits the paired uncertainty-aware decision under
+`output/ai/git-measurement-compare/`. The aggregate diff remains useful for
+exploration; the paired artifact is the adoption guardrail.
 
 ## Interpretation rules
 
@@ -327,6 +401,12 @@ the raw-file comparator for an uncertainty-aware paired decision.
    reading the candidate interval.
 9. Require enough resolved color-swapped pairs. An inconclusive censor-heavy
    run should be extended or redesigned, not reclassified as a draw-heavy pass.
+10. Treat persona, participation, novelty, and plan preference as root-style
+    terms. They may choose only after terminal safety and the declared strength
+    budget; they must not define the adversarial scores policing that budget.
+11. Compare only identical strength schemas and fixture hashes. The schema-v2
+    pilot is historical power-planning evidence; schema-v3 needs a fresh paired
+    baseline and candidate run before any promotion claim.
 
 ## Academic basis
 

@@ -717,3 +717,35 @@ Verification 2026-08-09 (Phase 2C):
 - A minimal strength/report/identical-artifact comparator smoke emitted valid artifacts; because the eight-ply opening had no resolved pair, the score gate correctly returned `inconclusive` instead of manufacturing a draw or passing zero evidence.
 - A 160-ply holdout slice resolved both color assignments; its identical-artifact comparison passed the score and resolution gates. The default six-stratum smoke, full build, lint, and documentation link checks also passed.
 - The full test suite reached 354 passing tests and one intentional skip; the existing App tab-state test timed out at its five-second limit both in the concurrent suite and alone. No production/UI code changed in this phase.
+
+Update 2026-08-09 (resumable strength campaigns and strength/style separation):
+
+- Added deterministic strength job ids, modulo sharding, atomic per-pair checkpoints, resume validation, and strict shard merging. Campaign identity includes schema, settings, fixture/reference/domain hashes, and production-AI source identity.
+- Added immutable Git strength comparisons and retained paired measurement comparisons. Reports now include censoring incidence, terminal-ply distributions, power diagnostics when pilot variance supports them, and candidate style-regret budget violations.
+- The 18-pair/36-game, 160-ply holdout pilot exposed 72.2% game censoring and only 3 naturally resolved pairs. Schema-v2 strength artifacts therefore keep natural outcomes untouched while adding a distinct fixed-horizon domain-tiebreak endpoint.
+- Root selection is now staged: terminal safety first, then an explicit maximum strength-regret band (Easy 960, Medium 480, Hard 240), then plan/persona/participation/novelty shaping. Immediate wins are preserved and avoidable terminal losses cannot be selected for style.
+- Removed persona, participation, and novelty from adversarial leaf evaluation and move-order scores. Persona-conditioned strength rankings are now identical; style is applied only after the strength gate.
+- Added strategic-plan hysteresis. The prior computer plan is carried into the next worker decision and into self-play/reference harnesses; hybrid ambiguity preserves commitment, a home↔six-stack switch requires a 1,400-point potential advantage, and the committed plan breaks safe-band root ties.
+- Strength/measurement CLIs now reject unknown arguments after a misspelled holdout option was caught during confirmation, preventing a silently wrong portfolio from producing apparently valid evidence.
+
+Verification 2026-08-09 (strength/style and plan-coherence tranche):
+
+- Focused tactical competence smoke passes its enforced largest-budget gates with zero failures.
+- Direct selection, evaluation, quiescence, strategic-plan, worker/store propagation, and frozen-reference regressions pass; TypeScript, changed-file ESLint, Prettier, and `git diff --check` pass.
+- The retained paired `ai:measure:compare` smoke reports zero style-budget violations and preserves raw baseline/candidate artifacts.
+- The full 18-pair holdout screening campaign was retained under `output/ai/strength-candidate-holdout/`. Fixed-horizon point share was 0.666667 versus 0.736111 at the baseline (paired delta -0.069444, fixed-portfolio 95% CI -0.166667 to 0.027778); natural resolution was 2/18 versus 3/18. Both gates correctly remain `inconclusive`. The observed variance implies about 67 pairs per stratum for 80% power at the declared 0.03 margin, so this pilot does not establish non-inferiority or regression.
+
+Update 2026-08-09 (strength portfolio expansion):
+
+- Expanded the shared position catalog from nine to eighteen deterministic scenarios, adding seeded legal-play early, middle, and later positions so the historical loop trace no longer dominates coverage.
+- Replaced index-derived development/holdout assignment with explicit immutable catalog membership. Six scenarios now form the holdout, balanced across realistic legal play and loop/conversion sentinels.
+- The strength runner now evaluates each scenario together with its true horizontal board mirror and records fixture origin/mirror provenance in raw pairs. Schema v3 intentionally prevents comparison with the narrower schema-v2 pilot.
+- Added diagnostic logistic Elo differences with transformed uncertainty intervals against the frozen reference pool. Point-share non-inferiority remains the release gate; the rating is an interpretable secondary scale.
+
+Verification 2026-08-09 (final AI measurement and strategy tranche):
+
+- The clean serial correctness suite passed 67 files and 351 tests with one intentional skip. The dedicated performance benchmark passed all 22 tests, and the 200/500-turn search soak passed all 6 tests on Easy, Medium, and Hard.
+- TypeScript, repository-scoped ESLint, documentation link checks, the production build, tactical competence gates, focused selection/strategy/timeout suites, and the schema-v3 six-pair smoke all pass. The top-level lint command still discovers the unrelated nested `.claude/worktrees/zealous-lalande-46eeb8` checkout, whose files are outside this change and use a different parser root.
+- Browser verification rendered the real board, selected A1, opened the localized move dialog, and exposed the expected `pieceSelected` game state without a console-error artifact. The multi-game browser E2E then imported a finishing position, accepted the human move, exercised the worker-backed computer reply, and reached the completed finishing result.
+- The regenerated 64-game-per-difficulty variety corpus reports strategic-intent switch rates of 0.047476 (Easy), 0.047877 (Medium), and 0.036258 (Hard), down 80.35%, 75.13%, and 81.79% from commit `69872da`. Repetition ply share remains 0.003711, 0.004492, and 0.006445 respectively.
+- The same corpus remains entirely horizon-censored at 80 plies and still violates several historical absolute target bands. Its composite score must therefore not be treated as evidence of real-player enjoyment or strength. The fresh schema-v3 paired holdout campaign and blinded human study remain the required promotion evidence.
