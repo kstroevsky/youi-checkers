@@ -115,7 +115,9 @@ export const AI_DIFFICULTY_PRESETS: Record<
     stagnationRepetitionWeight: 18,
     stagnationSelfUndoWeight: 18,
     stagnationThreshold: 0.5,
-    varietyTemperature: 0.15,
+    // Keep strong near-best choices visibly distributed across source families;
+    // the regret ceiling still bounds every stylistic selection to 240 points.
+    varietyTemperature: 0.22,
     varietyThreshold: 0.015,
     varietyTopCount: 3,
   },
