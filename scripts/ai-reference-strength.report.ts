@@ -1,6 +1,6 @@
 import { execFileSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import process from 'node:process';
 
@@ -70,16 +70,22 @@ function parseArgs(argv: string[]): { out: string; settings: Settings } {
   if (split !== 'all' && split !== 'development' && split !== 'holdout') {
     throw new Error('--split must be all, development, or holdout.');
   }
-  const candidateDifficulty = (args.get('difficulty') ?? 'hard') as AiDifficulty;
+  const candidateDifficulty = (args.get('difficulty') ??
+    'hard') as AiDifficulty;
   if (!['easy', 'medium', 'hard'].includes(candidateDifficulty)) {
     throw new Error('--difficulty must be easy, medium, or hard.');
   }
   const availableIds = new Set(FROZEN_REFERENCE_POOL.map(({ id }) => id));
-  const referenceIds = (args.get('references') ??
-    FROZEN_REFERENCE_POOL.map(({ id }) => id).join(','))
+  const referenceIds = (
+    args.get('references') ??
+    FROZEN_REFERENCE_POOL.map(({ id }) => id).join(',')
+  )
     .split(',')
     .filter(Boolean) as FrozenReferenceId[];
-  if (!referenceIds.length || referenceIds.some((id) => !availableIds.has(id))) {
+  if (
+    !referenceIds.length ||
+    referenceIds.some((id) => !availableIds.has(id))
+  ) {
     throw new Error('--references contains an unknown frozen reference id.');
   }
   const filteredScenarioCount = POSITION_BUCKET_SCENARIOS.filter(
@@ -87,7 +93,11 @@ function parseArgs(argv: string[]): { out: string; settings: Settings } {
   ).length;
   const scenarioLimit = parsePositiveInteger(
     args.get('scenario-limit') ??
-      String(profile === 'full' ? filteredScenarioCount : Math.min(2, filteredScenarioCount)),
+      String(
+        profile === 'full'
+          ? filteredScenarioCount
+          : Math.min(2, filteredScenarioCount),
+      ),
     'scenario-limit',
   );
 
@@ -122,14 +132,19 @@ function getFixtureSplit(index: number): StrengthFixtureSplit {
 }
 
 function buildFixtures(settings: Settings): StrengthFixture[] {
-  const ruleConfig = withRuleDefaults({ drawRule: 'threefold', scoringMode: 'off' });
+  const ruleConfig = withRuleDefaults({
+    drawRule: 'threefold',
+    scoringMode: 'off',
+  });
   return POSITION_BUCKET_SCENARIOS.map((scenario, index) => ({
     bucket: scenario.bucket,
     id: scenario.label,
     split: getFixtureSplit(index),
     state: buildScenarioState(scenario, ruleConfig),
   }))
-    .filter((fixture) => settings.split === 'all' || fixture.split === settings.split)
+    .filter(
+      (fixture) => settings.split === 'all' || fixture.split === settings.split,
+    )
     .slice(0, settings.scenarioLimit);
 }
 
@@ -144,6 +159,36 @@ function gitRevision(): string {
   }
 }
 
+function gitTrackedFiles(directory: string): string[] {
+  try {
+    return execFileSync('git', ['ls-files', directory], {
+      encoding: 'utf8',
+      stdio: ['ignore', 'pipe', 'ignore'],
+    })
+      .split('\n')
+      .filter((filePath) => filePath.endsWith('.ts'))
+      .sort();
+  } catch {
+    return [];
+  }
+}
+
+async function sourceFingerprint(filePaths: string[]): Promise<string> {
+  if (!filePaths.length)
+    throw new Error('No source files found for fingerprinting.');
+  const contents = await Promise.all(
+    filePaths.map(async (filePath) => ({
+      content: await readFile(path.join(process.cwd(), filePath), 'utf8'),
+      filePath,
+    })),
+  );
+  return sha256(
+    contents
+      .map(({ content, filePath }) => `${filePath}\0${content}`)
+      .join('\0'),
+  );
+}
+
 function summarizePairs(pairs: ReferenceStrengthPair[]) {
   const games = pairs.flatMap((pair) => pair.games);
   const resolvedGames = games.flatMap((game) =>
@@ -156,30 +201,37 @@ function summarizePairs(pairs: ReferenceStrengthPair[]) {
     .flatMap((game) => game.plies)
     .filter((ply) => ply.actorKind === 'candidate');
   const strata = Object.fromEntries(
-    [...new Set(pairs.map(({ stratumId }) => stratumId))].sort().map((stratumId) => {
-      const values = pairs
-        .filter((pair) => pair.stratumId === stratumId)
-        .flatMap((pair) => (pair.pairScore === null ? [] : [pair.pairScore]));
-      return [
-        stratumId,
-        {
-          pairScore: summarizeNumericDistribution(values),
-          resolvedPairs: summarizeProportion(values.length, pairs.filter((pair) => pair.stratumId === stratumId).length),
-        },
-      ];
-    }),
+    [...new Set(pairs.map(({ stratumId }) => stratumId))]
+      .sort()
+      .map((stratumId) => {
+        const values = pairs
+          .filter((pair) => pair.stratumId === stratumId)
+          .flatMap((pair) => (pair.pairScore === null ? [] : [pair.pairScore]));
+        return [
+          stratumId,
+          {
+            pairScore: summarizeNumericDistribution(values),
+            resolvedPairs: summarizeProportion(
+              values.length,
+              pairs.filter((pair) => pair.stratumId === stratumId).length,
+            ),
+          },
+        ];
+      }),
   );
 
   return {
     candidateDecisionCount: candidatePlies.length,
     candidateFallbackShare: summarizeProportion(
-      candidatePlies.filter((ply) => ply.searchResult?.fallbackKind !== 'none').length,
+      candidatePlies.filter((ply) => ply.searchResult?.fallbackKind !== 'none')
+        .length,
       candidatePlies.length,
     ),
     candidatePointShareByGame: summarizeNumericDistribution(resolvedGames),
     candidatePointShareByPair: summarizeNumericDistribution(resolvedPairs),
     candidateZeroDepthShare: summarizeProportion(
-      candidatePlies.filter((ply) => ply.searchResult?.completedDepth === 0).length,
+      candidatePlies.filter((ply) => ply.searchResult?.completedDepth === 0)
+        .length,
       candidatePlies.length,
     ),
     resolvedGames: summarizeProportion(resolvedGames.length, games.length),
@@ -195,7 +247,13 @@ function summarizePairs(pairs: ReferenceStrengthPair[]) {
 }
 
 function markdown(report: {
-  provenance: { fixtureSha256: string; gitRevision: string; rawSha256: string; referencePoolSha256: string };
+  provenance: {
+    domainSha256: string;
+    fixtureSha256: string;
+    gitRevision: string;
+    rawSha256: string;
+    referencePoolSha256: string;
+  };
   settings: Settings;
   summary: ReturnType<typeof summarizePairs>;
 }): string {
@@ -207,6 +265,8 @@ function markdown(report: {
     `Fixture checksum: \`${report.provenance.fixtureSha256}\``,
     '',
     `Reference-pool checksum: \`${report.provenance.referencePoolSha256}\``,
+    '',
+    `Domain-rules checksum: \`${report.provenance.domainSha256}\``,
     '',
     `Resolved color-swapped pairs: ${report.summary.resolvedPairs.count}/${report.summary.resolvedPairs.total} (${report.summary.resolvedPairs.share})`,
     '',
@@ -233,7 +293,10 @@ async function main(): Promise<void> {
   const { out, settings } = parseArgs(process.argv.slice(2));
   const fixtures = buildFixtures(settings);
   if (!fixtures.length) throw new Error('No strength fixtures selected.');
-  const ruleConfig = withRuleDefaults({ drawRule: 'threefold', scoringMode: 'off' });
+  const ruleConfig = withRuleDefaults({
+    drawRule: 'threefold',
+    scoringMode: 'off',
+  });
   const pairs: ReferenceStrengthPair[] = [];
 
   for (const fixture of fixtures) {
@@ -265,15 +328,18 @@ async function main(): Promise<void> {
     positionHash: hashPosition(fixture.state),
     split: fixture.split,
   }));
+  const [domainSha256, referencePoolSha256] = await Promise.all([
+    sourceFingerprint(gitTrackedFiles('src/domain')),
+    sourceFingerprint(['src/ai/test/frozenReferencePool.ts']),
+  ]);
   const report = {
     generatedAt: new Date().toISOString(),
     provenance: {
+      domainSha256,
       fixtureSha256: sha256(JSON.stringify(fixtureManifest)),
       gitRevision: gitRevision(),
       rawSha256: sha256(rawText),
-      referencePoolSha256: sha256(
-        JSON.stringify({ pool: FROZEN_REFERENCE_POOL, version: FROZEN_REFERENCE_POOL_VERSION }),
-      ),
+      referencePoolSha256,
     },
     referencePool: {
       definitions: FROZEN_REFERENCE_POOL,
@@ -293,10 +359,14 @@ async function main(): Promise<void> {
     writeFile(markdownPath, markdown(report), 'utf8'),
     writeFile(rawPath, rawText, 'utf8'),
   ]);
-  process.stdout.write(`${markdown(report)}\nArtifacts: ${jsonPath}, ${markdownPath}, ${rawPath}\n`);
+  process.stdout.write(
+    `${markdown(report)}\nArtifacts: ${jsonPath}, ${markdownPath}, ${rawPath}\n`,
+  );
 }
 
 main().catch((error) => {
-  process.stderr.write(`${error instanceof Error ? error.stack ?? error.message : String(error)}\n`);
+  process.stderr.write(
+    `${error instanceof Error ? (error.stack ?? error.message) : String(error)}\n`,
+  );
   process.exitCode = 1;
 });

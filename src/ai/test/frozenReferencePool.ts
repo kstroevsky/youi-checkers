@@ -32,7 +32,8 @@ export const FROZEN_REFERENCE_POOL: readonly FrozenReferenceDefinition[] = [
     implementationVersion: 1,
   },
   {
-    description: 'Selects uniformly from canonical legal actions with a seeded PRNG.',
+    description:
+      'Selects uniformly from canonical legal actions with a seeded PRNG.',
     id: 'seeded-legal-v1',
     implementationVersion: 1,
   },
@@ -86,7 +87,8 @@ function allowsImmediateLoss(
   actor: Player,
   ruleConfig: RuleConfig,
 ): boolean {
-  if (state.status === 'gameOver' || state.currentPlayer === actor) return false;
+  if (state.status === 'gameOver' || state.currentPlayer === actor)
+    return false;
   const opponent = opponentOf(actor);
   return getLegalActions(state, ruleConfig).some((reply) =>
     isWinFor(applyAction(state, reply, ruleConfig), opponent),
@@ -148,19 +150,30 @@ export function chooseFrozenReferenceAction({
     return { action: candidates[0].action, candidates, referenceId };
   }
   if (referenceId === 'seeded-legal-v1') {
-    const index = Math.min(candidates.length - 1, Math.floor(random() * candidates.length));
+    const index = Math.min(
+      candidates.length - 1,
+      Math.floor(random() * candidates.length),
+    );
     return { action: candidates[index].action, candidates, referenceId };
   }
 
-  const immediateWins = candidates.filter((candidate) => candidate.immediateWin);
-  const safeCandidates = candidates.filter((candidate) => !candidate.allowsImmediateLoss);
+  const immediateWins = candidates.filter(
+    (candidate) => candidate.immediateWin,
+  );
+  const safeCandidates = candidates.filter(
+    (candidate) => !candidate.allowsImmediateLoss,
+  );
   const eligible = immediateWins.length
     ? immediateWins
     : safeCandidates.length
       ? safeCandidates
       : candidates;
-  const bestScore = Math.max(...eligible.map((candidate) => candidate.staticScore));
-  const best = eligible.filter((candidate) => candidate.staticScore === bestScore);
+  const bestScore = Math.max(
+    ...eligible.map((candidate) => candidate.staticScore),
+  );
+  const best = eligible.filter(
+    (candidate) => candidate.staticScore === bestScore,
+  );
   const index = Math.min(best.length - 1, Math.floor(random() * best.length));
   return { action: best[index].action, candidates, referenceId };
 }

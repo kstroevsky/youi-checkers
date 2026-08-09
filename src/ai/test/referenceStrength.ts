@@ -87,7 +87,10 @@ function terminalType(state: GameState): ReferenceStrengthGame['terminalType'] {
     : 'unfinished';
 }
 
-function pointsForCandidate(state: GameState, candidateColor: Player): number | null {
+function pointsForCandidate(
+  state: GameState,
+  candidateColor: Player,
+): number | null {
   if (state.status !== 'gameOver') return null;
   if ('winner' in state.victory) {
     return state.victory.winner === candidateColor ? 1 : 0;
@@ -121,7 +124,9 @@ export function runReferenceStrengthGame({
   let state = cloneState(fixture.state);
   const candidateRandom = createSeededRandom(candidateSeed);
   const referenceRandom = createSeededRandom(referenceSeed);
-  const behaviorProfile = createAiBehaviorProfile(`strength-candidate-${candidateSeed}`);
+  const behaviorProfile = createAiBehaviorProfile(
+    `strength-candidate-${candidateSeed}`,
+  );
   const plies: ReferenceStrengthPly[] = [];
 
   for (let ply = 0; ply < maxPlies && state.status !== 'gameOver'; ply += 1) {

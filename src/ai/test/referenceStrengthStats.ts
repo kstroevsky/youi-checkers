@@ -195,18 +195,16 @@ export function summarizePairedStrengthNonInferiority(
       Number(observation.baseline !== null),
     stratumId: observation.stratumId,
   }));
-  const score = summarizeEffect(
-    jointlyResolved,
-    scoreMargin,
-    iterations,
-  );
+  const score = summarizeEffect(jointlyResolved, scoreMargin, iterations);
   const resolution = summarizeEffect(
     resolutionObservations,
     resolutionMargin,
     iterations,
   );
   const groupedEligible = groupValues(jointlyResolved);
-  const stratumMeans = [...groupedEligible.values()].map((values) => mean(values));
+  const stratumMeans = [...groupedEligible.values()].map((values) =>
+    mean(values),
+  );
   const withinValues = [...groupedEligible.values()].flatMap((values) =>
     values.length > 1 ? [sampleVariance(values)] : [],
   );

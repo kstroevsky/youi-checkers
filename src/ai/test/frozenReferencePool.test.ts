@@ -5,7 +5,12 @@ import {
   frozenActionKey,
 } from '@/ai/test/frozenReferencePool';
 import { buildTacticalOracleFixtures } from '@/ai/test/tacticalFixtures';
-import { applyAction, createInitialState, getLegalActions, withRuleDefaults } from '@/domain';
+import {
+  applyAction,
+  createInitialState,
+  getLegalActions,
+  withRuleDefaults,
+} from '@/domain';
 
 function seededRandom(seed: number): () => number {
   let current = seed >>> 0;
@@ -16,7 +21,10 @@ function seededRandom(seed: number): () => number {
 }
 
 describe('frozen reference pool', () => {
-  const ruleConfig = withRuleDefaults({ drawRule: 'threefold', scoringMode: 'off' });
+  const ruleConfig = withRuleDefaults({
+    drawRule: 'threefold',
+    scoringMode: 'off',
+  });
 
   it('selects a legal canonical action deterministically', () => {
     const state = createInitialState(ruleConfig);
@@ -26,10 +34,14 @@ describe('frozen reference pool', () => {
       ruleConfig,
       state,
     });
-    const legalKeys = getLegalActions(state, ruleConfig).map(frozenActionKey).sort();
+    const legalKeys = getLegalActions(state, ruleConfig)
+      .map(frozenActionKey)
+      .sort();
 
     expect(frozenActionKey(decision.action!)).toBe(legalKeys[0]);
-    expect(decision.candidates.map(({ actionKey }) => actionKey)).toEqual(legalKeys);
+    expect(decision.candidates.map(({ actionKey }) => actionKey)).toEqual(
+      legalKeys,
+    );
   });
 
   it('replays seeded action selection exactly', () => {
@@ -60,6 +72,8 @@ describe('frozen reference pool', () => {
     const nextState = applyAction(fixture.state, decision.action!, ruleConfig);
 
     expect(nextState.status).toBe('gameOver');
-    expect(nextState.victory).toMatchObject({ winner: fixture.state.currentPlayer });
+    expect(nextState.victory).toMatchObject({
+      winner: fixture.state.currentPlayer,
+    });
   });
 });

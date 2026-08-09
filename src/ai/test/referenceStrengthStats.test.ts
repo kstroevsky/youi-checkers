@@ -29,7 +29,12 @@ describe('paired frozen-reference strength statistics', () => {
           pairId: `large-${index}`,
           stratumId: 'large',
         })),
-        { baseline: 0.5, candidate: 0.4, pairId: 'small-0', stratumId: 'small' },
+        {
+          baseline: 0.5,
+          candidate: 0.4,
+          pairId: 'small-0',
+          stratumId: 'small',
+        },
       ],
       { bootstrapIterations: 200, scoreMargin: 0.03 },
     );
