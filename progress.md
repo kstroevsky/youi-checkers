@@ -693,3 +693,11 @@ Update 2026-08-09 (competence and fixed-node oracle foundation, Phase 2A):
 - Added fixed-node regret curves across difficulty and work budgets, with oracle agreement, unique-win/defense accuracy, p95 regret, catastrophic-regret rate, root coverage, fallback, zero-depth, and explicit oracle-missing denominators.
 - Added largest-budget confirmatory gates with difficulty-specific regret tolerances. Smoke curves remain exploratory unless `--enforce-gates=true` is requested.
 - Added lossless raw JSONL, checksummed fixture manifests, complete settings, Git/runtime provenance, a Markdown review surface, and the authoritative `ai:competence` command.
+
+Update 2026-08-09 (completed versus partial search evidence, Phase 2B):
+
+- Stopped overwriting `completedRootMoves` when the next iterative-deepening pass is interrupted. It now remains owned by `completedDepth`.
+- Added explicit nullable `partialDepth` and `partialRootMoves` to every search result and AI trace. No interrupted root evidence produces `null` plus zero moves rather than being conflated with completed work.
+- Added partial-depth distributions and shares to the authoritative measurement report, paired comparison guardrails, and competence curves. Immediate unique-win proofs count as completed-root coverage without pretending all losing root moves were searched.
+- Added completed root-preparation transition counts to search diagnostics, the general measurement summaries, and fixed-node competence curves so equal-node results also expose mandatory root work.
+- Bumped lossless `ai:measure` artifacts to schema version 3 so the corrected search-path semantics cannot be silently compared with earlier traces.

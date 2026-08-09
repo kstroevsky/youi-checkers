@@ -878,7 +878,7 @@ The companion `ai:competence` command owns tactical correctness and equal-work
 strength curves. It validates rule-derived unique wins/defenses under true
 mirrors, searches each subject at increasing fixed-node budgets, and rescores
 the chosen action against a complete deeper root. Its regret, catastrophic-error,
-fallback, root-coverage, and missing-oracle denominators remain separate from
+fallback, completed-root, partial-depth, and missing-oracle denominators remain separate from
 the behavioral dashboards; confirmatory gates inspect only the largest measured
 budget for each difficulty.
 

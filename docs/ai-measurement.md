@@ -96,7 +96,11 @@ report and must match before raw samples may be paired.
 ### Search path
 
 - completed depth and completed root moves;
+- interrupted depth and partial-root moves, kept separate from the last fully
+  completed iteration;
 - evaluated and quiescence nodes;
+- completed root-preparation transitions, reported separately because fixed-node
+  search budgets do not make root feature extraction free;
 - elapsed time;
 - fallback, timeout, and zero-depth shares;
 - search-best and selected-action scores with explicit non-negative selection
@@ -170,9 +174,10 @@ Each run writes ignored, reproducible artifacts under `output/ai/`:
 - `ai-measurement-samples.jsonl`: lossless decision results and complete game
   traces, including root candidates and diagnostics.
 
-Schema version 2 makes terminal utility, score ownership, selection regret, and
-actor-aware mobility explicit. Version-1 and version-2 artifacts are intentionally
-incompatible in the paired comparator rather than being silently mixed.
+Schema version 3 makes terminal utility, score ownership, selection regret,
+actor-aware mobility, and completed-versus-partial iterative-deepening evidence
+explicit. Older artifacts are intentionally incompatible in the paired
+comparator rather than being silently mixed.
 
 Advanced loop/bucket reports preserve missingness: sample entropy is `null` when
 no finite estimate is supported, and loop-escape rates are `null` when no trace
