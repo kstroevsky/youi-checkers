@@ -103,6 +103,21 @@ lines.on('line', (line) => {
 });
 `;
 
+export function fingerprintLegacyPolicyV0(): string {
+  return createHash('sha256')
+    .update(
+      JSON.stringify({
+        adapterVersion: LEGACY_POLICY_V0_ADAPTER_VERSION,
+        adapterSourceHash: createHash('sha256')
+          .update(SERVER_SOURCE)
+          .digest('hex'),
+        revision: LEGACY_POLICY_V0_REVISION,
+        sourceHash: fingerprintRevisionAiSource(LEGACY_POLICY_V0_REVISION),
+      }),
+    )
+    .digest('hex');
+}
+
 async function symlinkDirectory(target: string, destination: string) {
   await symlink(target, destination, 'dir');
 }
@@ -220,18 +235,7 @@ class LegacyPolicyRpc {
 export async function loadLegacyPolicyV0(
   workspace = process.cwd(),
 ): Promise<AiPolicy> {
-  const sourceHash = createHash('sha256')
-    .update(
-      JSON.stringify({
-        adapterVersion: LEGACY_POLICY_V0_ADAPTER_VERSION,
-        adapterSourceHash: createHash('sha256')
-          .update(SERVER_SOURCE)
-          .digest('hex'),
-        revision: LEGACY_POLICY_V0_REVISION,
-        sourceHash: fingerprintRevisionAiSource(LEGACY_POLICY_V0_REVISION),
-      }),
-    )
-    .digest('hex');
+  const sourceHash = fingerprintLegacyPolicyV0();
   const rpc = new LegacyPolicyRpc(await materializeLegacyWorkspace(workspace));
   let disposed = false;
 
