@@ -147,6 +147,41 @@ replace an unfavorable primary fixed-horizon result through differential
 censoring. Policy, domain, harness, fixture, protocol, allocation, budget-
 semantics, adjudication, and raw-artifact identities are hashed independently.
 
+The full campaign also has a parallel, resumable execution contract. By default
+the runner reserves two logical CPUs and bounds the remaining worker count; an
+explicit run can use `--workers=8`. Each persistent worker owns an isolated
+current-policy instance and legacy-policy RPC server. Completed color-swapped
+pairs are written atomically beneath `<out>.checkpoints/<campaign-id>/`, and
+`--resume=true` accepts them only when the complete campaign identity matches.
+Results are merged back into canonical block order, so worker completion order
+cannot affect artifacts or sequential decisions. `<out>.progress.json` reports
+completed work and a current block ETA. For example:
+
+```sh
+npm run ai:policy-strength -- \
+  --profile=full \
+  --workers=8 \
+  --resume=true \
+  --out=output/ai/ai-policy-strength-full-20260810
+```
+
+Strength-campaign raw traces retain the action, actor, position hashes, policy,
+outcome, and scores needed for replay and audit, while omitting unused per-ply
+search diagnostics. The general `policyMatch` API remains diagnostics-on by
+default. On the measured 12-pair, 16-ply workload at the campaign's real
+2,048-node budget, four workers took 172.69 seconds and eight took 129.01
+seconds; the two runs produced byte-identical raw artifacts. Compact traces
+reduced the comparable raw artifact by 86.3%. Very short startup-dominated runs
+can favor fewer workers, which is why the override remains available. Sharing a
+single materialized legacy workspace between workers was also tested and
+rejected: it made both the four- and eight-worker short workloads slower.
+
+Parallelism changes only execution. Pair identifiers and seeds, color swaps,
+fixed-node budgets, 160-ply adjudication, frozen allocation, and block-boundary
+GSPRT decisions remain unchanged. Statistical parameters were intentionally not
+retuned as a speed optimization because doing so would change the scientific
+question rather than merely execute the same experiment faster.
+
 The test suite exercises all five outcomes, balanced-block eligibility, each
 question mode, harmful and favorable synthetic sequences, and a deterministic
 null-boundary Monte Carlo calibration. The latter is a regression alarm, not a
