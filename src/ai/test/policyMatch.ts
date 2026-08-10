@@ -64,6 +64,7 @@ export async function runPolicyMatchGame({
   policyASeed,
   policyB,
   policyBSeed,
+  retainDecisionDiagnostics = true,
   ruleConfig,
 }: {
   adjudicateHorizon: boolean;
@@ -77,6 +78,7 @@ export async function runPolicyMatchGame({
   policyASeed: number;
   policyB: AiPolicy;
   policyBSeed: number;
+  retainDecisionDiagnostics?: boolean;
   ruleConfig: RuleConfig;
 }): Promise<PolicyMatchGame> {
   let state = cloneStrengthState(fixture.state);
@@ -109,7 +111,9 @@ export async function runPolicyMatchGame({
         actor,
         afterPositionHash: hashPosition(nextState),
         beforePositionHash,
-        decision,
+        decision: retainDecisionDiagnostics
+          ? decision
+          : { action: decision.action },
         policyId: policies[actor].id,
       });
       state = nextState;
@@ -162,6 +166,7 @@ export async function runPolicyMatchPair({
   policyASeed,
   policyB,
   policyBSeed,
+  retainDecisionDiagnostics,
   ruleConfig,
 }: Omit<Parameters<typeof runPolicyMatchGame>[0], 'gameId' | 'policyAColor'> & {
   pairId: string;
@@ -179,6 +184,7 @@ export async function runPolicyMatchPair({
       policyASeed,
       policyB,
       policyBSeed,
+      retainDecisionDiagnostics,
       ruleConfig,
     }),
     runPolicyMatchGame({
@@ -193,6 +199,7 @@ export async function runPolicyMatchPair({
       policyASeed,
       policyB,
       policyBSeed,
+      retainDecisionDiagnostics,
       ruleConfig,
     }),
   ])) as [PolicyMatchGame, PolicyMatchGame];

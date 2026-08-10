@@ -66,6 +66,7 @@ async function main(): Promise<void> {
       policyASeed: job.seedBase + 17,
       policyB: legacyPolicy,
       policyBSeed: job.seedBase + 29,
+      retainDecisionDiagnostics: false,
       ruleConfig,
     })
       .then((pair) => {

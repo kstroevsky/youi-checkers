@@ -88,12 +88,18 @@ describe('common AI policy boundary', () => {
         policyASeed: 11,
         policyB: legacy,
         policyBSeed: 29,
+        retainDecisionDiagnostics: false,
         ruleConfig,
       });
 
       expect(pair.games[0].policyAColor).toBe('white');
       expect(pair.games[1].policyAColor).toBe('black');
       expect(pair.games.every((game) => game.totalPlies === 2)).toBe(true);
+      expect(
+        pair.games.every((game) =>
+          game.plies.every((ply) => ply.decision.diagnostics === undefined),
+        ),
+      ).toBe(true);
       expect(pair.adjudicatedPairScore).not.toBeNull();
     } finally {
       await Promise.all([current.dispose(), legacy.dispose()]);
