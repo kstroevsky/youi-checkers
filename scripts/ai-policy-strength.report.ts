@@ -705,9 +705,10 @@ async function main(): Promise<void> {
               await writeCheckpoint(checkpointDir, campaignId, job, pair);
               newlyCompletedPairCount += 1;
               blockCompletedPairCount += 1;
+              const completedAtProgress = blockCompletedPairCount;
               if (
-                blockCompletedPairCount % progressInterval !== 0 &&
-                blockCompletedPairCount !== jobs.length
+                completedAtProgress % progressInterval !== 0 &&
+                completedAtProgress !== jobs.length
               ) {
                 return;
               }
@@ -715,11 +716,11 @@ async function main(): Promise<void> {
               const averagePairMs =
                 elapsedMs / Math.max(1, newlyCompletedPairCount);
               const blockEtaMs =
-                ((jobs.length - blockCompletedPairCount) * averagePairMs) /
+                ((jobs.length - completedAtProgress) * averagePairMs) /
                 workerCount;
               const progress = {
                 block: block + 1,
-                blockCompletedPairCount,
+                blockCompletedPairCount: completedAtProgress,
                 blockPairCount: jobs.length,
                 campaignId,
                 checkpointDir,
@@ -728,7 +729,7 @@ async function main(): Promise<void> {
                 generatedAt: new Date().toISOString(),
                 resumedPairCount,
                 status: 'running',
-                totalCompletedPairCount: pairs.length + blockCompletedPairCount,
+                totalCompletedPairCount: pairs.length + completedAtProgress,
                 workerCount,
               };
               progressWrites = progressWrites.then(() =>
@@ -739,7 +740,7 @@ async function main(): Promise<void> {
               );
               await progressWrites;
               process.stdout.write(
-                `[strength] block ${block + 1}: ${blockCompletedPairCount}/${jobs.length} pairs; elapsed ${(elapsedMs / 60_000).toFixed(1)}m; block ETA ${(blockEtaMs / 60_000).toFixed(1)}m.\n`,
+                `[strength] block ${block + 1}: ${completedAtProgress}/${jobs.length} pairs; elapsed ${(elapsedMs / 60_000).toFixed(1)}m; block ETA ${(blockEtaMs / 60_000).toFixed(1)}m.\n`,
               );
             },
           )
