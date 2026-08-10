@@ -1,16 +1,26 @@
 import { createHash } from 'node:crypto';
-import { execFileSync } from 'node:child_process';
-import { mkdir, readFile, writeFile } from 'node:fs/promises';
+import { execFileSync, fork, type ChildProcess } from 'node:child_process';
+import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { availableParallelism } from 'node:os';
 import path from 'node:path';
 import process from 'node:process';
 
 import allocationFile from '@/ai/test/fixtures/ai-policy-strength-allocation.json';
 import protocolFile from '@/ai/test/fixtures/ai-policy-strength-protocol.json';
-import { loadLegacyPolicyV0 } from '@/ai/test/legacyPolicyV0.node';
+import { fingerprintLegacyPolicyV0 } from '@/ai/test/legacyPolicyV0.node';
+import type { PolicyMatchPair } from '@/ai/test/policyMatch';
 import {
-  runPolicyMatchPair,
-  type PolicyMatchPair,
-} from '@/ai/test/policyMatch';
+  enumeratePolicyStrengthBlockJobs,
+  mergePolicyStrengthBlockPairs,
+  parsePolicyStrengthCheckpoint,
+  POLICY_STRENGTH_CHECKPOINT_SCHEMA_VERSION,
+  selectPolicyStrengthWorkerCount,
+  type PolicyStrengthCheckpoint,
+  type PolicyStrengthJob,
+  type PolicyStrengthWorkerJob,
+  type PolicyStrengthWorkerRequest,
+  type PolicyStrengthWorkerResponse,
+} from '@/ai/test/policyStrengthCampaign';
 import { loadCurrentAiPolicy } from '@/ai/test/policyProvenance.node';
 import {
   evaluateSequentialStrength,
@@ -50,6 +60,16 @@ type Settings = {
   scenarioLimit: number;
 };
 
+type ExecutionSettings = {
+  requestedWorkers?: number;
+  resume: boolean;
+};
+
+type PolicyWorker = {
+  child: ChildProcess;
+  index: number;
+};
+
 function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
@@ -70,7 +90,11 @@ function parseProbability(value: string, name: string): number {
   return parsed;
 }
 
-function parseArgs(argv: string[]): { out: string; settings: Settings } {
+function parseArgs(argv: string[]): {
+  execution: ExecutionSettings;
+  out: string;
+  settings: Settings;
+} {
   const allowed = new Set([
     'alpha',
     'beta',
@@ -84,7 +108,9 @@ function parseArgs(argv: string[]): { out: string; settings: Settings } {
     'out',
     'profile',
     'question',
+    'resume',
     'scenario-limit',
+    'workers',
   ]);
   const args = new Map<string, string>();
   for (const entry of argv) {
@@ -133,6 +159,17 @@ function parseArgs(argv: string[]): { out: string; settings: Settings } {
   }
 
   return {
+    execution: {
+      ...(args.has('workers')
+        ? {
+            requestedWorkers: parsePositiveInteger(
+              args.get('workers') as string,
+              'workers',
+            ),
+          }
+        : {}),
+      resume: args.get('resume') === 'true',
+    },
     out:
       args.get('out') ??
       path.join(process.cwd(), 'output', 'ai', 'ai-policy-strength'),
@@ -226,6 +263,12 @@ function gitRevision(): string {
 }
 
 function markdown(report: {
+  execution: {
+    campaignId: string;
+    elapsedMs: number;
+    resumedPairCount: number;
+    workerCount: number;
+  };
   primary: ReturnType<typeof evaluateSequentialStrength>;
   provenance: {
     currentPolicyHash: string;
@@ -246,6 +289,10 @@ function markdown(report: {
     `LLR: ${primary.llr ?? 'not evaluated'}; secondary LLR: ${primary.secondaryLlr ?? 'n/a'}; Wald bounds: ${primary.bounds.lower} .. ${primary.bounds.upper}.`,
     '',
     `Balanced block: ${primary.balancedBlock ?? 'incomplete'}; fixed horizon: ${report.settings.maxPlies} plies; fixed-node budget: ${report.settings.nodeBudget}.`,
+    '',
+    `Execution: ${report.execution.workerCount} workers; ${report.execution.resumedPairCount} resumed pairs; ${(report.execution.elapsedMs / 60_000).toFixed(1)} minutes.`,
+    '',
+    `Campaign: \`${report.execution.campaignId}\``,
     '',
     `Current policy: \`${report.provenance.currentPolicyHash}\``,
     '',
@@ -268,8 +315,258 @@ function isTerminalVerdict(verdict: string): boolean {
   return verdict !== 'continue';
 }
 
+let temporaryWriteSequence = 0;
+
+async function atomicWriteFile(
+  filePath: string,
+  payload: string,
+): Promise<void> {
+  temporaryWriteSequence += 1;
+  const temporaryPath = `${filePath}.${process.pid}.${temporaryWriteSequence}.tmp`;
+  await writeFile(temporaryPath, payload, 'utf8');
+  await rename(temporaryPath, filePath);
+}
+
+function checkpointPath(checkpointDir: string, job: PolicyStrengthJob): string {
+  return path.join(checkpointDir, `${sha256(job.pairId)}.json`);
+}
+
+async function readCheckpoint(
+  checkpointDir: string,
+  campaignId: string,
+  job: PolicyStrengthJob,
+): Promise<PolicyMatchPair | null> {
+  try {
+    return parsePolicyStrengthCheckpoint(
+      await readFile(checkpointPath(checkpointDir, job), 'utf8'),
+      campaignId,
+      job,
+    ).pair;
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code === 'ENOENT') return null;
+    throw error;
+  }
+}
+
+async function writeCheckpoint(
+  checkpointDir: string,
+  campaignId: string,
+  job: PolicyStrengthJob,
+  pair: PolicyMatchPair,
+): Promise<void> {
+  const checkpoint: PolicyStrengthCheckpoint = {
+    campaignId,
+    job,
+    pair,
+    schemaVersion: POLICY_STRENGTH_CHECKPOINT_SCHEMA_VERSION,
+  };
+  await atomicWriteFile(
+    checkpointPath(checkpointDir, job),
+    `${JSON.stringify(checkpoint)}\n`,
+  );
+}
+
+function workerFailure(message: PolicyStrengthWorkerResponse): Error {
+  return new Error(
+    message.type === 'error'
+      ? message.error
+      : `Unexpected policy-strength worker message ${message.type}.`,
+  );
+}
+
+async function spawnPolicyWorker({
+  currentPolicyHash,
+  index,
+  legacyPolicyHash,
+}: {
+  currentPolicyHash: string;
+  index: number;
+  legacyPolicyHash: string;
+}): Promise<PolicyWorker> {
+  const child = fork(
+    new URL('./ai-policy-strength.worker.ts', import.meta.url),
+    [],
+    {
+      cwd: process.cwd(),
+      execArgv: process.execArgv,
+      serialization: 'advanced',
+      stdio: ['ignore', 'inherit', 'inherit', 'ipc'],
+    },
+  );
+
+  await new Promise<void>((resolve, reject) => {
+    const cleanup = (): void => {
+      child.off('error', onError);
+      child.off('exit', onExit);
+      child.off('message', onMessage);
+    };
+    const onError = (error: Error): void => {
+      cleanup();
+      reject(error);
+    };
+    const onExit = (
+      code: number | null,
+      signal: NodeJS.Signals | null,
+    ): void => {
+      cleanup();
+      reject(
+        new Error(
+          `Policy-strength worker ${index} exited during startup (${code ?? signal}).`,
+        ),
+      );
+    };
+    const onMessage = (rawMessage: unknown): void => {
+      const message = rawMessage as PolicyStrengthWorkerResponse;
+      if (message.type === 'error') {
+        cleanup();
+        reject(workerFailure(message));
+        return;
+      }
+      if (message.type !== 'ready') return;
+      cleanup();
+      if (
+        message.currentPolicyHash !== currentPolicyHash ||
+        message.legacyPolicyHash !== legacyPolicyHash
+      ) {
+        reject(
+          new Error(`Policy-strength worker ${index} loaded wrong policies.`),
+        );
+        return;
+      }
+      resolve();
+    };
+    child.on('error', onError);
+    child.on('exit', onExit);
+    child.on('message', onMessage);
+  });
+
+  return { child, index };
+}
+
+async function runWorkerJob(
+  worker: PolicyWorker,
+  job: PolicyStrengthWorkerJob,
+): Promise<PolicyMatchPair> {
+  return new Promise((resolve, reject) => {
+    const { child } = worker;
+    const cleanup = (): void => {
+      child.off('error', onError);
+      child.off('exit', onExit);
+      child.off('message', onMessage);
+    };
+    const onError = (error: Error): void => {
+      cleanup();
+      reject(error);
+    };
+    const onExit = (
+      code: number | null,
+      signal: NodeJS.Signals | null,
+    ): void => {
+      cleanup();
+      reject(
+        new Error(
+          `Policy-strength worker ${worker.index} exited while running ${job.job.pairId} (${code ?? signal}).`,
+        ),
+      );
+    };
+    const onMessage = (rawMessage: unknown): void => {
+      const message = rawMessage as PolicyStrengthWorkerResponse;
+      if (message.type === 'ready') return;
+      cleanup();
+      if (message.type === 'error') {
+        reject(workerFailure(message));
+        return;
+      }
+      if (
+        message.type !== 'result' ||
+        message.jobIndex !== job.job.jobIndex ||
+        message.pair.pairId !== job.job.pairId
+      ) {
+        reject(
+          new Error(
+            `Policy-strength worker ${worker.index} returned the wrong job.`,
+          ),
+        );
+        return;
+      }
+      resolve(message.pair);
+    };
+    child.on('error', onError);
+    child.on('exit', onExit);
+    child.on('message', onMessage);
+    child.send({ job, type: 'run' } satisfies PolicyStrengthWorkerRequest);
+  });
+}
+
+async function shutdownPolicyWorker(worker: PolicyWorker): Promise<void> {
+  const { child } = worker;
+  if (child.exitCode !== null || child.signalCode !== null) return;
+  await new Promise<void>((resolve) => {
+    const timeout = setTimeout(() => {
+      child.kill('SIGTERM');
+    }, 5_000);
+    child.once('exit', () => {
+      clearTimeout(timeout);
+      resolve();
+    });
+    child.send({ type: 'shutdown' } satisfies PolicyStrengthWorkerRequest);
+  });
+}
+
+async function spawnPolicyWorkers({
+  currentPolicyHash,
+  legacyPolicyHash,
+  workerCount,
+}: {
+  currentPolicyHash: string;
+  legacyPolicyHash: string;
+  workerCount: number;
+}): Promise<PolicyWorker[]> {
+  const attempts = await Promise.allSettled(
+    Array.from({ length: workerCount }, (_, index) =>
+      spawnPolicyWorker({ currentPolicyHash, index, legacyPolicyHash }),
+    ),
+  );
+  const started = attempts.flatMap((attempt) =>
+    attempt.status === 'fulfilled' ? [attempt.value] : [],
+  );
+  const failed = attempts.find(
+    (attempt): attempt is PromiseRejectedResult =>
+      attempt.status === 'rejected',
+  );
+  if (failed) {
+    await Promise.all(started.map(shutdownPolicyWorker));
+    throw failed.reason;
+  }
+  return started;
+}
+
+async function runJobs(
+  workers: PolicyWorker[],
+  jobs: PolicyStrengthWorkerJob[],
+  onPair: (pair: PolicyMatchPair, job: PolicyStrengthJob) => Promise<void>,
+): Promise<PolicyMatchPair[]> {
+  const completed: PolicyMatchPair[] = [];
+  let nextJobIndex = 0;
+
+  await Promise.all(
+    workers.slice(0, jobs.length).map(async (worker) => {
+      while (nextJobIndex < jobs.length) {
+        const job = jobs[nextJobIndex];
+        nextJobIndex += 1;
+        const pair = await runWorkerJob(worker, job);
+        completed.push(pair);
+        await onPair(pair, job.job);
+      }
+    }),
+  );
+
+  return completed;
+}
+
 async function main(): Promise<void> {
-  const { out, settings } = parseArgs(process.argv.slice(2));
+  const { execution, out, settings } = parseArgs(process.argv.slice(2));
+  const startedAt = performance.now();
   const ruleConfig = withRuleDefaults({
     drawRule: 'threefold',
     scoringMode: 'off',
@@ -301,50 +598,6 @@ async function main(): Promise<void> {
     minPairs: settings.minBlocks * blockPairCount,
     question: settings.question,
   };
-  const currentPolicy = await loadCurrentAiPolicy();
-  const legacyPolicy = await loadLegacyPolicyV0();
-  const pairs: PolicyMatchPair[] = [];
-  let primary = evaluateSequentialStrength(pairs, sequentialConfig);
-
-  try {
-    for (let block = 0; block < settings.maxBlocks; block += 1) {
-      for (
-        let fixtureIndex = 0;
-        fixtureIndex < fixtures.length;
-        fixtureIndex += 1
-      ) {
-        const fixture = fixtures[fixtureIndex];
-        const weight = allocation[fixture.id];
-        for (let repeat = 0; repeat < weight; repeat += 1) {
-          const seedBase =
-            (block + 1) * 1_000_003 + fixtureIndex * 10_007 + repeat * 101;
-          pairs.push(
-            await runPolicyMatchPair({
-              adjudicateHorizon: true,
-              difficulty: settings.difficulty,
-              fixture,
-              maxPlies: settings.maxPlies,
-              nodeBudget: settings.nodeBudget,
-              pairId: `${fixture.id}/block-${block}/repeat-${repeat}`,
-              policyA: currentPolicy,
-              policyASeed: seedBase + 17,
-              policyB: legacyPolicy,
-              policyBSeed: seedBase + 29,
-              ruleConfig,
-            }),
-          );
-        }
-      }
-      primary = evaluateSequentialStrength(pairs, sequentialConfig);
-      if (isTerminalVerdict(primary.verdict)) break;
-    }
-  } finally {
-    await Promise.all([currentPolicy.dispose(), legacyPolicy.dispose()]);
-  }
-
-  const naturalResolvedGames = pairs
-    .flatMap((pair) => pair.games)
-    .filter((game) => game.policyAPoints !== null).length;
   const fixtureManifest = fixtures.map((fixture) => ({
     bucket: fixture.bucket,
     id: fixture.id,
@@ -353,17 +606,181 @@ async function main(): Promise<void> {
     positionHash: hashPosition(fixture.state),
     split: fixture.split,
   }));
-  const raw = `${pairs.map((pair) => JSON.stringify(pair)).join('\n')}\n`;
+  const currentPolicy = await loadCurrentAiPolicy();
+  const currentPolicyHash = currentPolicy.sourceHash;
+  await currentPolicy.dispose();
+  const legacyPolicyHash = fingerprintLegacyPolicyV0();
   const [domainHash, harnessHash] = await Promise.all([
     fingerprintFiles(gitFiles('src/domain')),
     fingerprintFiles([
+      path.join(process.cwd(), 'src/ai/test/legacyPolicyV0.node.ts'),
       path.join(process.cwd(), 'src/ai/test/policy.ts'),
       path.join(process.cwd(), 'src/ai/test/policyMatch.ts'),
+      path.join(process.cwd(), 'src/ai/test/policyStrengthCampaign.ts'),
       path.join(process.cwd(), 'src/ai/test/policyStrengthProtocol.ts'),
       path.join(process.cwd(), 'src/ai/test/strengthOutcome.ts'),
       path.join(process.cwd(), 'scripts/ai-policy-strength.report.ts'),
+      path.join(process.cwd(), 'scripts/ai-policy-strength.worker.ts'),
     ]),
   ]);
+  const campaignId = sha256(
+    JSON.stringify({
+      allocation: allocationFile,
+      currentPolicyHash,
+      domainHash,
+      fixtureManifest,
+      harnessHash,
+      legacyPolicyHash,
+      protocol: protocolFile,
+      schemaVersion: AI_POLICY_STRENGTH_SCHEMA_VERSION,
+      settings,
+    }),
+  );
+  const checkpointDir = `${out}.checkpoints/${campaignId}`;
+  await mkdir(checkpointDir, { recursive: true });
+  const firstBlockJobs = enumeratePolicyStrengthBlockJobs(
+    fixtures,
+    allocation,
+    0,
+  );
+  const workerCount = selectPolicyStrengthWorkerCount({
+    availableParallelism: availableParallelism(),
+    jobCount: firstBlockJobs.length,
+    requestedWorkers: execution.requestedWorkers,
+  });
+  const pairs: PolicyMatchPair[] = [];
+  let workers: PolicyWorker[] = [];
+  let resumedPairCount = 0;
+  let newlyCompletedPairCount = 0;
+  let progressWrites = Promise.resolve();
+  let primary = evaluateSequentialStrength(pairs, sequentialConfig);
+
+  try {
+    for (let block = 0; block < settings.maxBlocks; block += 1) {
+      const jobs = enumeratePolicyStrengthBlockJobs(
+        fixtures,
+        allocation,
+        block,
+      );
+      const restored: PolicyMatchPair[] = [];
+      if (execution.resume) {
+        for (const job of jobs) {
+          const pair = await readCheckpoint(checkpointDir, campaignId, job);
+          if (pair) {
+            restored.push(pair);
+            resumedPairCount += 1;
+          }
+        }
+      }
+      const restoredIds = new Set(restored.map(({ pairId }) => pairId));
+      const pendingJobs = jobs.filter(({ pairId }) => !restoredIds.has(pairId));
+      const progressInterval = Math.max(1, Math.ceil(jobs.length / 12));
+      let blockCompletedPairCount = restored.length;
+
+      if (pendingJobs.length && !workers.length) {
+        process.stdout.write(
+          `[strength] campaign ${campaignId.slice(0, 12)}: starting ${workerCount} workers; ${jobs.length} pairs per balanced block.\n`,
+        );
+        workers = await spawnPolicyWorkers({
+          currentPolicyHash,
+          legacyPolicyHash,
+          workerCount,
+        });
+      }
+
+      const completed = pendingJobs.length
+        ? await runJobs(
+            workers,
+            pendingJobs.map((job) => ({
+              fixture: fixtures[job.fixtureIndex],
+              job,
+              ruleConfig,
+              settings: {
+                difficulty: settings.difficulty,
+                maxPlies: settings.maxPlies,
+                nodeBudget: settings.nodeBudget,
+              },
+            })),
+            async (pair, job) => {
+              await writeCheckpoint(checkpointDir, campaignId, job, pair);
+              newlyCompletedPairCount += 1;
+              blockCompletedPairCount += 1;
+              if (
+                blockCompletedPairCount % progressInterval !== 0 &&
+                blockCompletedPairCount !== jobs.length
+              ) {
+                return;
+              }
+              const elapsedMs = performance.now() - startedAt;
+              const averagePairMs =
+                elapsedMs / Math.max(1, newlyCompletedPairCount);
+              const blockEtaMs =
+                ((jobs.length - blockCompletedPairCount) * averagePairMs) /
+                workerCount;
+              const progress = {
+                block: block + 1,
+                blockCompletedPairCount,
+                blockPairCount: jobs.length,
+                campaignId,
+                checkpointDir,
+                elapsedMs,
+                estimatedBlockRemainingMs: blockEtaMs,
+                generatedAt: new Date().toISOString(),
+                resumedPairCount,
+                status: 'running',
+                totalCompletedPairCount: pairs.length + blockCompletedPairCount,
+                workerCount,
+              };
+              progressWrites = progressWrites.then(() =>
+                atomicWriteFile(
+                  `${out}.progress.json`,
+                  `${JSON.stringify(progress, null, 2)}\n`,
+                ),
+              );
+              await progressWrites;
+              process.stdout.write(
+                `[strength] block ${block + 1}: ${blockCompletedPairCount}/${jobs.length} pairs; elapsed ${(elapsedMs / 60_000).toFixed(1)}m; block ETA ${(blockEtaMs / 60_000).toFixed(1)}m.\n`,
+              );
+            },
+          )
+        : [];
+
+      pairs.push(
+        ...mergePolicyStrengthBlockPairs(jobs, [...restored, ...completed]),
+      );
+      primary = evaluateSequentialStrength(pairs, sequentialConfig);
+      await atomicWriteFile(
+        `${out}.progress.json`,
+        `${JSON.stringify(
+          {
+            block: block + 1,
+            campaignId,
+            checkpointDir,
+            elapsedMs: performance.now() - startedAt,
+            generatedAt: new Date().toISOString(),
+            primary,
+            resumedPairCount,
+            status: isTerminalVerdict(primary.verdict) ? 'complete' : 'running',
+            totalCompletedPairCount: pairs.length,
+            workerCount,
+          },
+          null,
+          2,
+        )}\n`,
+      );
+      process.stdout.write(
+        `[strength] balanced block ${block + 1} complete: ${pairs.length} pairs; verdict ${primary.verdict}.\n`,
+      );
+      if (isTerminalVerdict(primary.verdict)) break;
+    }
+  } finally {
+    await Promise.all(workers.map(shutdownPolicyWorker));
+  }
+
+  const naturalResolvedGames = pairs
+    .flatMap((pair) => pair.games)
+    .filter((game) => game.policyAPoints !== null).length;
+  const raw = `${pairs.map((pair) => JSON.stringify(pair)).join('\n')}\n`;
   const report = {
     allocation: {
       ...allocationFile,
@@ -374,17 +791,27 @@ async function main(): Promise<void> {
       ...protocolFile,
       hash: sha256(JSON.stringify(protocolFile)),
     },
+    execution: {
+      campaignId,
+      checkpointDir,
+      completedPairCount: pairs.length,
+      elapsedMs: performance.now() - startedAt,
+      requestedWorkers: execution.requestedWorkers ?? null,
+      resume: execution.resume,
+      resumedPairCount,
+      workerCount,
+    },
     generatedAt: new Date().toISOString(),
     primary,
     provenance: {
       adjudicationVersion: STRENGTH_ADJUDICATION_VERSION,
       budgetSemanticsVersion: FIXED_NODE_BUDGET_SEMANTICS_VERSION,
-      currentPolicyHash: currentPolicy.sourceHash,
+      currentPolicyHash,
       domainHash,
       fixtureHash: sha256(JSON.stringify(fixtureManifest)),
       gitRevision: gitRevision(),
       harnessHash,
-      legacyPolicyHash: legacyPolicy.sourceHash,
+      legacyPolicyHash,
       rawHash: sha256(raw),
     },
     schemaVersion: AI_POLICY_STRENGTH_SCHEMA_VERSION,
