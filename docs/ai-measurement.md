@@ -165,6 +165,24 @@ npm run ai:policy-strength -- \
   --out=output/ai/ai-policy-strength-full-20260810
 ```
 
+If computation stops after at least one complete balanced block, the checkpoint
+set can be finalized without running more games:
+
+```sh
+npm run ai:policy-strength:finalize -- \
+  --campaign-id=<full-campaign-sha256> \
+  --checkpoint-dir=<checkpoint-directory> \
+  --out=<original-output-prefix> \
+  --worker-count=<original-worker-count> \
+  --reason='<administrative stop reason>'
+```
+
+The finalizer recomputes and verifies the original campaign identity, validates
+each checkpoint against its expected job and seed, retains only consecutive
+complete blocks in canonical order, and excludes a trailing partial block. Its
+status is `administrativelyStopped`; a sequential verdict of `continue` remains
+inconclusive and is never relabeled as a gate acceptance or rejection.
+
 Strength-campaign raw traces retain the action, actor, position hashes, policy,
 outcome, and scores needed for replay and audit, while omitting unused per-ply
 search diagnostics. The general `policyMatch` API remains diagnostics-on by

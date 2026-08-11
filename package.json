@@ -16,6 +16,7 @@
     "ai:measure:compare-files": "tsx scripts/ai-measurement.compare.ts",
     "ai:position-buckets": "tsx scripts/ai-position-buckets.report.ts",
     "ai:policy-strength": "tsx scripts/ai-policy-strength.report.ts",
+    "ai:policy-strength:finalize": "tsx scripts/ai-policy-strength.finalize.ts",
     "ai:position-buckets:compare": "node scripts/run-git-report-compare.mjs --pipeline=ai-position-buckets",
     "ai:strength": "tsx scripts/ai-reference-strength.report.ts",
     "ai:strength:compare": "node scripts/run-git-strength-compare.mjs",
