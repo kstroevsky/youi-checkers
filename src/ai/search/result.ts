@@ -243,11 +243,16 @@ export function selectCandidateAction(
     behaviorProfileId?: AiBehaviorProfileId | null;
     behaviorSeed?: string | null;
     previousStrategicTags?: AiRootCandidate['tags'] | null;
+    participationScale?: number;
     riskMode?: AiRiskMode;
     strategicIntent?: RootRankedAction['intent'];
   } = {},
 ): RootRankedAction {
   const riskMode = options.riskMode ?? 'normal';
+  const participationScale = options.participationScale ?? 0.2;
+  if (!Number.isFinite(participationScale) || participationScale < 0) {
+    throw new RangeError('participationScale must be finite and non-negative.');
+  }
   const bandBoost = options.bandBoost ?? 0;
   const rawBest = ranked[0];
 
@@ -421,7 +426,7 @@ export function selectCandidateAction(
       personaTagBonus +
       seededGeometryBonus +
       planCoherenceBonus +
-      Math.round(entry.participationDelta * 0.2) +
+      Math.round(entry.participationDelta * participationScale) +
       riskBonus +
       -drawTrapPenalty +
       -getNoveltyPenalty(entry.tags, options.previousStrategicTags ?? null) +

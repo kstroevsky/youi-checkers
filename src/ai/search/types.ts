@@ -5,6 +5,7 @@ import type {
   AiDifficultyPreset,
   AiRiskMode,
   AiSearchDiagnostics,
+  AiSearchDiagnosticAblation,
   AiStrategicIntent,
   AiStrategicTag,
 } from '@/ai/types';
@@ -77,6 +78,7 @@ export type SearchContext = {
   continuationScores: Map<number, number>;
   deadline: number;
   diagnostics: AiSearchDiagnostics;
+  diagnosticAblation: AiSearchDiagnosticAblation | null;
   evaluatedNodes: number;
   /** Fixed-size typed array; index is the numeric action ID (0..AI_MODEL_ACTION_COUNT-1). */
   historyScores: Int32Array;

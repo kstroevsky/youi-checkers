@@ -91,9 +91,25 @@ export type AiSearchBudgetReport = {
   type: 'presetTime' | AiSearchBudget['type'];
 };
 
+/**
+ * Measurement-only switches for reconstructing historical search semantics.
+ * Product callers must omit this field; default false preserves production play.
+ */
+export type AiSearchDiagnosticAblation = {
+  behaviorEvaluation?: boolean;
+  behaviorOrdering?: boolean;
+  noveltyOrdering?: boolean;
+  participationEvaluation?: boolean;
+  participationEvaluationScale?: number;
+  participationOrdering?: boolean;
+  rootParticipationScale?: number;
+};
+
 /** Inputs accepted by the pure search entrypoint. */
 export type ChooseComputerActionRequest = {
   behaviorProfile?: AiBehaviorProfile | null;
+  /** Measurement-only reconstruction of removed search signals. */
+  diagnosticAblation?: AiSearchDiagnosticAblation | null;
   /** Measurement-only override for how many searched root scores are returned. */
   diagnosticRootCandidateLimit?: number;
   difficulty: AiDifficulty;

@@ -35,6 +35,7 @@ function createContext(state: EngineState): SearchContext {
     budgetExhaustion: 'none',
     continuationScores: new Map(),
     deadline: Number.POSITIVE_INFINITY,
+    diagnosticAblation: null,
     diagnostics: createSearchDiagnostics(),
     evaluatedNodes: 0,
     historyScores: new Int32Array(AI_MODEL_ACTION_COUNT),

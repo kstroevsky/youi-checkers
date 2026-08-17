@@ -93,6 +93,33 @@ function findSaferAlternative(
 }
 
 describe('computer opponent search', () => {
+  it('keeps measurement ablations disabled by default', () => {
+    const config = withConfig({ drawRule: 'threefold' });
+    const state = createInitialState(config);
+    const request = {
+      behaviorProfile: createAiBehaviorProfile('ablation-default-parity'),
+      difficulty: 'hard' as const,
+      random: () => 0.375,
+      ruleConfig: config,
+      searchBudget: {
+        maxEvaluatedNodes: 128,
+        type: 'fixedNodes' as const,
+      },
+      state,
+    };
+
+    const omitted = chooseComputerAction(request);
+    const explicit = chooseComputerAction({
+      ...request,
+      diagnosticAblation: null,
+    });
+
+    expect(actionKey(explicit.action)).toBe(actionKey(omitted.action));
+    expect(explicit.completedDepth).toBe(omitted.completedDepth);
+    expect(explicit.fallbackKind).toBe(omitted.fallbackKind);
+    expect(explicit.evaluatedNodes).toBe(omitted.evaluatedNodes);
+  });
+
   it('exposes the shipped difficulty presets', () => {
     expect(AI_DIFFICULTY_PRESETS).toEqual({
       easy: {

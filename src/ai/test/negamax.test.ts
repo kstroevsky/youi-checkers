@@ -16,6 +16,7 @@ function context(): SearchContext {
     budgetExhaustion: 'none',
     continuationScores: new Map(),
     deadline: Number.POSITIVE_INFINITY,
+    diagnosticAblation: null,
     diagnostics: {
       adverseDrawTrapPenalties: 0,
       aspirationResearches: 0,

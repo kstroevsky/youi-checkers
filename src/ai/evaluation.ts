@@ -1,8 +1,14 @@
 import type {
   AiDifficultyPreset,
   AiRiskMode,
+  AiSearchDiagnosticAblation,
   AiSearchDiagnostics,
 } from '@/ai/types';
+import { getBehaviorStateBias } from '@/ai/behavior';
+import {
+  getParticipationScore,
+  type ParticipationState,
+} from '@/ai/participation';
 import {
   getPerfStrategicIntent,
   getPerfStrategicScore,
@@ -17,11 +23,15 @@ import {
   getRiskStateBias,
 } from '@/ai/risk';
 import { getStrategicIntent, getStrategicScore } from '@/ai/strategy';
+import type { AiBehaviorProfile } from '@/shared/types/session';
 
 const TERMINAL_SCORE = 1_000_000;
 
 type EvaluationOptions = {
+  behaviorProfile?: AiBehaviorProfile | null;
+  diagnosticAblation?: AiSearchDiagnosticAblation | null;
   diagnostics?: AiSearchDiagnostics | null;
+  participationState?: ParticipationState | null;
   perfBundle?: StatePerfBundle | null;
   perfCache?: SearchPerfCache | null;
   preset?: AiDifficultyPreset | null;
@@ -54,7 +64,10 @@ export function evaluateStructureState(
   state: EngineState,
   perspectivePlayer: Player,
   ruleConfig: RuleConfig,
-  options: Omit<EvaluationOptions, 'participationState'> = {},
+  options: Omit<
+    EvaluationOptions,
+    'behaviorProfile' | 'diagnosticAblation' | 'participationState'
+  > = {},
 ): number {
   const perfBundle = resolvePerfBundle(state, ruleConfig, options);
 
@@ -93,7 +106,10 @@ export function evaluateState(
   options: EvaluationOptions = {},
 ): number {
   const {
+    behaviorProfile = null,
+    diagnosticAblation = null,
     diagnostics = null,
+    participationState = null,
     perfBundle = null,
     preset = null,
     riskMode = 'normal',
@@ -153,6 +169,33 @@ export function evaluateState(
       riskMode,
       diagnostics,
       resolvedPerfBundle,
+    );
+  }
+
+  if (diagnosticAblation?.behaviorEvaluation && behaviorProfile) {
+    score += getBehaviorStateBias(state, perspectivePlayer, behaviorProfile.id);
+  }
+
+  const participationEvaluationScale =
+    diagnosticAblation?.participationEvaluation === true
+      ? 1
+      : (diagnosticAblation?.participationEvaluationScale ?? 0);
+  if (
+    !Number.isFinite(participationEvaluationScale) ||
+    participationEvaluationScale < 0
+  ) {
+    throw new RangeError(
+      'participationEvaluationScale must be finite and non-negative.',
+    );
+  }
+  if (participationEvaluationScale > 0 && preset) {
+    score += Math.round(
+      getParticipationScore(
+        state,
+        perspectivePlayer,
+        preset,
+        participationState,
+      ) * participationEvaluationScale,
     );
   }
 

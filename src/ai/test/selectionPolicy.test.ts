@@ -231,4 +231,34 @@ describe('root selection safety and strength budget', () => {
       640,
     );
   });
+
+  it('can sweep bounded root participation without widening strength regret', () => {
+    const best = candidate('A1', 1_000);
+    const participatory = candidate('B1', 950, { participationDelta: 100 });
+
+    expect(
+      selectCandidateAction(
+        [best, participatory],
+        AI_DIFFICULTY_PRESETS.hard,
+        () => 0,
+        { bandBoost: 1, participationScale: 0 },
+      ),
+    ).toBe(best);
+    expect(
+      selectCandidateAction(
+        [best, participatory],
+        AI_DIFFICULTY_PRESETS.hard,
+        () => 0,
+        { bandBoost: 1, participationScale: 2 },
+      ),
+    ).toBe(participatory);
+    expect(() =>
+      selectCandidateAction(
+        [best, participatory],
+        AI_DIFFICULTY_PRESETS.hard,
+        () => 0,
+        { participationScale: -1 },
+      ),
+    ).toThrow('participationScale');
+  });
 });

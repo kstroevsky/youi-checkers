@@ -2,6 +2,7 @@ import { createAiBehaviorProfile } from '@/ai/behavior';
 import { chooseComputerAction } from '@/ai/search/rootSearch';
 import type {
   AiSearchBudget,
+  AiSearchDiagnosticAblation,
   AiSearchResult,
   AiStrategicIntent,
 } from '@/ai/types';
@@ -13,6 +14,7 @@ import { createSeededRandom } from '@/ai/test/searchTestUtils';
 export const CURRENT_AI_POLICY_ADAPTER_VERSION = 1 as const;
 
 export type AiPolicyDecisionRequest = {
+  diagnosticAblation?: AiSearchDiagnosticAblation | null;
   difficulty: AiDifficulty;
   ruleConfig: RuleConfig;
   searchBudget: AiSearchBudget;
@@ -55,6 +57,7 @@ export function createCurrentAiPolicy(sourceHash: string): AiPolicy {
         async decide(request) {
           const result: AiSearchResult = chooseComputerAction({
             behaviorProfile,
+            diagnosticAblation: request.diagnosticAblation,
             difficulty: request.difficulty,
             previousStrategicIntent,
             random,

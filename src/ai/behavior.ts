@@ -1,12 +1,22 @@
 import type { AiStrategicTag } from '@/ai/types';
+import { analyzePosition } from '@/ai/strategy';
 import { parseCoord } from '@/domain/model/coordinates';
-import type { Coord, TurnAction } from '@/domain/model/types';
+import type {
+  Coord,
+  EngineState,
+  Player,
+  TurnAction,
+} from '@/domain/model/types';
 import type {
   AiBehaviorProfile,
   AiBehaviorProfileId,
 } from '@/shared/types/session';
 
 const PROFILE_IDS: AiBehaviorProfileId[] = ['expander', 'hunter', 'builder'];
+
+function getOpponent(player: Player): Player {
+  return player === 'white' ? 'black' : 'white';
+}
 
 function hashSeed(seed: string): number {
   let hash = 2_166_136_261;
@@ -147,4 +157,41 @@ export function getBehaviorGeometryBias(
   geometryWeights[orderedBands[2]] = 40;
 
   return geometryWeights[geometryBand];
+}
+
+/** Reconstructs the pre-separation persona leaf bias for controlled attribution only. */
+export function getBehaviorStateBias(
+  state: EngineState,
+  player: Player,
+  profileId: AiBehaviorProfileId | null,
+): number {
+  if (!profileId) return 0;
+
+  const analysis = analyzePosition(state);
+  const opponent = getOpponent(player);
+  const own = analysis.players[player];
+  const other = analysis.players[opponent];
+
+  switch (profileId) {
+    case 'expander':
+      return (
+        analysis.emptyCells * 16 +
+        (own.laneOpenness - other.laneOpenness) * 34 +
+        (own.jumpLanes - other.jumpLanes) * 52
+      );
+    case 'hunter':
+      return (
+        (other.frozenSingles - own.frozenSingles) * 90 +
+        (other.frozenCriticalSingles - own.frozenCriticalSingles) * 120 +
+        (own.jumpLanes - other.jumpLanes) * 44 +
+        (own.controlledEnemyStacks - other.controlledEnemyStacks) * 70
+      );
+    case 'builder':
+      return (
+        (own.frontRowControlledHeight - other.frontRowControlledHeight) * 92 +
+        (own.frontRowOwnedTwoStacks - other.frontRowOwnedTwoStacks) * 280 +
+        (own.frontRowFullStacks - other.frontRowFullStacks) * 850 +
+        (own.controlledStacks - other.controlledStacks) * 44
+      );
+  }
 }

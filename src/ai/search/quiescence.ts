@@ -124,7 +124,9 @@ export function getQuiescenceMoves(
     context.preset,
     {
       actions: scoringActions,
+      behaviorProfile: context.behaviorProfile,
       deadline: context.deadline,
+      diagnosticAblation: context.diagnosticAblation,
       grandparentPositionKey: getPreviousOwnPositionKeyFromLine(
         state.currentPlayer,
         stack,
@@ -138,6 +140,7 @@ export function getQuiescenceMoves(
       participationState,
       perfCache: context.perfCache,
       policyPriors: null,
+      previousStrategicTags: null,
       previousActionId,
       pvMoveId: context.pvMoveByDepth.get(currentDepth) ?? null,
       repetitionPenalty: context.preset.repetitionPenalty,
@@ -186,7 +189,10 @@ export function quiescence(
     state.currentPlayer,
     context.ruleConfig,
     {
+      behaviorProfile: context.behaviorProfile,
+      diagnosticAblation: context.diagnosticAblation,
       diagnostics: context.diagnostics,
+      participationState,
       perfCache: context.perfCache,
       preset: context.preset,
       riskMode: context.riskMode,

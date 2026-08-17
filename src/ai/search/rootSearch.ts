@@ -210,6 +210,7 @@ function toFallbackRanked(orderedMoves: OrderedAction[]): RootRankedAction[] {
 /** Chooses one computer move using iterative deepening negamax with alpha-beta pruning. */
 export function chooseComputerAction({
   behaviorProfile = null,
+  diagnosticAblation = null,
   diagnosticRootCandidateLimit,
   difficulty,
   modelGuidance = null,
@@ -298,8 +299,10 @@ export function chooseComputerAction({
       preset,
       {
         actions: legalActions,
+        behaviorProfile,
         deadline: useDeadline ? deadline : undefined,
         diagnostics,
+        diagnosticAblation,
         grandparentPositionKey: rootSelfUndoPositionKey,
         now: useDeadline ? now : undefined,
         onPreparedTransition: () => {
@@ -309,6 +312,7 @@ export function chooseComputerAction({
         perfCache,
         policyPriors,
         policyPriorWeight,
+        previousStrategicTags: rootPreviousStrategicTags,
         repetitionPenalty: preset.repetitionPenalty,
         riskMode,
         samePlayerPreviousAction: rootPreviousOwnAction,
@@ -341,7 +345,10 @@ export function chooseComputerAction({
   /** Lazily computes the root static fallback so timeout/error paths stay cheap unless needed. */
   function getFallbackScore(): number {
     fallbackScore ??= evaluateState(state, state.currentPlayer, ruleConfig, {
+      behaviorProfile,
+      diagnosticAblation,
       diagnostics,
+      participationState: rootParticipationState,
       perfCache,
       preset,
       riskMode: effectiveRiskMode,
@@ -366,6 +373,7 @@ export function chooseComputerAction({
     continuationScores: new Map<number, number>(),
     deadline,
     diagnostics,
+    diagnosticAblation,
     evaluatedNodes: 0,
     historyScores: new Int32Array(AI_MODEL_ACTION_COUNT),
     killerMovesByDepth: new Map<number, number[]>(),
@@ -528,6 +536,7 @@ export function chooseComputerAction({
     const fallbackBest = fallbackRanked.length
       ? selectCandidateAction(fallbackRanked, preset, random, {
           behaviorProfileId: behaviorProfile?.id ?? null,
+          participationScale: diagnosticAblation?.rootParticipationScale ?? 0.2,
           previousStrategicTags: rootPreviousStrategicTags,
           riskMode: effectiveRiskMode,
           strategicIntent,
@@ -815,6 +824,7 @@ export function chooseComputerAction({
       }),
       behaviorProfileId: behaviorProfile?.id ?? null,
       behaviorSeed: behaviorProfile?.seed ?? null,
+      participationScale: diagnosticAblation?.rootParticipationScale ?? 0.2,
       previousStrategicTags: rootPreviousStrategicTags,
       riskMode: effectiveRiskMode,
       strategicIntent,

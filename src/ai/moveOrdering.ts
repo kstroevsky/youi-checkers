@@ -5,6 +5,7 @@ import {
   type RuleConfig,
   type TurnAction,
 } from '@/domain';
+import { getBehaviorActionBias, getBehaviorGeometryBias } from '@/ai/behavior';
 import { evaluateStructureState } from '@/ai/evaluation';
 import {
   getCachedLegalActions,
@@ -24,7 +25,10 @@ import {
   getRiskCandidateAdjustment,
   getTiebreakPressureProfile,
 } from '@/ai/risk';
-import { getActionStrategicProfileFromAnalysis } from '@/ai/strategy';
+import {
+  getActionStrategicProfileFromAnalysis,
+  getNoveltyPenalty,
+} from '@/ai/strategy';
 import {
   AI_MODEL_ACTION_COUNT,
   encodeActionIndex,
@@ -41,12 +45,14 @@ import type {
   AiDifficultyPreset,
   AiMobilityTransition,
   AiRiskMode,
+  AiSearchDiagnosticAblation,
   AiSearchDiagnostics,
   AiStrategicIntent,
   AiStrategicTag,
   AiTerminalUtility,
   AiTiebreakEdgeKind,
 } from '@/ai/types';
+import type { AiBehaviorProfile } from '@/shared/types/session';
 
 export type OrderedAction = {
   action: TurnAction;
@@ -90,10 +96,12 @@ export type PrecomputedOrderedAction = OrderedAction & {
 
 export type OrderMovesOptions = {
   actions?: TurnAction[];
+  behaviorProfile?: AiBehaviorProfile | null;
   /** Keyed by (previousActionId * AI_MODEL_ACTION_COUNT + actionId). */
   continuationScores?: Map<number, number>;
   deadline?: number;
   diagnostics?: AiSearchDiagnostics | null;
+  diagnosticAblation?: AiSearchDiagnosticAblation | null;
   grandparentPositionKey?: string | null;
   historyScores?: Int32Array;
   includeAllQuietMoves?: boolean;
@@ -105,6 +113,7 @@ export type OrderMovesOptions = {
   participationState?: ParticipationState | null;
   perfCache?: SearchPerfCache | null;
   policyPriors?: Float32Array | null;
+  previousStrategicTags?: AiStrategicTag[] | null;
   /** Numeric ID of the previous action by the same player (for continuation heuristic). */
   previousActionId?: number | null;
   policyPriorWeight?: number;
@@ -406,14 +415,17 @@ export function precomputeOrderedActions(
   preset: AiDifficultyPreset,
   {
     actions,
+    behaviorProfile = null,
     deadline,
     diagnostics = null,
+    diagnosticAblation = null,
     grandparentPositionKey = null,
     now,
     onPreparedTransition,
     participationState = null,
     perfCache = null,
     policyPriors = null,
+    previousStrategicTags = null,
     policyPriorWeight = preset.policyPriorWeight,
     repetitionPenalty = preset.repetitionPenalty,
     riskMode = 'normal',
@@ -422,14 +434,17 @@ export function precomputeOrderedActions(
   }: Pick<
     OrderMovesOptions,
     | 'actions'
+    | 'behaviorProfile'
     | 'deadline'
     | 'diagnostics'
+    | 'diagnosticAblation'
     | 'grandparentPositionKey'
     | 'now'
     | 'onPreparedTransition'
     | 'participationState'
     | 'perfCache'
     | 'policyPriors'
+    | 'previousStrategicTags'
     | 'policyPriorWeight'
     | 'repetitionPenalty'
     | 'riskMode'
@@ -452,6 +467,9 @@ export function precomputeOrderedActions(
     riskMode,
   });
   const baseAnalysis = getPerfAnalysis(basePerfBundle, state);
+  const behaviorProfileId = behaviorProfile?.id ?? null;
+  const behaviorSeed = behaviorProfile?.seed ?? null;
+  const useOpeningGeometryBias = state.moveNumber <= 6;
   const baseProgress = computeRiskSignals
     ? getPerfProgressSnapshot(basePerfBundle, state)
     : null;
@@ -632,6 +650,29 @@ export function precomputeOrderedActions(
     staticScore += clampScore(strategicProfile.intentDelta, 6_000);
     staticScore += strategicProfile.policyBias;
     staticScore += Math.round(policyPrior * policyPriorWeight);
+
+    if (diagnosticAblation?.participationOrdering) {
+      staticScore += clampScore(participationProfile.participationDelta, 4_000);
+    }
+
+    if (diagnosticAblation?.behaviorOrdering) {
+      staticScore += getBehaviorActionBias(
+        behaviorProfileId,
+        strategicProfile.tags,
+      );
+      if (useOpeningGeometryBias) {
+        staticScore += Math.round(
+          getBehaviorGeometryBias(behaviorProfileId, action, behaviorSeed) * 6,
+        );
+      }
+    }
+
+    if (diagnosticAblation?.noveltyOrdering) {
+      staticScore -= getNoveltyPenalty(
+        strategicProfile.tags,
+        previousStrategicTags,
+      );
+    }
 
     if (isRepetition) {
       staticScore -= repetitionPenalty * (repeatedPositionCount - 1);
