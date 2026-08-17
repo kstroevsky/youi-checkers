@@ -96,6 +96,15 @@ const VARIANTS: Variant[] = [
     id: 'participation-ordering',
   },
   {
+    ablation: {
+      participationEvaluationScale: 0.25,
+      participationOrdering: true,
+    },
+    claim:
+      'Combine quarter-scale participation leaf value with participation-aware ordering.',
+    id: 'participation-balanced',
+  },
+  {
     ablation: { rootParticipationScale: 0.5 },
     claim:
       'Increase only bounded final-root participation weighting from 0.2 to 0.5.',
