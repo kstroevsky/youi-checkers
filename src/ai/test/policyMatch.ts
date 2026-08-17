@@ -1,4 +1,12 @@
 import type { AiPolicy, AiPolicyDecision } from '@/ai/test/policy';
+import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
+import type { AiSearchDiagnosticAblation } from '@/ai/types';
+import {
+  buildParticipationState,
+  getActionParticipationProfile,
+  type ParticipationState,
+  type SourceRegion,
+} from '@/ai/participation';
 import type { StrengthFixture } from '@/ai/test/referenceStrength';
 import {
   cloneStrengthState,
@@ -9,10 +17,15 @@ import {
 } from '@/ai/test/strengthOutcome';
 import {
   applyAction,
+  getLegalActions,
   hashPosition,
   type Player,
   type RuleConfig,
 } from '@/domain';
+import {
+  getFinishingProgress,
+  type FinishingProgress,
+} from '@/domain/rules/finishingProgress';
 import type { AiDifficulty } from '@/shared/types/session';
 
 import { actionKey } from '@/ai/test/searchTestUtils';
@@ -23,7 +36,29 @@ export type PolicyMatchPly = {
   afterPositionHash: string;
   beforePositionHash: string;
   decision: AiPolicyDecision;
+  measurement?: PolicyMatchPlyMeasurement;
   policyId: string;
+};
+
+type PolicyMatchProgress = Pick<
+  FinishingProgress,
+  'frontCompletedStacks' | 'homeReadiness' | 'homeSingles' | 'sixStackReadiness'
+>;
+
+export type PolicyMatchPlyMeasurement = {
+  actorProgressAfter: PolicyMatchProgress;
+  actorProgressBefore: PolicyMatchProgress;
+  beforeLegalActionCount: number;
+  movedMass: number;
+  opponentProgressAfter: PolicyMatchProgress;
+  opponentProgressBefore: PolicyMatchProgress;
+  opponentReplyCount: number | null;
+  participationDelta: number;
+  repeatsSourceFamily: boolean;
+  repeatsSourceRegion: boolean;
+  samePlayerContinuation: boolean;
+  sourceFamily: string;
+  sourceRegion: SourceRegion;
 };
 
 export type PolicyMatchGame = {
@@ -54,6 +89,7 @@ export type PolicyMatchPair = {
 
 export async function runPolicyMatchGame({
   adjudicateHorizon,
+  diagnosticAblation,
   difficulty,
   fixture,
   gameId,
@@ -65,9 +101,11 @@ export async function runPolicyMatchGame({
   policyB,
   policyBSeed,
   retainDecisionDiagnostics = true,
+  retainMeasurementEvidence = false,
   ruleConfig,
 }: {
   adjudicateHorizon: boolean;
+  diagnosticAblation?: AiSearchDiagnosticAblation | null;
   difficulty: AiDifficulty;
   fixture: StrengthFixture;
   gameId: string;
@@ -79,6 +117,7 @@ export async function runPolicyMatchGame({
   policyB: AiPolicy;
   policyBSeed: number;
   retainDecisionDiagnostics?: boolean;
+  retainMeasurementEvidence?: boolean;
   ruleConfig: RuleConfig;
 }): Promise<PolicyMatchGame> {
   let state = cloneStrengthState(fixture.state);
@@ -92,12 +131,17 @@ export async function runPolicyMatchGame({
     [policyBColor]: policyB,
   } as const;
   const plies: PolicyMatchPly[] = [];
+  const preset = AI_DIFFICULTY_PRESETS[difficulty];
+  let participationState: ParticipationState | null = retainMeasurementEvidence
+    ? buildParticipationState(state, preset.participationWindow)
+    : null;
 
   try {
     for (let ply = 0; ply < maxPlies && state.status !== 'gameOver'; ply += 1) {
       const actor = state.currentPlayer;
       const beforePositionHash = hashPosition(state);
       const decision = await sessions[actor].decide({
+        diagnosticAblation,
         difficulty,
         ruleConfig,
         searchBudget: { maxEvaluatedNodes: nodeBudget, type: 'fixedNodes' },
@@ -106,6 +150,27 @@ export async function runPolicyMatchGame({
 
       if (!decision.action) break;
       const nextState = applyAction(state, decision.action, ruleConfig);
+      const opponent: Player = actor === 'white' ? 'black' : 'white';
+      const samePlayerContinuation = nextState.currentPlayer === actor;
+      const participation = retainMeasurementEvidence
+        ? getActionParticipationProfile(
+            state,
+            decision.action,
+            nextState,
+            actor,
+            participationState,
+            preset,
+            {
+              isTactical:
+                decision.action.type === 'jumpSequence' ||
+                decision.action.type === 'manualUnfreeze',
+              winsImmediately:
+                nextState.status === 'gameOver' &&
+                'winner' in nextState.victory &&
+                nextState.victory.winner === actor,
+            },
+          )
+        : null;
       plies.push({
         actionKey: actionKey(decision.action),
         actor,
@@ -114,8 +179,35 @@ export async function runPolicyMatchGame({
         decision: retainDecisionDiagnostics
           ? decision
           : { action: decision.action },
+        ...(retainMeasurementEvidence && participation
+          ? {
+              measurement: {
+                actorProgressAfter: getFinishingProgress(nextState, actor),
+                actorProgressBefore: getFinishingProgress(state, actor),
+                beforeLegalActionCount: getLegalActions(state, ruleConfig)
+                  .length,
+                movedMass: participation.movedMass,
+                opponentProgressAfter: getFinishingProgress(
+                  nextState,
+                  opponent,
+                ),
+                opponentProgressBefore: getFinishingProgress(state, opponent),
+                opponentReplyCount: samePlayerContinuation
+                  ? null
+                  : getLegalActions(nextState, ruleConfig).length,
+                participationDelta: participation.participationDelta,
+                repeatsSourceFamily: participation.repeatsSourceFamily,
+                repeatsSourceRegion: participation.repeatsSourceRegion,
+                samePlayerContinuation,
+                sourceFamily: participation.sourceFamily,
+                sourceRegion: participation.sourceRegion,
+              },
+            }
+          : {}),
         policyId: policies[actor].id,
       });
+      participationState =
+        participation?.nextParticipationState ?? participationState;
       state = nextState;
     }
   } finally {
@@ -157,6 +249,7 @@ export async function runPolicyMatchGame({
 
 export async function runPolicyMatchPair({
   adjudicateHorizon,
+  diagnosticAblation,
   difficulty,
   fixture,
   maxPlies,
@@ -167,6 +260,7 @@ export async function runPolicyMatchPair({
   policyB,
   policyBSeed,
   retainDecisionDiagnostics,
+  retainMeasurementEvidence,
   ruleConfig,
 }: Omit<Parameters<typeof runPolicyMatchGame>[0], 'gameId' | 'policyAColor'> & {
   pairId: string;
@@ -174,6 +268,7 @@ export async function runPolicyMatchPair({
   const games = (await Promise.all([
     runPolicyMatchGame({
       adjudicateHorizon,
+      diagnosticAblation,
       difficulty,
       fixture,
       gameId: `${pairId}/a-white`,
@@ -185,10 +280,12 @@ export async function runPolicyMatchPair({
       policyB,
       policyBSeed,
       retainDecisionDiagnostics,
+      retainMeasurementEvidence,
       ruleConfig,
     }),
     runPolicyMatchGame({
       adjudicateHorizon,
+      diagnosticAblation,
       difficulty,
       fixture,
       gameId: `${pairId}/a-black`,
@@ -200,6 +297,7 @@ export async function runPolicyMatchPair({
       policyB,
       policyBSeed,
       retainDecisionDiagnostics,
+      retainMeasurementEvidence,
       ruleConfig,
     }),
   ])) as [PolicyMatchGame, PolicyMatchGame];

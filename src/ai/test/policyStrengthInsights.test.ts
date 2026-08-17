@@ -145,6 +145,8 @@ describe('summarizePolicyStrengthInsights', () => {
     expect(summary.actionKinds.overallShares.current.jumpSequence).toBe(0.5);
     expect(summary.actionKinds.overallShares['legacy-v0'].jumpSequence).toBe(0);
     expect(summary.actionKinds.policyPlyShares.current).toBe(0.5);
+    expect(summary.richBehavior.measurementPairCount).toBe(0);
+    expect(summary.richBehavior.diagnosticPairCount).toBe(0);
   });
 
   it('measures joint recurrence without attributing it to one policy', () => {

@@ -45,7 +45,27 @@ const BEHAVIOR_METRICS = [
   'stackManipulationShare',
 ] as const;
 
+const RICH_BEHAVIOR_METRICS = [
+  'homeReadinessDelta',
+  'depthZeroShare',
+  'intentSwitchRate',
+  'meanCompletedDepth',
+  'meanEvaluatedNodes',
+  'meanOpponentReplyCount',
+  'meanParticipationDelta',
+  'meanSelectionRegret',
+  'orderedFallbackShare',
+  'positiveParticipationShare',
+  'productiveProgressShare',
+  'regressiveProgressShare',
+  'sameFamilyRepeatRate',
+  'sixStackReadinessDelta',
+  'sourceFamilyDiversity',
+  'styleSelectionShare',
+] as const;
+
 export type PolicyBehaviorMetric = (typeof BEHAVIOR_METRICS)[number];
+export type RichPolicyBehaviorMetric = (typeof RICH_BEHAVIOR_METRICS)[number];
 
 export type ConfidenceInterval = {
   high: number;
@@ -125,6 +145,14 @@ export type PolicyStrengthInsights = {
     plyCount: number;
     terminalCounts: Record<string, number>;
   };
+  richBehavior: {
+    comparisons: Record<
+      RichPolicyBehaviorMetric,
+      PairedMetricComparison | null
+    >;
+    diagnosticPairCount: number;
+    measurementPairCount: number;
+  };
   schemaVersion: number;
   strength: {
     adjudicatedCandidatePointShare: DistributionSummary;
@@ -136,6 +164,7 @@ export type PolicyStrengthInsights = {
 };
 
 type PolicyGameBehavior = Record<PolicyBehaviorMetric, number>;
+type RichPolicyGameBehavior = Record<RichPolicyBehaviorMetric, number | null>;
 
 type GameDynamics = {
   actionKindLempelZiv: number;
@@ -154,6 +183,8 @@ type PairObservation = {
   candidateAdjudicatedScore: number | null;
   candidateNaturalScore: number | null;
   dynamics: GameDynamics;
+  richBaseline: RichPolicyGameBehavior;
+  richCandidate: RichPolicyGameBehavior;
 };
 
 type FixtureAccumulator = {
@@ -341,6 +372,138 @@ function analyzePolicyBehavior(
   };
 }
 
+function asRecord(value: unknown): Record<string, unknown> | null {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null;
+}
+
+function diagnosticNumber(ply: PolicyMatchPly, key: string): number | null {
+  const value = asRecord(ply.decision.diagnostics)?.[key];
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
+function diagnosticIntent(ply: PolicyMatchPly): string | null {
+  const value = asRecord(ply.decision.diagnostics)?.strategicIntent;
+  return value === 'home' || value === 'sixStack' || value === 'hybrid'
+    ? value
+    : null;
+}
+
+function diagnosticString(ply: PolicyMatchPly, key: string): string | null {
+  const value = asRecord(ply.decision.diagnostics)?.[key];
+  return typeof value === 'string' ? value : null;
+}
+
+function meanOrNull(values: number[]): number | null {
+  return values.length ? round(average(values)) : null;
+}
+
+function analyzeRichPolicyBehavior(
+  game: PolicyMatchGame,
+  policyId: string,
+): RichPolicyGameBehavior {
+  const policyPlies = game.plies.filter((ply) => ply.policyId === policyId);
+  const measured = policyPlies.filter(
+    (
+      ply,
+    ): ply is PolicyMatchPly & {
+      measurement: NonNullable<PolicyMatchPly['measurement']>;
+    } => ply.measurement !== undefined,
+  );
+  const homeDeltas = measured.map(
+    (ply) =>
+      ply.measurement.actorProgressAfter.homeReadiness -
+      ply.measurement.actorProgressBefore.homeReadiness,
+  );
+  const sixStackDeltas = measured.map(
+    (ply) =>
+      ply.measurement.actorProgressAfter.sixStackReadiness -
+      ply.measurement.actorProgressBefore.sixStackReadiness,
+  );
+  const bestProgressDeltas = homeDeltas.map((homeDelta, index) =>
+    Math.max(homeDelta, sixStackDeltas[index]),
+  );
+  const opponentReplyCounts = measured
+    .map((ply) => ply.measurement.opponentReplyCount)
+    .filter((value): value is number => value !== null);
+  const intents = policyPlies
+    .map(diagnosticIntent)
+    .filter((value): value is string => value !== null);
+  const completedDepths = policyPlies
+    .map((ply) => diagnosticNumber(ply, 'completedDepth'))
+    .filter((value): value is number => value !== null);
+  const evaluatedNodes = policyPlies
+    .map((ply) => diagnosticNumber(ply, 'evaluatedNodes'))
+    .filter((value): value is number => value !== null);
+  const selectionRegrets = policyPlies
+    .map((ply) => diagnosticNumber(ply, 'selectionRegret'))
+    .filter((value): value is number => value !== null);
+  const fallbackKinds = policyPlies
+    .map((ply) => diagnosticString(ply, 'fallbackKind'))
+    .filter((value): value is string => value !== null);
+
+  return {
+    depthZeroShare: completedDepths.length
+      ? round(
+          completedDepths.filter((depth) => depth === 0).length /
+            completedDepths.length,
+        )
+      : null,
+    homeReadinessDelta: meanOrNull(homeDeltas),
+    intentSwitchRate: intents.length
+      ? transitionRate(intents, (before, after) => before !== after)
+      : null,
+    meanCompletedDepth: meanOrNull(completedDepths),
+    meanEvaluatedNodes: meanOrNull(evaluatedNodes),
+    meanOpponentReplyCount: meanOrNull(opponentReplyCounts),
+    meanParticipationDelta: meanOrNull(
+      measured.map((ply) => ply.measurement.participationDelta),
+    ),
+    meanSelectionRegret: meanOrNull(selectionRegrets),
+    orderedFallbackShare: fallbackKinds.length
+      ? round(
+          fallbackKinds.filter((kind) => kind === 'orderedRoot').length /
+            fallbackKinds.length,
+        )
+      : null,
+    positiveParticipationShare: measured.length
+      ? round(
+          measured.filter((ply) => ply.measurement.participationDelta > 0)
+            .length / measured.length,
+        )
+      : null,
+    productiveProgressShare: measured.length
+      ? round(
+          bestProgressDeltas.filter((delta) => delta > 0.000001).length /
+            measured.length,
+        )
+      : null,
+    regressiveProgressShare: measured.length
+      ? round(
+          bestProgressDeltas.filter((delta) => delta < -0.000001).length /
+            measured.length,
+        )
+      : null,
+    sameFamilyRepeatRate: measured.length
+      ? round(
+          measured.filter((ply) => ply.measurement.repeatsSourceFamily).length /
+            measured.length,
+        )
+      : null,
+    sixStackReadinessDelta: meanOrNull(sixStackDeltas),
+    sourceFamilyDiversity: measured.length
+      ? normalizedEntropy(measured.map((ply) => ply.measurement.sourceFamily))
+      : null,
+    styleSelectionShare: selectionRegrets.length
+      ? round(
+          selectionRegrets.filter((regret) => regret > 0).length /
+            selectionRegrets.length,
+        )
+      : null,
+  };
+}
+
 function analyzeGameDynamics(game: PolicyMatchGame): GameDynamics {
   const positions = [
     game.plies[0]?.beforePositionHash,
@@ -414,6 +577,23 @@ function averageBehavior(
       average(observations.map((entry) => entry[metric])),
     ]),
   ) as PolicyGameBehavior;
+}
+
+function averageRichBehavior(
+  games: PolicyMatchGame[],
+  policyId: string,
+): RichPolicyGameBehavior {
+  const observations = games.map((game) =>
+    analyzeRichPolicyBehavior(game, policyId),
+  );
+  return Object.fromEntries(
+    RICH_BEHAVIOR_METRICS.map((metric) => {
+      const values = observations
+        .map((entry) => entry[metric])
+        .filter((value): value is number => value !== null);
+      return [metric, meanOrNull(values)];
+    }),
+  ) as RichPolicyGameBehavior;
 }
 
 function averageDynamics(games: PolicyMatchGame[]): GameDynamics {
@@ -519,6 +699,8 @@ export function summarizePolicyStrengthInsights(
     const games = [...pair.games];
     const candidate = averageBehavior(games, options.candidateId);
     const baseline = averageBehavior(games, options.baselineId);
+    const richCandidate = averageRichBehavior(games, options.candidateId);
+    const richBaseline = averageRichBehavior(games, options.baselineId);
     const dynamics = averageDynamics(games);
     const adjudicatedScore = candidatePairScore(
       pair,
@@ -532,6 +714,8 @@ export function summarizePolicyStrengthInsights(
       candidateAdjudicatedScore: adjudicatedScore,
       candidateNaturalScore: naturalScore,
       dynamics,
+      richBaseline,
+      richCandidate,
     });
 
     const fixture = (fixtureAccumulators[pair.fixtureId] ??= {
@@ -633,6 +817,38 @@ export function summarizePolicyStrengthInsights(
       ];
     }),
   ) as Record<PolicyBehaviorMetric, PairedMetricComparison>;
+  const richComparisons = Object.fromEntries(
+    RICH_BEHAVIOR_METRICS.map((metric) => {
+      const paired = pairObservations
+        .map((entry) => ({
+          baseline: entry.richBaseline[metric],
+          candidate: entry.richCandidate[metric],
+        }))
+        .filter(
+          (
+            entry,
+          ): entry is {
+            baseline: number;
+            candidate: number;
+          } => entry.baseline !== null && entry.candidate !== null,
+        );
+      if (!paired.length) return [metric, null];
+      const baselineValues = paired.map((entry) => entry.baseline);
+      const candidateValues = paired.map((entry) => entry.candidate);
+      return [
+        metric,
+        {
+          baseline: summarize(baselineValues),
+          candidate: summarize(candidateValues),
+          delta: summarize(
+            candidateValues.map(
+              (value, index) => value - baselineValues[index],
+            ),
+          ),
+        },
+      ];
+    }),
+  ) as PolicyStrengthInsights['richBehavior']['comparisons'];
 
   const dynamics = <TKey extends keyof GameDynamics>(key: TKey) =>
     summarize(pairObservations.map((entry) => entry.dynamics[key]));
@@ -793,6 +1009,12 @@ export function summarizePolicyStrengthInsights(
       pairCount: pairObservations.length,
       plyCount,
       terminalCounts,
+    },
+    richBehavior: {
+      comparisons: richComparisons,
+      diagnosticPairCount: richComparisons.meanCompletedDepth?.delta.count ?? 0,
+      measurementPairCount:
+        richComparisons.homeReadinessDelta?.delta.count ?? 0,
     },
     schemaVersion: POLICY_STRENGTH_INSIGHTS_SCHEMA_VERSION,
     spatialMirrors,
