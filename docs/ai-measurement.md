@@ -194,6 +194,27 @@ can favor fewer workers, which is why the override remains available. Sharing a
 single materialized legacy workspace between workers was also tested and
 rejected: it made both the four- and eight-worker short workloads slower.
 
+Completed raw traces can be analyzed offline without running search or playing
+additional games:
+
+```sh
+npm run ai:policy-strength:insights -- \
+  --report=<campaign.json> \
+  --samples=<campaign.samples.jsonl> \
+  --out=<insights-output-prefix>
+```
+
+The analyzer verifies the raw checksum and pair count, reproduces the campaign
+point share, and then compares observable behavior at the balanced-pair grain.
+It reports move-kind mix by phase, action/source/region diversity, repeat and
+retained-turn rates, displacement, opening diversity, exact-position recurrence,
+color sensitivity, and horizontal-mirror sensitivity. Confidence intervals use
+color-swapped pairs as observations rather than incorrectly treating individual
+plies as independent samples. Compact traces do not contain root alternatives,
+checker identities, legal-move counts, strategic tags, or evaluation trajectories,
+so the report labels source diversity as a participation proxy and never claims
+policy-specific causation for whole-game recurrence or resolution.
+
 Parallelism changes only execution. Pair identifiers and seeds, color swaps,
 fixed-node budgets, 160-ply adjudication, frozen allocation, and block-boundary
 GSPRT decisions remain unchanged. Statistical parameters were intentionally not
