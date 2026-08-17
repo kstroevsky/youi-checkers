@@ -111,6 +111,7 @@ export type PolicyStrengthInsights = {
       mirrorMinusOriginal: number;
       mirrorPointShare: number;
       originalPointShare: number;
+      seedScheduleIdentical: boolean;
     }
   >;
   policies: {
@@ -160,6 +161,8 @@ type FixtureAccumulator = {
   gameCount: number;
   naturalGameCount: number;
   pairCount: number;
+  policyASeeds: number[];
+  policyBSeeds: number[];
   repeatedPositionPlyShares: number[];
   twoPlyUndoRates: number[];
 };
@@ -536,10 +539,14 @@ export function summarizePolicyStrengthInsights(
       gameCount: 0,
       naturalGameCount: 0,
       pairCount: 0,
+      policyASeeds: [],
+      policyBSeeds: [],
       repeatedPositionPlyShares: [],
       twoPlyUndoRates: [],
     });
     fixture.pairCount += 1;
+    fixture.policyASeeds.push(pair.policyASeed);
+    fixture.policyBSeeds.push(pair.policyBSeed);
     if (adjudicatedScore !== null)
       fixture.adjudicatedScores.push(adjudicatedScore);
     const pairScoresByCandidateColor: Partial<Record<Player, number>> = {};
@@ -680,6 +687,17 @@ export function summarizePolicyStrengthInsights(
               ),
               mirrorPointShare: mirror.adjudicatedCandidatePointShare.mean,
               originalPointShare: original.adjudicatedCandidatePointShare.mean,
+              seedScheduleIdentical:
+                JSON.stringify(fixtureAccumulators[fixtureId].policyASeeds) ===
+                  JSON.stringify(
+                    fixtureAccumulators[`${fixtureId}-mirror-horizontal`]
+                      .policyASeeds,
+                  ) &&
+                JSON.stringify(fixtureAccumulators[fixtureId].policyBSeeds) ===
+                  JSON.stringify(
+                    fixtureAccumulators[`${fixtureId}-mirror-horizontal`]
+                      .policyBSeeds,
+                  ),
             },
           ],
         ];

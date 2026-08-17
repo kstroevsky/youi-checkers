@@ -210,7 +210,9 @@ It reports move-kind mix by phase, action/source/region diversity, repeat and
 retained-turn rates, displacement, opening diversity, exact-position recurrence,
 color sensitivity, and horizontal-mirror sensitivity. Confidence intervals use
 color-swapped pairs as observations rather than incorrectly treating individual
-plies as independent samples. Compact traces do not contain root alternatives,
+plies as independent samples. The report also records whether mirror strata use
+identical policy seeds, because otherwise orientation and seed effects remain
+confounded. Compact traces do not contain root alternatives,
 checker identities, legal-move counts, strategic tags, or evaluation trajectories,
 so the report labels source diversity as a participation proxy and never claims
 policy-specific causation for whole-game recurrence or resolution.

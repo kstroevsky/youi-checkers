@@ -172,7 +172,7 @@ function markdown(report: InsightsReport): string {
     )
     .map(
       ([fixtureId, fixture]) =>
-        `| ${fixtureId} | ${percent(fixture.originalPointShare)} | ${percent(fixture.mirrorPointShare)} | ${signed(fixture.mirrorMinusOriginal)} | ${percent(fixture.averagePointShare)} |`,
+        `| ${fixtureId} | ${percent(fixture.originalPointShare)} | ${percent(fixture.mirrorPointShare)} | ${signed(fixture.mirrorMinusOriginal)} | ${percent(fixture.averagePointShare)} | ${fixture.seedScheduleIdentical ? 'yes' : 'no'} |`,
     );
 
   return [
@@ -224,12 +224,12 @@ function markdown(report: InsightsReport): string {
     '',
     'These are properties of current-vs-legacy interaction and cannot be assigned to one policy without additional counterfactual matchups.',
     '',
-    '## Spatial Mirror Sensitivity',
+    '## Mirror-Stratum Sensitivity',
     '',
-    'Large original-versus-mirror differences mean the relative current-vs-legacy result depends on board orientation. Because both policies play in every game, this identifies a matchup-level equivariance problem but does not identify which policy causes it.',
+    'Large original-versus-mirror differences identify a sensitivity worth isolating, but the campaign assigned different policy seeds to mirrored fixtures. The observed gaps therefore combine orientation and seed effects; they are not a clean spatial-equivariance estimate. Because both policies play in every game, this trace also cannot identify which policy contributes the sensitivity.',
     '',
-    '| Base fixture | Original | Horizontal mirror | Mirror minus original | Balanced average |',
-    '| --- | ---: | ---: | ---: | ---: |',
+    '| Base fixture | Original | Horizontal mirror | Mirror minus original | Balanced average | Same seed schedule |',
+    '| --- | ---: | ---: | ---: | ---: | --- |',
     ...mirrorRows,
     '',
     '## Fixture Sensitivity',
@@ -293,6 +293,7 @@ async function main(): Promise<void> {
         'Source-cell and source-region diversity are observable participation proxies; they are not the production participation score, which follows checker families and moved mass.',
         'Both policies appear in every game, so position recurrence, game length, and resolution are interaction-level metrics rather than policy-specific effects.',
         'Behavioral intervals are exploratory and are not adjusted for the number of metrics inspected.',
+        'Original and mirrored fixtures used different policy seed schedules, so their score gaps combine orientation and seed effects.',
         'Fixed-horizon adjudication supplies the strength endpoint for unfinished games; it is not evidence that those games produced satisfying conclusions for a human player.',
       ],
     },
