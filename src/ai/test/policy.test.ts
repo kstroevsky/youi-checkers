@@ -9,7 +9,9 @@ import {
 } from '@/ai/test/legacyPolicyV0.node';
 import { loadCurrentAiPolicy } from '@/ai/test/policyProvenance.node';
 import { runPolicyMatchPair } from '@/ai/test/policyMatch';
+import { summarizePolicyStrengthInsights } from '@/ai/test/policyStrengthInsights';
 import type { StrengthFixture } from '@/ai/test/referenceStrength';
+import { loadRevisionPolicy } from '@/ai/test/revisionPolicy.node';
 import { createInitialState, getLegalActions } from '@/domain';
 import { withConfig } from '@/test/factories';
 
@@ -89,6 +91,7 @@ describe('common AI policy boundary', () => {
         policyB: legacy,
         policyBSeed: 29,
         retainDecisionDiagnostics: false,
+        retainMeasurementEvidence: true,
         ruleConfig,
       });
 
@@ -100,9 +103,62 @@ describe('common AI policy boundary', () => {
           game.plies.every((ply) => ply.decision.diagnostics === undefined),
         ),
       ).toBe(true);
+      expect(
+        pair.games.every((game) =>
+          game.plies.every(
+            (ply) =>
+              ply.measurement &&
+              Number.isFinite(
+                ply.measurement.actorProgressBefore.homeReadiness,
+              ) &&
+              Number.isFinite(
+                ply.measurement.actorProgressAfter.sixStackReadiness,
+              ) &&
+              ply.measurement.beforeLegalActionCount > 0,
+          ),
+        ),
+      ).toBe(true);
       expect(pair.adjudicatedPairScore).not.toBeNull();
+      const insights = summarizePolicyStrengthInsights([pair], {
+        baselineId: 'legacy-v0',
+        candidateId: 'current',
+        horizonPlies: 2,
+      });
+      expect(insights.richBehavior.measurementPairCount).toBe(1);
+      expect(
+        insights.richBehavior.comparisons.meanParticipationDelta,
+      ).not.toBeNull();
     } finally {
       await Promise.all([current.dispose(), legacy.dispose()]);
+    }
+  }, 30_000);
+
+  it('runs an intermediate policy revision through the current policy contract', async () => {
+    const ruleConfig = withConfig();
+    const state = createInitialState(ruleConfig);
+    const legalActionKeys = new Set(
+      getLegalActions(state, ruleConfig).map(actionKey),
+    );
+    const policy = await loadRevisionPolicy({
+      behaviorSeedNamespace: 'policy-attribution-',
+      id: 'intermediate',
+      revision: FIRST_FEATURE_POLICY_REVISION,
+    });
+    const session = await policy.createSession(41);
+
+    try {
+      const decision = await session.decide({
+        difficulty: 'easy',
+        ruleConfig,
+        searchBudget: { maxEvaluatedNodes: 64, type: 'fixedNodes' },
+        state,
+      });
+
+      expect(legalActionKeys.has(actionKey(decision.action))).toBe(true);
+      expect(policy.sourceHash).toMatch(/^[a-f0-9]{64}$/);
+    } finally {
+      await session.dispose();
+      await policy.dispose();
     }
   }, 30_000);
 });

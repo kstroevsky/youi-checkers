@@ -122,21 +122,27 @@ async function symlinkDirectory(target: string, destination: string) {
   await symlink(target, destination, 'dir');
 }
 
-async function materializeLegacyWorkspace(workspace: string): Promise<string> {
-  const tempRoot = await mkdtemp(path.join(os.tmpdir(), 'youi-legacy-v0-'));
+export async function materializeRevisionPolicyWorkspace({
+  revision,
+  serverFileName,
+  serverSource,
+  tempPrefix,
+  workspace,
+}: {
+  revision: string;
+  serverFileName: string;
+  serverSource: string;
+  tempPrefix: string;
+  workspace: string;
+}): Promise<string> {
+  const tempRoot = await mkdtemp(path.join(os.tmpdir(), tempPrefix));
   const sourceRoot = path.join(tempRoot, 'src');
   await mkdir(sourceRoot, { recursive: true });
 
-  for (const filePath of listProductionAiFilesAtRevision(
-    LEGACY_POLICY_V0_REVISION,
-  )) {
+  for (const filePath of listProductionAiFilesAtRevision(revision)) {
     const destination = path.join(tempRoot, filePath);
     await mkdir(path.dirname(destination), { recursive: true });
-    await writeFile(
-      destination,
-      readRevisionFile(LEGACY_POLICY_V0_REVISION, filePath),
-      'utf8',
-    );
+    await writeFile(destination, readRevisionFile(revision, filePath), 'utf8');
   }
 
   await Promise.all([
@@ -168,23 +174,40 @@ async function materializeLegacyWorkspace(workspace: string): Promise<string> {
       }),
       'utf8',
     ),
-    writeFile(path.join(tempRoot, 'legacy-policy-server.ts'), SERVER_SOURCE),
+    writeFile(path.join(tempRoot, serverFileName), serverSource),
   ]);
 
   return tempRoot;
 }
 
-class LegacyPolicyRpc {
+async function materializeLegacyWorkspace(workspace: string): Promise<string> {
+  return materializeRevisionPolicyWorkspace({
+    revision: LEGACY_POLICY_V0_REVISION,
+    serverFileName: 'legacy-policy-server.ts',
+    serverSource: SERVER_SOURCE,
+    tempPrefix: 'youi-legacy-v0-',
+    workspace,
+  });
+}
+
+export class RevisionPolicyRpc {
   readonly pending = new Map<string, PendingRpc>();
   readonly process: ChildProcessWithoutNullStreams;
   readonly tempRoot: string;
   private stderr = '';
 
-  constructor(tempRoot: string) {
+  constructor(
+    tempRoot: string,
+    options: {
+      label?: string;
+      serverFileName?: string;
+    } = {},
+  ) {
     this.tempRoot = tempRoot;
+    const serverFileName = options.serverFileName ?? 'legacy-policy-server.ts';
     this.process = spawn(
       process.execPath,
-      ['--import', 'tsx', path.join(tempRoot, 'legacy-policy-server.ts')],
+      ['--import', 'tsx', path.join(tempRoot, serverFileName)],
       { cwd: tempRoot, stdio: ['pipe', 'pipe', 'pipe'] },
     );
     const output = readline.createInterface({ input: this.process.stdout });
@@ -194,7 +217,7 @@ class LegacyPolicyRpc {
     });
     this.process.on('exit', (code) => {
       const error = new Error(
-        `LegacyPolicyV0 process exited with code ${code}. ${this.stderr}`,
+        `${options.label ?? 'Revision policy'} process exited with code ${code}. ${this.stderr}`,
       );
       for (const pending of this.pending.values()) pending.reject(error);
       this.pending.clear();
@@ -236,7 +259,10 @@ export async function loadLegacyPolicyV0(
   workspace = process.cwd(),
 ): Promise<AiPolicy> {
   const sourceHash = fingerprintLegacyPolicyV0();
-  const rpc = new LegacyPolicyRpc(await materializeLegacyWorkspace(workspace));
+  const rpc = new RevisionPolicyRpc(
+    await materializeLegacyWorkspace(workspace),
+    { label: 'LegacyPolicyV0' },
+  );
   let disposed = false;
 
   return {
