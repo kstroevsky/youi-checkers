@@ -217,6 +217,50 @@ checker identities, legal-move counts, strategic tags, or evaluation trajectorie
 so the report labels source diversity as a participation proxy and never claims
 policy-specific causation for whole-game recurrence or resolution.
 
+### Short causal policy portfolios
+
+Three bounded reports replace repeated branch-wide strength campaigns during
+diagnosis:
+
+```sh
+# Run each strategy-changing revision behind the same current harness/domain.
+npm run ai:policy-attribution -- --profile=smoke
+
+# Reconstruct removed search signals one group at a time; production is the
+# all-switches-disabled control.
+npm run ai:policy-ablation -- --profile=smoke
+
+# Separate intrinsic self-play behavior from current-versus-legacy interaction.
+npm run ai:policy-counterfactual -- --profile=smoke
+```
+
+Their `full` profiles use 32-ply continuations, 512 fixed nodes per decision,
+four seed pairs, and six holdout base fixtures plus horizontal mirrors. The
+counterfactual workload is therefore 288 games and at most 9,216 plies across
+current/current, legacy/legacy, and current/legacy. It is a trajectory-quality
+portfolio, not a release strength gate.
+
+The revision attribution runner materializes production `src/ai` from each Git
+revision while keeping the current domain, policy interface, fixtures, budgets,
+and measurement definitions fixed. Candidate and baseline seeds are identical
+across revision rows. Its direct mirror check uses the same policy seed for the
+original and mirrored state; unlike the old full campaign strata, orientation is
+not confounded with a different seed schedule.
+
+Rich match evidence is harness-owned rather than policy-diagnostic-owned. Each
+retained move can record continuous home/six-stack readiness, checker-family and
+region participation, repeat flags, moved mass, retained turns, legal response
+opportunity, completed depth, fallback kind, and selected/search score evidence.
+This allows old and new policies to be compared even when their internal result
+schemas differ.
+
+Search ablations are measurement-only reconstructions of removed behavior,
+participation, and novelty signals. All switches default off, product callers do
+not set them, and a parity test verifies that omitted and explicit-null ablation
+settings deliver the same action, node count, completed depth, and fallback. An
+ablation result may identify a mechanism; it does not authorize retaining that
+mechanism without competence, strength, runtime, and player-experience guards.
+
 Parallelism changes only execution. Pair identifiers and seeds, color swaps,
 fixed-node budgets, 160-ply adjudication, frozen allocation, and block-boundary
 GSPRT decisions remain unchanged. Statistical parameters were intentionally not
