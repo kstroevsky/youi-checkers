@@ -98,6 +98,7 @@ export type AiSearchBudgetReport = {
 export type AiSearchDiagnosticAblation = {
   behaviorEvaluation?: boolean;
   behaviorOrdering?: boolean;
+  exactTieParticipation?: boolean;
   noveltyOrdering?: boolean;
   participationEvaluation?: boolean;
   participationEvaluationScale?: number;

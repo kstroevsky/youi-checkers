@@ -472,6 +472,77 @@ export function selectCandidateAction(
   return weighted.at(-1)?.entry ?? best;
 }
 
+export type ExactTieParticipationDecisionV1 = {
+  action: RootRankedAction;
+  changed: boolean;
+  eligible: boolean;
+  reason:
+    | 'ambiguous'
+    | 'baselineNotTiedBest'
+    | 'eligible'
+    | 'incompleteEvidence'
+    | 'noExactTie';
+};
+
+/** Treatment E: a post-selector break of exact, complete product-score ties only. */
+export function selectExactTieParticipationV1(
+  ranked: RootRankedAction[],
+  baseline: RootRankedAction,
+  evidence: {
+    completedDepth: number;
+    completedRootMoves: number;
+    legalRootMoves: number;
+  },
+): ExactTieParticipationDecisionV1 {
+  if (
+    evidence.completedDepth <= 0 ||
+    evidence.completedRootMoves !== evidence.legalRootMoves ||
+    ranked.length !== evidence.legalRootMoves
+  ) {
+    return {
+      action: baseline,
+      changed: false,
+      eligible: false,
+      reason: 'incompleteEvidence',
+    };
+  }
+  const bestScore = Math.max(...ranked.map((entry) => entry.score));
+  const tied = ranked.filter((entry) => entry.score === bestScore);
+  if (tied.length < 2)
+    return {
+      action: baseline,
+      changed: false,
+      eligible: false,
+      reason: 'noExactTie',
+    };
+  if (!tied.includes(baseline))
+    return {
+      action: baseline,
+      changed: false,
+      eligible: false,
+      reason: 'baselineNotTiedBest',
+    };
+  const bestParticipation = Math.max(
+    ...tied.map((entry) => entry.participationDelta),
+  );
+  const preferred = tied.filter(
+    (entry) => entry.participationDelta === bestParticipation,
+  );
+  if (preferred.length !== 1)
+    return {
+      action: baseline,
+      changed: false,
+      eligible: true,
+      reason: 'ambiguous',
+    };
+  return {
+    action: preferred[0],
+    changed: preferred[0] !== baseline,
+    eligible: true,
+    reason: 'eligible',
+  };
+}
+
 /** Converts ranked root actions into the public candidate list with the preset limit. */
 export function orderRootCandidates(
   ranked: RootRankedAction[],

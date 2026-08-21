@@ -40,6 +40,7 @@ import {
   createSearchDiagnostics,
   orderRootCandidates,
   selectCandidateAction,
+  selectExactTieParticipationV1,
   sortRankedActions,
   summarizeDecisionScores,
 } from '@/ai/search/result';
@@ -825,18 +826,30 @@ export function chooseComputerAction({
     const selectionDepth =
       fallbackKind === 'partialCurrentDepth' ? 0 : completedDepth;
 
-    bestAction = selectCandidateAction(rootCandidates, preset, random, {
-      bandBoost: getSelectionBandBoost(state.moveNumber, effectiveRiskMode, {
-        completedDepth: selectionDepth,
-        fallbackKind,
-      }),
-      behaviorProfileId: behaviorProfile?.id ?? null,
-      behaviorSeed: behaviorProfile?.seed ?? null,
-      participationScale: diagnosticAblation?.rootParticipationScale ?? 0.2,
-      previousStrategicTags: rootPreviousStrategicTags,
-      riskMode: effectiveRiskMode,
-      strategicIntent,
-    }).action;
+    const baselineSelection = selectCandidateAction(
+      rootCandidates,
+      preset,
+      random,
+      {
+        bandBoost: getSelectionBandBoost(state.moveNumber, effectiveRiskMode, {
+          completedDepth: selectionDepth,
+          fallbackKind,
+        }),
+        behaviorProfileId: behaviorProfile?.id ?? null,
+        behaviorSeed: behaviorProfile?.seed ?? null,
+        participationScale: diagnosticAblation?.rootParticipationScale ?? 0.2,
+        previousStrategicTags: rootPreviousStrategicTags,
+        riskMode: effectiveRiskMode,
+        strategicIntent,
+      },
+    );
+    bestAction = diagnosticAblation?.exactTieParticipation
+      ? selectExactTieParticipationV1(rootCandidates, baselineSelection, {
+          completedDepth,
+          completedRootMoves,
+          legalRootMoves: legalActions.length,
+        }).action.action
+      : baselineSelection.action;
   }
 
   return {
