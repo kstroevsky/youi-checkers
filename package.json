@@ -6,6 +6,7 @@
   "scripts": {
     "ai:competence": "tsx scripts/ai-competence.report.ts",
     "ai:evaluate": "tsx scripts/ai-evaluate.report.ts",
+    "ai:fixtures": "tsx scripts/ai-fixture-catalog.generate.ts",
     "ai:competence:compare": "node scripts/run-git-report-compare.mjs --pipeline=ai-competence",
     "ai:crossplay": "tsx scripts/ai-crossplay.report.ts",
     "ai:human-calibration": "tsx scripts/ai-human-calibration.report.ts",
