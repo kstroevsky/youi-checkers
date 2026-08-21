@@ -98,7 +98,10 @@ function terminalOutcome(state: EngineState): WdlValueV1 | null {
   return state.victory.winner === state.currentPlayer ? 'win' : 'loss';
 }
 
-function stateKey(state: EngineState, config: RuleConfig): string {
+export function wdlProofStateKeyV1(
+  state: EngineState,
+  config: RuleConfig,
+): string {
   if (state.status === 'active')
     return referenceOracleStateKeyV1(state, config);
   return `terminal\u0000${hashPosition(state)}\u0000${hash(
@@ -139,7 +142,7 @@ export function solveWdlProofQueryV1({
 }): WdlProofResultV1 {
   const config = withRuleDefaults(configInput);
   const root = structuredClone(input);
-  const rootKey = stateKey(root, config);
+  const rootKey = wdlProofStateKeyV1(root, config);
   const rootTerminal = terminalOutcome(root);
   if (rootTerminal) {
     return {
@@ -221,7 +224,7 @@ export function solveWdlProofQueryV1({
       .sort((left, right) => actionKey(left).localeCompare(actionKey(right)));
     node.edges = actions.map((action: TurnAction): GraphEdge => {
       const next = advanceGeneratedEngineState(node.state, action, config);
-      const childKey = stateKey(next, config);
+      const childKey = wdlProofStateKeyV1(next, config);
       if (!graph.has(childKey)) {
         graph.set(childKey, {
           edges: [],
@@ -342,7 +345,7 @@ export function verifyWdlProofCertificateV1(
       errors.push('duplicateStateRecord');
 
     for (const record of certificate.stateOutcomes) {
-      if (stateKey(record.state, config) !== record.stateKey) {
+      if (wdlProofStateKeyV1(record.state, config) !== record.stateKey) {
         errors.push(`stateKeyReplayMismatch:${record.stateKey}`);
         continue;
       }
@@ -369,7 +372,7 @@ export function verifyWdlProofCertificateV1(
           edge.action,
           config,
         );
-        if (stateKey(next, config) !== edge.childKey)
+        if (wdlProofStateKeyV1(next, config) !== edge.childKey)
           errors.push(`childReplayMismatch:${record.stateKey}:${key}`);
         if (
           (next.currentPlayer !== record.state.currentPlayer) !==
