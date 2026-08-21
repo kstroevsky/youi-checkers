@@ -34,31 +34,72 @@ const stages = [
     ],
   },
   {
-    name: 'paired-default-ai',
-    argv: [
-      'ai:measure:compare',
-      '--before=8d45067',
-      '--after=working',
-      '--profile=smoke',
-      '--budget=fixedNodes',
-      '--nodes=256',
-      '--pairs=4',
-      '--max-turns=40',
-      '--decision-repetitions=3',
-      '--scenario-limit=12',
-    ],
-  },
-  {
-    name: 'treatment-ablation',
-    argv: [
-      'ai:policy-ablation',
-      '--profile=full',
-      '--variants=production,exact-tie-participation,participation-balanced',
-      '--pairs=3',
-      '--scenario-limit=3',
-      '--max-plies=24',
-      '--nodes=4096',
-      '--out=output/ai/bounded-validation/treatment-ablation',
+    name: 'parallel-fixed-node-evidence',
+    commands: [
+      {
+        name: 'paired-default-ai',
+        argv: [
+          'ai:measure:compare',
+          '--before=8d45067',
+          '--after=working',
+          '--profile=smoke',
+          '--budget=fixedNodes',
+          '--nodes=512',
+          '--pairs=6',
+          '--max-turns=48',
+          '--decision-repetitions=4',
+          '--scenario-limit=16',
+        ],
+      },
+      {
+        name: 'exact-tie-ablation',
+        argv: [
+          'ai:policy-ablation',
+          '--profile=full',
+          '--variants=production,exact-tie-participation',
+          '--pairs=4',
+          '--scenario-limit=4',
+          '--max-plies=32',
+          '--nodes=4096',
+          '--out=output/ai/bounded-validation/exact-tie-ablation',
+        ],
+      },
+      {
+        name: 'balanced-participation-ablation',
+        argv: [
+          'ai:policy-ablation',
+          '--profile=full',
+          '--variants=production,participation-balanced',
+          '--pairs=4',
+          '--scenario-limit=4',
+          '--max-plies=32',
+          '--nodes=4096',
+          '--out=output/ai/bounded-validation/balanced-participation-ablation',
+        ],
+      },
+      {
+        name: 'root-participation-ablation',
+        argv: [
+          'ai:policy-ablation',
+          '--profile=full',
+          '--variants=production,root-participation-0.5',
+          '--pairs=4',
+          '--scenario-limit=4',
+          '--max-plies=32',
+          '--nodes=4096',
+          '--out=output/ai/bounded-validation/root-participation-ablation',
+        ],
+      },
+      {
+        name: 'competence',
+        argv: [
+          'ai:competence',
+          '--profile=full',
+          '--nodes=256,1024,4096',
+          '--repetitions=4',
+          '--oracle-depth=3',
+        ],
+      },
     ],
   },
   {
@@ -87,6 +128,30 @@ async function persist(status) {
 }
 
 async function runStage(stage) {
+  if (stage.commands) {
+    const started = Date.now();
+    const commands = await Promise.all(
+      stage.commands.map((command) => {
+        process.stdout.write(`\n--- ${command.name} ---\n`);
+        return runCommand(command);
+      }),
+    );
+    return {
+      commands,
+      elapsedMs: Date.now() - started,
+      exitCode: commands.every((command) => command.exitCode === 0) ? 0 : 1,
+      name: stage.name,
+      status: commands.some((command) => command.status === 'deadline')
+        ? 'deadline'
+        : commands.every((command) => command.status === 'passed')
+          ? 'passed'
+          : 'failed',
+    };
+  }
+  return runCommand(stage);
+}
+
+async function runCommand(stage) {
   const remaining = deadline - Date.now();
   if (remaining <= 0)
     return { exitCode: null, name: stage.name, status: 'deadline' };
