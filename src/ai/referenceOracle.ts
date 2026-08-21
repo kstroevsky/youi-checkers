@@ -41,6 +41,10 @@ export type ReferenceStrengthResultV1 = {
   version: typeof REFERENCE_STRENGTH_ORACLE_VERSION;
 };
 
+export type ReferenceOracleStateKeyV1 = string & {
+  readonly __referenceOracleStateKeyV1: unique symbol;
+};
+
 type ReferenceTableEntry = {
   depth: number;
   flag: 'exact' | 'lower' | 'upper';
@@ -72,7 +76,7 @@ function canonicalRepetitionContext(
 export function referenceOracleStateKeyV1(
   state: EngineState,
   ruleConfig: Partial<RuleConfig> = {},
-): string {
+): ReferenceOracleStateKeyV1 {
   if (state.status !== 'active') {
     throw new Error(
       'Reference oracle keys are defined only for active states.',
@@ -84,7 +88,18 @@ export function referenceOracleStateKeyV1(
     canonicalRuleId(config),
     hashPosition(state),
     canonicalRepetitionContext(state.positionCounts),
-  ].join('\u0000');
+  ].join('\u0000') as ReferenceOracleStateKeyV1;
+}
+
+export function referenceOracleTranspositionKeyV1(
+  state: EngineState,
+  depth: number,
+  ruleConfig: Partial<RuleConfig> = {},
+): string {
+  if (!Number.isSafeInteger(depth) || depth < 0) {
+    throw new RangeError('Reference transposition depth must be non-negative.');
+  }
+  return `${depth}\u0000${referenceOracleStateKeyV1(state, ruleConfig)}`;
 }
 
 function canonicalActions(
@@ -133,8 +148,7 @@ export function runReferenceStrengthOracleV1(
       });
     }
 
-    const stateKey = referenceOracleStateKeyV1(state, config);
-    const tableKey = `${depth}\u0000${stateKey}`;
+    const tableKey = referenceOracleTranspositionKeyV1(state, depth, config);
     const cached = table.get(tableKey);
     let alpha = alphaInput;
     let beta = betaInput;

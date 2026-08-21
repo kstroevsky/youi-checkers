@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   isReferenceOnlyCoverageV1,
   referenceOracleStateKeyV1,
+  referenceOracleTranspositionKeyV1,
   runReferenceStrengthOracleV1,
 } from '@/ai/referenceOracle';
 import { getLegalActions } from '@/domain';
@@ -60,6 +61,55 @@ describe('ReferenceStrengthOracleV1', () => {
 
     expect(referenceOracleStateKeyV1(state, config)).toBe(
       referenceOracleStateKeyV1(overCounted, config),
+    );
+  });
+
+  it('canonicalizes ordinary checker IDs but preserves pending-jump identity placement', () => {
+    const first = gameStateWithBoard(
+      boardWithPieces({
+        B2: [checker('white', false, 'white-a')],
+        C3: [checker('black', false, 'black-a')],
+        D4: [checker('black', false, 'black-b')],
+      }),
+    );
+    const renamed = gameStateWithBoard(
+      boardWithPieces({
+        B2: [checker('white', false, 'white-z')],
+        C3: [checker('black', false, 'black-z')],
+        D4: [checker('black', false, 'black-y')],
+      }),
+    );
+    expect(referenceOracleStateKeyV1(first, config)).toBe(
+      referenceOracleStateKeyV1(renamed, config),
+    );
+
+    const pendingFirst = {
+      ...first,
+      pendingJump: {
+        firstJumpedOwner: 'black' as const,
+        jumpedCheckerIds: ['black-a'],
+        source: 'B2' as const,
+      },
+    };
+    const pendingOtherPlacement = {
+      ...first,
+      pendingJump: {
+        firstJumpedOwner: 'black' as const,
+        jumpedCheckerIds: ['black-b'],
+        source: 'B2' as const,
+      },
+    };
+    expect(referenceOracleStateKeyV1(pendingFirst, config)).not.toBe(
+      referenceOracleStateKeyV1(pendingOtherPlacement, config),
+    );
+  });
+
+  it('includes requested depth in the transposition identity', () => {
+    const state = gameStateWithBoard(
+      boardWithPieces({ B2: [checker('white')], E5: [checker('black')] }),
+    );
+    expect(referenceOracleTranspositionKeyV1(state, 2, config)).not.toBe(
+      referenceOracleTranspositionKeyV1(state, 3, config),
     );
   });
 
