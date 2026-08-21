@@ -61,6 +61,12 @@ const VARIANTS: Variant[] = [
     id: 'production',
   },
   {
+    ablation: { exactTieParticipation: true },
+    claim:
+      'Use participation only to break complete, exact production root-score ties.',
+    id: 'exact-tie-participation',
+  },
+  {
     ablation: { behaviorEvaluation: true },
     claim: 'Restore persona state bias only at evaluated leaves.',
     id: 'behavior-evaluation',
