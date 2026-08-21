@@ -1,3 +1,4 @@
+import type { AiTranspositionMode } from '@/ai/types';
 import type { EngineState, TurnAction } from '@/domain';
 
 import { encodeActionIndex } from '@/ai/model/actionSpace';
@@ -44,6 +45,15 @@ export function throwIfTimedOut(now: () => number, deadline: number): void {
 }
 
 /** Builds the transposition-table key for one engine state. */
-export function makeTableKey(state: EngineState): string {
-  return zobristHash(state);
+export function makeTableKey(
+  state: EngineState,
+  mode: AiTranspositionMode = 'current',
+): string {
+  const positionKey = zobristHash(state);
+  if (mode !== 'repetitionAware') return positionKey;
+  const repetitionKey = Object.keys(state.positionCounts)
+    .sort()
+    .map((key) => `${key}=${Math.min(state.positionCounts[key] ?? 0, 2)}`)
+    .join('|');
+  return `${positionKey}\u0000${repetitionKey}`;
 }

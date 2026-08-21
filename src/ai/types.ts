@@ -103,7 +103,10 @@ export type AiSearchDiagnosticAblation = {
   participationEvaluationScale?: number;
   participationOrdering?: boolean;
   rootParticipationScale?: number;
+  transpositionMode?: AiTranspositionMode;
 };
+
+export type AiTranspositionMode = 'current' | 'repetitionAware' | 'disabled';
 
 /** Inputs accepted by the pure search entrypoint. */
 export type ChooseComputerActionRequest = {

@@ -59,6 +59,7 @@ function createContext(state: EngineState): SearchContext {
     rootStrategicIntent: 'hybrid',
     ruleConfig: withConfig(),
     table: new Map(),
+    transpositionMode: 'current',
   };
 }
 

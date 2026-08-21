@@ -270,7 +270,8 @@ export function chooseComputerAction({
     state,
     preset.participationWindow,
   );
-  const rootPositionKey = makeTableKey(state);
+  const transpositionMode = diagnosticAblation?.transpositionMode ?? 'current';
+  const rootPositionKey = makeTableKey(state, transpositionMode);
   const rootPreviousOwnAction = getRootPreviousOwnAction(state);
   const rootPreviousStrategicTags = getRootPreviousStrategicTags(state);
   const rootSelfUndoPositionKey = getRootSelfUndoPositionKey(state);
@@ -393,6 +394,7 @@ export function chooseComputerAction({
     rootSelfUndoPositionKey,
     ruleConfig,
     table: new Map<string, TranspositionEntry>(),
+    transpositionMode,
   };
 
   /**
@@ -410,7 +412,10 @@ export function chooseComputerAction({
       pvMoveId,
       continuationScores: context.continuationScores,
       ttMoveId: (() => {
-        const a = context.table.get(rootPositionKey)?.bestAction ?? null;
+        const a =
+          context.transpositionMode === 'disabled'
+            ? null
+            : (context.table.get(rootPositionKey)?.bestAction ?? null);
         return a ? actionId(a) : null;
       })(),
     });
@@ -423,7 +428,10 @@ export function chooseComputerAction({
       previousActionId: null,
       continuationScores: context.continuationScores,
       ttMoveId: (() => {
-        const a = context.table.get(rootPositionKey)?.bestAction ?? null;
+        const a =
+          context.transpositionMode === 'disabled'
+            ? null
+            : (context.table.get(rootPositionKey)?.bestAction ?? null);
         return a ? actionId(a) : null;
       })(),
     });

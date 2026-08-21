@@ -54,6 +54,7 @@ function context(): SearchContext {
     rootStrategicIntent: 'hybrid',
     ruleConfig: withConfig(),
     table: new Map(),
+    transpositionMode: 'current',
   };
 }
 

@@ -8,6 +8,7 @@ import type {
   AiSearchDiagnosticAblation,
   AiStrategicIntent,
   AiStrategicTag,
+  AiTranspositionMode,
 } from '@/ai/types';
 import type { Player, RuleConfig, TurnAction } from '@/domain';
 import type { AiBehaviorProfile } from '@/shared/types/session';
@@ -100,4 +101,5 @@ export type SearchContext = {
   rootSelfUndoPositionKey: string | null;
   ruleConfig: RuleConfig;
   table: Map<string, TranspositionEntry>;
+  transpositionMode: AiTranspositionMode;
 };

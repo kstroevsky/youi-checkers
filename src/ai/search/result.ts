@@ -183,7 +183,11 @@ export function buildPrincipalVariation(
     }
 
     currentAction =
-      context.table.get(makeTableKey(currentState))?.bestAction ?? null;
+      (context.transpositionMode === 'disabled'
+        ? null
+        : context.table.get(
+            makeTableKey(currentState, context.transpositionMode),
+          )?.bestAction) ?? null;
   }
 
   return variation;

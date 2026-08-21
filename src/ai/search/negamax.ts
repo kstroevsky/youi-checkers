@@ -46,8 +46,11 @@ export function negamax(
 
   const originalAlpha = alpha;
   const originalBeta = beta;
-  const tableKey = makeTableKey(state);
-  const cached = context.table.get(tableKey);
+  const tableKey = makeTableKey(state, context.transpositionMode);
+  const cached =
+    context.transpositionMode === 'disabled'
+      ? undefined
+      : context.table.get(tableKey);
 
   if (cached && cached.depth >= depth) {
     context.diagnostics.transpositionHits += 1;
@@ -262,12 +265,14 @@ export function negamax(
     }
   }
 
-  context.table.set(tableKey, {
-    bestAction,
-    depth,
-    flag,
-    score: bestScore,
-  });
+  if (context.transpositionMode !== 'disabled') {
+    context.table.set(tableKey, {
+      bestAction,
+      depth,
+      flag,
+      score: bestScore,
+    });
+  }
 
   if (bestAction) {
     context.pvMoveByDepth.set(currentDepth, actionId(bestAction));

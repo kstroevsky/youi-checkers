@@ -116,7 +116,10 @@ export function getQuiescenceMoves(
   }
 
   const ttBestAction =
-    context.table.get(makeTableKey(state))?.bestAction ?? null;
+    (context.transpositionMode === 'disabled'
+      ? null
+      : context.table.get(makeTableKey(state, context.transpositionMode))
+          ?.bestAction) ?? null;
   const ordered = orderMoves(
     state,
     state.currentPlayer,

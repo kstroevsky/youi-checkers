@@ -64,6 +64,7 @@ function createSearchContext(): SearchContext {
     quiescenceDepthLimit: 8,
     ruleConfig: withConfig(),
     table: new Map(),
+    transpositionMode: 'current',
   };
 }
 
