@@ -1,0 +1,30 @@
+{
+  "analysis": {
+    "activeReplayExplorationShare": 0.2,
+    "heldoutParticipantShare": 0.2,
+    "model": "regularized mixed-effects Bradley-Terry approximation",
+    "preferencePrimary": true,
+    "propensityWeightCap": 10
+  },
+  "blinding": {
+    "conditionLabels": ["condition-1", "condition-2"],
+    "policyMappingPrivateUntilLock": true
+  },
+  "design": {
+    "fullGame": "within-participant counterbalanced crossover",
+    "replay": "blinded paired preference with random-exploration floor"
+  },
+  "exclusions": [
+    "duplicate participant/session identifiers",
+    "missing comparison outcome",
+    "invalid response range",
+    "failed preregistered attention check"
+  ],
+  "instruments": {
+    "experience": "miniPXI constructs scored separately",
+    "overallPreference": "left, right, or tie"
+  },
+  "minimumParticipantsBeforeConfirmatoryFit": 48,
+  "protocolId": "human-ai-calibration-v1",
+  "version": 1
+}

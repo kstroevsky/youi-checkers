@@ -179,9 +179,9 @@ The repository also keeps historical comparison artifacts:
 
 The comparison file is now generated from JSON by [`scripts/compare-perf-reports.mjs`](../scripts/compare-perf-reports.mjs). That keeps the comparison reproducible and prevents the Markdown from drifting away from the underlying measurements.
 
-## AI Variety Report Pipeline
+## Legacy AI Behavior Regression Pipeline
 
-[`scripts/ai-variety.report.ts`](../scripts/ai-variety.report.ts) runs the offline self-play behavior suite defined in [`src/ai/test/metrics.ts`](../src/ai/test/metrics.ts).
+[`scripts/ai-variety.report.ts`](../scripts/ai-variety.report.ts) runs the offline self-play behavior suite defined in [`src/ai/test/metrics.ts`](../src/ai/test/metrics.ts). Its filename and command remain stable for compatibility, but its composite, drama, and tension values are uncalibrated trace proxies—not measures of player enjoyment and not release gates.
 
 Outputs:
 
@@ -211,7 +211,7 @@ The current harness intentionally exercises the same product behavior that ships
 - each search trace records the returned `behaviorProfileId` and `riskMode`;
 - late or stagnating games therefore show up in the report as deliberate style/risk changes rather than as unexplained variance.
 
-The Markdown summary is intentionally opinionated rather than exhaustive. It now foregrounds decisive-play health through `decisiveResultShare` alongside repetition, stagnation, decompression, mobility release, tension, and composite interestingness. Participation is guarded directly through `meanParticipationDelta` and `positiveParticipationPlyShare`; these values are aggregated from every traced selected candidate and are checked against the versioned baseline.
+The Markdown summary is intentionally opinionated rather than exhaustive. It foregrounds decisive-play health alongside repetition, stagnation, decompression, mobility release, and the explicitly legacy composite proxies. Participation is guarded directly through `meanParticipationDelta` and `positiveParticipationPlyShare`; these values are aggregated from every traced selected candidate and are checked against the versioned baseline.
 
 The complementary stage report exists because the aggregate suite can hide where a behavioral change really helps or hurts. `npm run ai:stage-variety` reruns the same mirrored self-play metrics from all six performance scenarios: the normal opening, two seeded realistic midgames, two deterministic loop-pressure positions, and one sparse late loop position. Each fixture is generated with draws disabled and then normalized into a playable continuation state by keeping the six most recent history records, rebuilding repetition counts from that window, and clearing terminal status; otherwise the shipped threefold rule can make a loop-derived imported position terminal before the AI is evaluated. The report also summarizes `riskMode` activation shares, so a latency change can be interpreted alongside the amount of actual stagnation/late-risk behavior being exercised. Because the normalization intentionally discards long-range repetition memory, early `stagnation` activation can look weaker there than on raw full-history loop fixtures; the stage report and perf fixtures should therefore be read together.
 
@@ -221,6 +221,7 @@ The wider report family exists because "interestingness" is not one scalar:
 - `npm run ai:loop-benchmark` isolates the cyclic late-stage fixtures and measures recurrence, laminarity, trapping time, loop-escape rates, and symbolic complexity.
 - `npm run ai:position-buckets` aggregates scenarios into structural buckets (`opening`, `congested`, `loopPressure`, `conversionRace`, `lateSparse`) so one pathological fixture does not overrule the whole judgment.
 - `npm run ai:threat` measures pressure creation directly from chosen moves: freeze swings, frontier compression, and certified risk progress.
+- `npm run ai:strength` measures complete-game point share against versioned deterministic references using seeded color swaps; `ai:strength:compare-files` supplies the non-inferiority and censoring gates.
 
 `pnpm ai:measure` is the validity layer in front of that family. It gives search
 experiments an explicit fixed-depth, fixed-node, wall-clock, or shipped-preset
@@ -243,9 +244,10 @@ When the intended shipped AI behavior changes materially, the workflow is:
 1. run `npm run ai:variety`;
 2. run `npm run ai:stage-variety` when a change is specifically meant to affect flat midgame or late-game behavior;
 3. run one or more focused pipelines (`ai:loop-benchmark`, `ai:threat`, `ai:position-buckets`, `ai:crossplay`) when the change claims to improve loops, pressure, or style diversity rather than only aggregate variety;
-4. inspect the generated JSON and Markdown;
-5. update `src/ai/test/fixtures/ai-variety-baselines.json` only if the new aggregate behavior is the new accepted baseline;
-6. keep `src/ai/test/fixtures/ai-variety-target-bands.json` as the longer-lived product target file rather than rewriting it for every iteration.
+4. run identical retained baseline/candidate `ai:strength` workloads and apply `ai:strength:compare-files` before accepting a strategy change;
+5. inspect the generated JSON and Markdown;
+6. update `src/ai/test/fixtures/ai-variety-baselines.json` only if the new aggregate behavior is the new accepted baseline;
+7. keep `src/ai/test/fixtures/ai-variety-target-bands.json` as the longer-lived product target file rather than rewriting it for every iteration.
 
 ## Git-Aware Report Comparison
 
@@ -282,6 +284,8 @@ The repository exposes the infrastructure/report commands through `package.json`
 - `npm run ai:loop-benchmark`
 - `npm run ai:measure`
 - `npm run ai:measure:compare-files`
+- `npm run ai:strength`
+- `npm run ai:strength:compare-files`
 - `npm run ai:position-buckets`
 - `npm run perf:report`
 - `npm run perf:compare`

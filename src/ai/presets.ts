@@ -1,12 +1,18 @@
 import type { AiDifficultyPreset } from '@/ai/types';
 
 /** Exact product difficulty presets used by the browser worker and the tests. */
-export const AI_DIFFICULTY_PRESETS: Record<'easy' | 'medium' | 'hard', AiDifficultyPreset> = {
+export const AI_DIFFICULTY_PRESETS: Record<
+  'easy' | 'medium' | 'hard',
+  AiDifficultyPreset
+> = {
   easy: {
     drawAversionAhead: 220,
     drawAversionBehindRelief: 70,
     familyVarietyWeight: 30,
     frontierWidthWeight: 20,
+    // Easier play may explore a visibly broader set of credible plans, but the
+    // absolute ceiling prevents opening/risk band boosts from admitting blunders.
+    maxSelectionRegret: 960,
     timeBudgetMs: 250,
     maxDepth: 2,
     participationBias: 14,
@@ -42,6 +48,7 @@ export const AI_DIFFICULTY_PRESETS: Record<'easy' | 'medium' | 'hard', AiDifficu
     drawAversionBehindRelief: 60,
     familyVarietyWeight: 42,
     frontierWidthWeight: 28,
+    maxSelectionRegret: 480,
     timeBudgetMs: 800,
     maxDepth: 4,
     participationBias: 18,
@@ -79,6 +86,8 @@ export const AI_DIFFICULTY_PRESETS: Record<'easy' | 'medium' | 'hard', AiDifficu
     drawAversionBehindRelief: 50,
     familyVarietyWeight: 56,
     frontierWidthWeight: 36,
+    // Hard keeps style inside a narrow score band even when confidence is low.
+    maxSelectionRegret: 240,
     timeBudgetMs: 2_000,
     maxDepth: 6,
     participationBias: 24,
@@ -106,7 +115,9 @@ export const AI_DIFFICULTY_PRESETS: Record<'easy' | 'medium' | 'hard', AiDifficu
     stagnationRepetitionWeight: 18,
     stagnationSelfUndoWeight: 18,
     stagnationThreshold: 0.5,
-    varietyTemperature: 0.15,
+    // Keep strong near-best choices visibly distributed across source families;
+    // the regret ceiling still bounds every stylistic selection to 240 points.
+    varietyTemperature: 0.22,
     varietyThreshold: 0.015,
     varietyTopCount: 3,
   },

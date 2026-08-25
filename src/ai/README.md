@@ -842,9 +842,9 @@ The metric vocabulary in [`test/metrics.ts`](./test/metrics.ts) is intentionally
 | `meanBoardDisplacement`         | average number of changed cells per ply                                                                                                     |
 | `meanParticipationDelta`        | mean signed contribution of the chosen moves' participation profiles; preserves the actual heuristic signal, not merely move diversity      |
 | `positiveParticipationPlyShare` | share of plies whose chosen move has `participationDelta > 0`; guards against broad averages hiding consistently non-positive participation |
-| `drama`                         | mean absolute score swing between consecutive plies                                                                                         |
-| `tension`                       | average closeness of normalized scores to zero                                                                                              |
-| `compositeInterestingness`      | target-band composite built from opening diversity, repetition pressure, decompression, drama, and decisive-result share                    |
+| `drama`                         | legacy, uncalibrated mean absolute score swing between consecutive plies                                                                    |
+| `tension`                       | legacy, uncalibrated average closeness of normalized scores to zero                                                                         |
+| `compositeInterestingness`      | legacy, uncalibrated target-band proxy; useful for regression triage, not as an enjoyment claim or release gate                             |
 | `behaviorSpaceCoverage`         | fraction of coarse behavior bins actually occupied by the trace set                                                                         |
 
 The newer nonlinear metrics in [`test/advancedMetrics.ts`](./test/advancedMetrics.ts) answer a different question: not "did the engine vary?" but "what kind of dynamical system did the trace behave like?" Those metrics are used by the loop, threat, cross-play, and position-bucket reports:
@@ -855,13 +855,13 @@ The newer nonlinear metrics in [`test/advancedMetrics.ts`](./test/advancedMetric
 | `recurrenceDeterminism`   | share of recurrence points that lie on diagonal replay lines rather than isolated revisits       |
 | `recurrenceLaminarity`    | share of recurrence points that lie on vertical dwell lines, which is a strong loop/stall signal |
 | `trappingTime`            | average vertical dwell length inside recurrence plots                                            |
-| `scoreSampleEntropy`      | irregularity of the evaluation-score time series under tolerance-based matching                  |
+| `scoreSampleEntropy`      | irregularity of eligible evaluation-score series; `null` means no finite estimate, with an explicit trace count |
 | `scorePermutationEntropy` | ordinal complexity of local score windows, insensitive to absolute scale                         |
-| `positionLempelZiv`       | symbolic complexity of the visited-position sequence                                             |
-| `loopEscapeRate8/16/24`   | share of traces that break repetition/undo pressure within the next 8, 16, or 24 plies           |
+| `positionLempelZiv`       | token-level symbolic complexity of the visited-position sequence, invariant to token spelling    |
+| `loopEscapeRate8/16/24`   | share of loop-pressure-eligible traces that escape within 8, 16, or 24 plies; eligibility N is reported |
 | `meanLoopEscapePly`       | average number of plies needed to escape once loop pressure becomes active                       |
-| `pressureEventRate`       | share of plies that create freeze pressure, frontier compression, or direct conversion pressure  |
-| `frontierCompressionRate` | how often the chosen move shrinks the opponent reply frontier                                    |
+| `pressureEventRate`       | share of plies that create freeze pressure, candidate-relative opponent-reply compression, or direct conversion pressure |
+| `frontierCompressionRate` | mean positive log reduction of opponent replies versus the median legal root candidate; terminal/continuation plies are excluded |
 | `riskProgressShare`       | share of risk-mode plies that satisfy the engine's certified progress test                       |
 
 ### Report comparison wrappers
@@ -873,6 +873,46 @@ path taken; preserves raw candidates/diagnostics; and keeps search, outcomes,
 behavior, spatial equivariance, and human experience as separate evidence
 families. See [`docs/ai-measurement.md`](../../docs/ai-measurement.md) for the
 contract and commands.
+
+For branch-wide outcome comparisons, the Node-only `AiPolicy` layer runs the
+current engine and the merge-base `LegacyPolicyV0` inside the same current match
+harness. The legacy adapter executes immutable old AI sources against current,
+fingerprinted domain rules; seeded sessions, fixed-node budgets, starting states,
+horizons, adjudication, and color swaps therefore remain common. Older report
+schemas are not used as the baseline implementation.
+
+`npm run ai:policy-strength -- --profile=full` drives that boundary through the
+versioned current-versus-legacy protocol. Fixed-horizon adjudicated color swaps
+form pentanomial observations; sequential likelihood checks occur only at
+complete frozen-allocation blocks and answer an explicitly selected
+non-inferiority, equivalence, or superiority question. Natural resolution is
+reported separately. The protocol and allocation manifests live beside the AI
+measurement fixtures and are included in provenance hashes.
+
+`npm run ai:human-calibration -- --input=<observations.jsonl>` is the distinct
+player-experience layer. It validates blinded full-game/replay observations,
+keeps miniPXI constructs separate, fits a propensity-weighted regularized
+mixed-effects Bradley–Terry approximation, and reports performance on held-out
+participants. Counterbalanced public assignments and private policy mappings are
+generated separately; uncertainty-based replay selection always retains a
+random-exploration floor. Synthetic smoke data cannot satisfy the preregistered
+48-participant confirmatory minimum.
+
+The companion `ai:competence` command owns tactical correctness and equal-work
+strength curves. It validates rule-derived unique wins/defenses under true
+mirrors, searches each subject at increasing fixed-node budgets, and rescores
+the chosen action against a complete deeper root. Its regret, catastrophic-error,
+fallback, completed-root, partial-depth, and missing-oracle denominators remain separate from
+the behavioral dashboards; confirmatory gates inspect only the largest measured
+budget for each difficulty.
+
+The game-level `ai:strength` protocol then evaluates retained revisions against
+the same checksummed, deterministic opponent pool. Its raw unit is a seeded
+color-swapped game pair; unfinished games remain censored. The paired file
+comparator equal-weights fixture × reference strata, reports fixed-portfolio and
+hierarchical bootstrap intervals, and requires both point-share and resolved-
+pair-share non-inferiority. This is the long-horizon strength gate; it is still
+not a substitute for human challenge, flow, or enjoyment evidence.
 
 [`scripts/run-git-report-compare.mjs`](../../scripts/run-git-report-compare.mjs) is the generic compare entry point behind the `*:compare` npm scripts. It materializes the `before` and `after` snapshots, reruns the requested pipeline for each snapshot, flattens the numeric leaves of both JSON reports, and emits a Markdown diff under `output/`.
 

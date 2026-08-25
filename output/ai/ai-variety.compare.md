@@ -1,233 +1,278 @@
 # AI Variety Comparison
 
-Generated: 2026-03-28T23:30:42.115Z
+Generated: 2026-08-09T17:12:57.684Z
 
 This file is a generated comparison artifact between two JSON report snapshots.
-- Before: `5607638` (../../../../../var/folders/3v/x1mcnkjx34v_q3qbx98mhd_40000gn/T/youi-report-compare-5aAgqU/output/ai/ai-variety-report.json)
+- Before: `69872da` (../../../../../var/folders/3v/x1mcnkjx34v_q3qbx98mhd_40000gn/T/youi-report-compare-BGEye1/output/ai/ai-variety-report.json)
 - After: `working-tree` (output/ai/ai-variety-report.json)
 - `delta` is `after - before`.
 - `delta%` is relative to the absolute `before` value when `before != 0`; otherwise it is `n/a`.
 - Improvement direction is metric-specific; use the target bands and AI variety semantics from `src/ai/test/metrics.ts`.
 
 ## Summary
-- Numeric metrics compared: 203
+- Numeric metrics compared: 248
 - Top absolute changes surfaced below: 10
 
 ## Largest Changes
-- `regressions.medium.1.threshold`: 0.000001 -> 0.01679 (+0.016789, +1678900%)
-- `summaries.medium.metrics.noveltyScore`: 0.000137 -> 0.139881 (+0.139744, +102002.92%)
-- `summaries.easy.games.terminalCounts.unfinished`: 1 -> 62 (+61, +6100%)
-- `summaries.easy.samples.terminalDistribution.unfinished`: 1 -> 62 (+61, +6100%)
-- `summaries.easy.metrics.uniqueOpeningLineShare`: 0.015625 -> 0.171875 (+0.15625, +1000%)
-- `summaries.hard.metrics.uniqueOpeningLineShare`: 0.015625 -> 0.109375 (+0.09375, +600%)
-- `summaries.easy.metrics.noveltyScore`: 0.027098 -> 0.186562 (+0.159464, +588.47%)
-- `summaries.medium.metrics.uniqueOpeningLineShare`: 0.015625 -> 0.09375 (+0.078125, +500%)
-- `summaries.hard.metrics.compositeInterestingness`: 0.01 -> 0.044566 (+0.034566, +345.66%)
-- `summaries.medium.metrics.compositeInterestingness`: 0.01 -> 0.044485 (+0.034484999999999995, +344.85%)
+- `summaries.medium.samples.strategicIntentDistribution.home`: 967 -> 2639 (+1672, +172.91%)
+- `summaries.hard.samples.strategicIntentDistribution.home`: 1437 -> 3018 (+1581, +110.02%)
+- `summaries.hard.samples.strategicIntentDistribution.hybrid`: 2014 -> 192 (-1822, -90.47%)
+- `summaries.medium.samples.strategicIntentDistribution.hybrid`: 2014 -> 192 (-1822, -90.47%)
+- `summaries.easy.samples.strategicIntentDistribution.hybrid`: 1955 -> 192 (-1763, -90.18%)
+- `summaries.easy.samples.strategicIntentDistribution.home`: 1551 -> 2905 (+1354, +87.3%)
+- `summaries.hard.metrics.intentSwitchRate`: 0.199119 -> 0.036258 (-0.16286099999999998, -81.79%)
+- `summaries.easy.metrics.intentSwitchRate`: 0.241587 -> 0.047476 (-0.194111, -80.35%)
+- `summaries.medium.metrics.intentSwitchRate`: 0.192508 -> 0.047877 (-0.144631, -75.13%)
+- `summaries.easy.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:C5:C3 | jumpSequence:E3:C5 | jumpSequence:E5:E3 | jumpSequence:C5:E5 | climbOne:F4:F3 | jumpSequence:D2:F4 | jumpSequence:A5:C5 | jumpSequence:A3:A5 | jumpSequence:C3:A3`: 3 -> 4 (+1, +33.33%)
 
 ## Full Comparison
 | metric | before | after | delta | delta% |
 | --- | ---: | ---: | ---: | ---: |
-| regressions.medium.1.threshold | 0.000001 | 0.01679 | +0.016789 | +1678900% |
-| summaries.medium.metrics.noveltyScore | 0.000137 | 0.139881 | +0.139744 | +102002.92% |
-| summaries.easy.games.terminalCounts.unfinished | 1 | 62 | +61 | +6100% |
-| summaries.easy.samples.terminalDistribution.unfinished | 1 | 62 | +61 | +6100% |
-| summaries.easy.metrics.uniqueOpeningLineShare | 0.015625 | 0.171875 | +0.15625 | +1000% |
-| summaries.hard.metrics.uniqueOpeningLineShare | 0.015625 | 0.109375 | +0.09375 | +600% |
-| summaries.easy.metrics.noveltyScore | 0.027098 | 0.186562 | +0.159464 | +588.47% |
-| summaries.medium.metrics.uniqueOpeningLineShare | 0.015625 | 0.09375 | +0.078125 | +500% |
-| summaries.hard.metrics.compositeInterestingness | 0.01 | 0.044566 | +0.034566 | +345.66% |
-| summaries.medium.metrics.compositeInterestingness | 0.01 | 0.044485 | +0.034484999999999995 | +344.85% |
-| summaries.easy.samples.strategicIntentDistribution.sixStack | 495 | 1791 | +1296 | +261.82% |
-| summaries.medium.metrics.behaviorSpaceCoverage | 0.002976 | 0.008929 | +0.005953 | +200.03% |
-| summaries.medium.samples.strategicIntentDistribution.home | 576 | 1702 | +1126 | +195.49% |
-| summaries.easy.samples.strategicIntentDistribution.home | 651 | 1724 | +1073 | +164.82% |
-| summaries.hard.samples.strategicIntentDistribution.home | 594 | 1494 | +900 | +151.52% |
-| summaries.medium.metrics.mobilityReleaseSlope | -0.090476 | 0.014937 | +0.105413 | +116.51% |
-| summaries.easy.metrics.mobilityReleaseSlope | -0.090476 | 0.012798 | +0.103274 | +114.15% |
-| summaries.hard.metrics.mobilityReleaseSlope | -0.090476 | 0.011031 | +0.101507 | +112.19% |
-| summaries.easy.metrics.compositeInterestingness | 0.021204 | 0.044508 | +0.023304 | +109.9% |
-| summaries.easy.games.averagePlies | 39.3125 | 79.40625 | +40.09375 | +101.99% |
-| summaries.easy.games.terminalCounts.threefoldDraw | 56 | 0 | -56 | -100% |
-| summaries.easy.metrics.openingJsDivergence | 1 | 0 | -1 | -100% |
-| summaries.easy.metrics.threefoldDrawShare | 0.875 | 0 | -0.875 | -100% |
-| summaries.easy.samples.terminalDistribution.threefoldDraw | 56 | 0 | -56 | -100% |
-| summaries.hard.games.terminalCounts.threefoldDraw | 3 | 0 | -3 | -100% |
-| summaries.hard.metrics.openingJsDivergence | 1 | 0 | -1 | -100% |
-| summaries.hard.metrics.threefoldDrawShare | 0.046875 | 0 | -0.046875 | -100% |
-| summaries.hard.samples.terminalDistribution.threefoldDraw | 3 | 0 | -3 | -100% |
-| summaries.medium.metrics.openingJsDivergence | 1 | 0 | -1 | -100% |
-| regressions.hard.0.threshold | 5.500001 | 0.000001 | -5.5 | -100% |
-| regressions.easy.0.current | 8 | 0.012798 | -7.987202 | -99.84% |
-| regressions.easy.0.threshold | 5.500001 | 0.013777 | -5.486224 | -99.75% |
-| regressions.hard.0.current | 8 | 0.027184 | -7.972816 | -99.66% |
-| summaries.medium.metrics.homeProgressAuc | 0.097917 | 0.194422 | +0.09650500000000001 | +98.56% |
-| summaries.easy.metrics.repetitionPlyShare | 0.197933 | 0.003148 | -0.19478499999999999 | -98.41% |
-| regressions.hard.1.current | 0.545687 | 0.011031 | -0.534656 | -97.98% |
-| regressions.medium.0.threshold | 0.412501 | 0.011958 | -0.400543 | -97.1% |
-| summaries.hard.metrics.repetitionPlyShare | 0.006381 | 0.000195 | -0.0061860000000000005 | -96.94% |
-| regressions.hard.1.threshold | 0.412501 | 0.013275 | -0.399226 | -96.78% |
-| summaries.hard.metrics.homeProgressAuc | 0.097515 | 0.19133 | +0.093815 | +96.21% |
-| regressions.medium.0.current | 0.546667 | 0.028322 | -0.5183450000000001 | -94.82% |
-| summaries.easy.metrics.homeProgressAuc | 0.091266 | 0.177398 | +0.086132 | +94.37% |
-| summaries.medium.metrics.decompressionSlope | 0.003968 | 0.00031 | -0.0036580000000000002 | -92.19% |
-| summaries.easy.metrics.decompressionSlope | 0.003968 | 0.000434 | -0.0035340000000000002 | -89.06% |
-| summaries.easy.metrics.maxRepeatedStateRun | 8 | 1 | -7 | -87.5% |
-| summaries.hard.metrics.maxRepeatedStateRun | 8 | 1 | -7 | -87.5% |
-| summaries.hard.metrics.decompressionSlope | 0.003968 | 0.000744 | -0.0032240000000000003 | -81.25% |
-| summaries.easy.games.terminalCounts.threefoldTiebreakWin | 7 | 2 | -5 | -71.43% |
-| summaries.easy.metrics.decisiveResultShare | 0.109375 | 0.03125 | -0.078125 | -71.43% |
-| summaries.easy.samples.terminalDistribution.threefoldTiebreakWin | 7 | 2 | -5 | -71.43% |
-| summaries.easy.samples.firstMoveDistribution.climbOne:C3:B4 | 64 | 21 | -43 | -67.19% |
-| summaries.easy.samples.firstMoveSourceFamilyDistribution.white-15 | 64 | 21 | -43 | -67.19% |
-| summaries.hard.samples.firstMoveDistribution.climbOne:C3:B4 | 64 | 21 | -43 | -67.19% |
-| summaries.hard.samples.firstMoveSourceFamilyDistribution.white-15 | 64 | 21 | -43 | -67.19% |
-| summaries.medium.samples.firstMoveDistribution.climbOne:C3:B4 | 64 | 21 | -43 | -67.19% |
-| summaries.medium.samples.firstMoveSourceFamilyDistribution.white-15 | 64 | 21 | -43 | -67.19% |
-| summaries.easy.metrics.twoPlyUndoRate | 0.117647 | 0.040929 | -0.07671800000000001 | -65.21% |
-| regressions.medium.1.current | 0.0375 | 0.014937 | -0.022563 | -60.17% |
-| summaries.hard.metrics.twoPlyUndoRate | 0.039681 | 0.063281 | +0.023600000000000003 | +59.47% |
-| summaries.medium.samples.strategicIntentDistribution.hybrid | 3008 | 1421 | -1587 | -52.76% |
-| summaries.hard.samples.strategicIntentDistribution.hybrid | 2944 | 1463 | -1481 | -50.31% |
-| summaries.medium.metrics.twoPlyUndoRate | 0.0375 | 0.056106 | +0.018606000000000004 | +49.62% |
-| summaries.hard.samples.strategicIntentDistribution.sixStack | 1477 | 2163 | +686 | +46.45% |
-| summaries.hard.metrics.drama | 0.801858 | 1.160997 | +0.3591390000000001 | +44.79% |
-| summaries.hard.metrics.leadChangeRate | 0.405818 | 0.580498 | +0.17467999999999995 | +43.04% |
-| summaries.medium.metrics.leadChangeRate | 0.392405 | 0.560601 | +0.168196 | +42.86% |
-| summaries.easy.metrics.normalizedLempelZiv | 4.530825 | 2.592853 | -1.9379720000000002 | -42.77% |
-| summaries.medium.metrics.drama | 0.78481 | 1.118474 | +0.33366399999999996 | +42.52% |
-| summaries.hard.metrics.sourceFamilyOpeningHhi | 0.398926 | 0.25415 | -0.14477600000000002 | -36.29% |
-| summaries.medium.metrics.sourceFamilyOpeningHhi | 0.398926 | 0.261475 | -0.137451 | -34.46% |
-| summaries.easy.metrics.sourceFamilyOpeningHhi | 0.385742 | 0.260498 | -0.12524399999999997 | -32.47% |
-| summaries.hard.metrics.stackProfileChurn | 0.004841 | 0.00638 | +0.0015390000000000004 | +31.79% |
-| summaries.medium.samples.strategicIntentDistribution.sixStack | 1536 | 1921 | +385 | +25.07% |
-| summaries.hard.metrics.stagnationWindowRate | 0.545687 | 0.4225 | -0.12318700000000005 | -22.57% |
-| summaries.easy.metrics.frozenCountChurn | 0.015379 | 0.018819 | +0.0034399999999999986 | +22.37% |
-| summaries.easy.metrics.sameFamilyQuietRepeatRate | 0.027397 | 0.033268 | +0.005870999999999998 | +21.43% |
-| summaries.easy.metrics.intentSwitchRate | 0.599918 | 0.478278 | -0.12163999999999997 | -20.28% |
-| summaries.easy.metrics.gameRefinement | 0.150784 | 0.120265 | -0.030519000000000004 | -20.24% |
-| summaries.easy.metrics.leadChangeRate | 0.662048 | 0.550574 | -0.11147399999999996 | -16.84% |
-| summaries.easy.metrics.drama | 1.320555 | 1.099641 | -0.22091399999999983 | -16.73% |
-| summaries.hard.metrics.noveltyScore | 0.049756 | 0.057792 | +0.008036000000000001 | +16.15% |
-| summaries.easy.samples.strategicIntentDistribution.hybrid | 1370 | 1567 | +197 | +14.38% |
-| summaries.medium.metrics.stackProfileChurn | 0.004861 | 0.005518 | +0.0006570000000000005 | +13.52% |
-| summaries.medium.metrics.normalizedLempelZiv | 2.844868 | 2.52605 | -0.3188179999999998 | -11.21% |
-| summaries.medium.metrics.intentSwitchRate | 0.443038 | 0.491365 | +0.04832700000000001 | +10.91% |
-| summaries.easy.metrics.stagnationWindowRate | 0.415756 | 0.459681 | +0.04392499999999999 | +10.57% |
-| summaries.medium.metrics.stagnationWindowRate | 0.546667 | 0.490898 | -0.05576900000000001 | -10.2% |
-| summaries.hard.metrics.normalizedLempelZiv | 2.900297 | 2.664594 | -0.235703 | -8.13% |
-| summaries.easy.metrics.meanBoardDisplacement | 0.069522 | 0.074375 | +0.004852999999999996 | +6.98% |
-| summaries.medium.games.terminalCounts.unfinished | 64 | 60 | -4 | -6.25% |
-| summaries.medium.samples.terminalDistribution.unfinished | 64 | 60 | -4 | -6.25% |
-| summaries.hard.games.terminalCounts.unfinished | 61 | 64 | +3 | +4.92% |
-| summaries.hard.samples.terminalDistribution.unfinished | 61 | 64 | +3 | +4.92% |
-| summaries.easy.metrics.stackProfileChurn | 0.005918 | 0.006155 | +0.00023700000000000023 | +4% |
-| summaries.medium.games.terminalCounts.threefoldTiebreakWin | 0 | 4 | +4 | n/a |
-| summaries.medium.samples.terminalDistribution.threefoldTiebreakWin | 0 | 4 | +4 | n/a |
-| summaries.hard.games.averagePlies | 78.359375 | 80 | +1.640625 | +2.09% |
-| summaries.easy.metrics.openingEntropy | 0 | 1.584612 | +1.584612 | n/a |
-| summaries.hard.metrics.openingEntropy | 0 | 1.584612 | +1.584612 | n/a |
-| summaries.medium.metrics.openingEntropy | 0 | 1.584612 | +1.584612 | n/a |
-| summaries.medium.games.averagePlies | 80 | 78.8125 | -1.1875 | -1.48% |
-| summaries.hard.metrics.frozenCountChurn | 0.01937 | 0.019097 | -0.00027299999999999894 | -1.41% |
-| summaries.medium.metrics.meanBoardDisplacement | 0.074305 | 0.075128 | +0.0008230000000000043 | +1.11% |
-| summaries.medium.metrics.maxRepeatedStateRun | 0 | 1 | +1 | n/a |
-| summaries.easy.metrics.openingSimpsonDiversity | 0 | 0.666504 | +0.666504 | n/a |
-| summaries.hard.metrics.openingSimpsonDiversity | 0 | 0.666504 | +0.666504 | n/a |
-| summaries.medium.metrics.openingSimpsonDiversity | 0 | 0.666504 | +0.666504 | n/a |
-| summaries.medium.metrics.frozenCountChurn | 0.019445 | 0.019572 | +0.00012699999999999864 | +0.65% |
-| summaries.hard.metrics.meanBoardDisplacement | 0.074216 | 0.074653 | +0.00043699999999999295 | +0.59% |
-| summaries.hard.metrics.intentSwitchRate | 0.44698 | 0.4464 | -0.0005799999999999694 | -0.13% |
-| summaries.medium.metrics.gameRefinement | 0 | 0.120265 | +0.120265 | n/a |
-| summaries.medium.metrics.decisiveResultShare | 0 | 0.0625 | +0.0625 | n/a |
-| summaries.medium.metrics.sameFamilyQuietRepeatRate | 0 | 0.028322 | +0.028322 | n/a |
-| summaries.hard.metrics.sameFamilyQuietRepeatRate | 0 | 0.027184 | +0.027184 | n/a |
-| summaries.hard.metrics.sixStackProgressAuc | 0 | 0.02513 | +0.02513 | n/a |
-| summaries.medium.metrics.sixStackProgressAuc | 0 | 0.008789 | +0.008789 | n/a |
-| summaries.easy.metrics.sixStackProgressAuc | 0 | 0.007308 | +0.007308 | n/a |
-| summaries.medium.metrics.repetitionPlyShare | 0 | 0.002379 | +0.002379 | n/a |
-| summaries.easy.metrics.lateSuspense | 0 | 0.000027 | +0.000027 | n/a |
-| summaries.easy.metrics.tension | 0 | 0.000019 | +0.000019 | n/a |
-| baselineVersion | 1 | 1 | 0 | 0% |
+| summaries.medium.samples.strategicIntentDistribution.home | 967 | 2639 | +1672 | +172.91% |
+| summaries.hard.samples.strategicIntentDistribution.home | 1437 | 3018 | +1581 | +110.02% |
+| summaries.hard.samples.strategicIntentDistribution.hybrid | 2014 | 192 | -1822 | -90.47% |
+| summaries.medium.samples.strategicIntentDistribution.hybrid | 2014 | 192 | -1822 | -90.47% |
+| summaries.easy.samples.strategicIntentDistribution.hybrid | 1955 | 192 | -1763 | -90.18% |
+| summaries.easy.samples.strategicIntentDistribution.home | 1551 | 2905 | +1354 | +87.3% |
+| summaries.hard.metrics.intentSwitchRate | 0.199119 | 0.036258 | -0.16286099999999998 | -81.79% |
+| summaries.easy.metrics.intentSwitchRate | 0.241587 | 0.047476 | -0.194111 | -80.35% |
+| summaries.medium.metrics.intentSwitchRate | 0.192508 | 0.047877 | -0.144631 | -75.13% |
+| summaries.easy.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:C5:C3 | jumpSequence:E3:C5 | jumpSequence:E5:E3 | jumpSequence:C5:E5 | climbOne:F4:F3 | jumpSequence:D2:F4 | jumpSequence:A5:C5 | jumpSequence:A3:A5 | jumpSequence:C3:A3 | 3 | 4 | +1 | +33.33% |
+| summaries.hard.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:E5:C3 | jumpSequence:E3:E5 | jumpSequence:C5:E3 | jumpSequence:E5:C5 | jumpSequence:E3:E5 | jumpSequence:C1:E3 | jumpSequence:C3:C1 | climbOne:C5:C6 | jumpSequence:E5:C3 | 10 | 13 | +3 | +30% |
+| summaries.hard.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:E5:C3 | jumpSequence:E3:E5 | jumpSequence:C5:E3 | jumpSequence:E5:C5 | jumpSequence:E3:E5 | jumpSequence:C1:E3 | jumpSequence:C3:C1 | climbOne:C5:D6 | jumpSequence:E5:C3 | 7 | 9 | +2 | +28.57% |
+| summaries.easy.samples.strategicIntentDistribution.sixStack | 1614 | 2023 | +409 | +25.34% |
+| summaries.hard.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:E5:C3 | jumpSequence:E3:E5 | jumpSequence:C5:E3 | jumpSequence:E5:C5 | jumpSequence:E3:E5 | jumpSequence:C1:E3 | jumpSequence:C3:C1 | climbOne:C5:B6 | jumpSequence:E5:C3 | 25 | 20 | -5 | -20% |
+| summaries.hard.metrics.twoPlyUndoRate | 0.046289 | 0.05332 | +0.0070310000000000025 | +15.19% |
+| summaries.hard.samples.strategicIntentDistribution.sixStack | 1669 | 1910 | +241 | +14.44% |
+| summaries.easy.metrics.noveltyScore | 0.131877 | 0.149981 | +0.01810400000000001 | +13.73% |
+| summaries.easy.metrics.uniqueOpeningLineShare | 0.140625 | 0.125 | -0.015625 | -11.11% |
+| regressions.hard.0.current | 0.048223 | 0.044665 | -0.0035579999999999987 | -7.38% |
+| summaries.hard.metrics.sameFamilyQuietRepeatRate | 0.048223 | 0.044665 | -0.0035579999999999987 | -7.38% |
+| summaries.medium.samples.strategicIntentDistribution.sixStack | 2139 | 2289 | +150 | +7.01% |
+| summaries.medium.metrics.noveltyScore | 0.090063 | 0.08425 | -0.005812999999999999 | -6.45% |
+| summaries.hard.metrics.noveltyScore | 0.049467 | 0.052511 | +0.003044000000000005 | +6.15% |
+| summaries.hard.metrics.repetitionPlyShare | 0.006836 | 0.006445 | -0.00039099999999999985 | -5.72% |
+| summaries.medium.metrics.repetitionPlyShare | 0.004297 | 0.004492 | +0.00019500000000000073 | +4.54% |
+| summaries.hard.metrics.sixStackProgressAuc | 0.203809 | 0.210775 | +0.006966 | +3.42% |
+| summaries.easy.metrics.sameFamilyQuietRepeatRate | 0.004914 | 0.004773 | -0.00014099999999999963 | -2.87% |
+| regressions.hard.5.current | 0.283203 | 0.291016 | +0.007813000000000014 | +2.76% |
+| summaries.hard.metrics.positiveParticipationPlyShare | 0.283203 | 0.291016 | +0.007813000000000014 | +2.76% |
+| summaries.hard.metrics.drama | 1.132911 | 1.162184 | +0.029273000000000104 | +2.58% |
+| summaries.hard.metrics.leadChangeRate | 0.566456 | 0.581092 | +0.014636000000000093 | +2.58% |
+| summaries.hard.metrics.stackProfileChurn | 0.005143 | 0.005263 | +0.00012000000000000031 | +2.33% |
+| summaries.hard.metrics.stagnationWindowRate | 0.505625 | 0.494167 | -0.011457999999999968 | -2.27% |
+| summaries.hard.metrics.meanParticipationDelta | 102.171484 | 104.446289 | +2.2748049999999864 | +2.23% |
+| regressions.medium.0.current | 0.065957 | 0.064516 | -0.0014409999999999978 | -2.18% |
+| summaries.medium.metrics.sameFamilyQuietRepeatRate | 0.065957 | 0.064516 | -0.0014409999999999978 | -2.18% |
+| summaries.easy.metrics.homeProgressAuc | 0.186252 | 0.182259 | -0.0039929999999999966 | -2.14% |
+| summaries.easy.metrics.stackProfileChurn | 0.006142 | 0.006272 | +0.0001299999999999999 | +2.12% |
+| regressions.medium.2.current | 0.0875 | 0.089258 | +0.0017580000000000096 | +2.01% |
+| summaries.medium.metrics.twoPlyUndoRate | 0.0875 | 0.089258 | +0.0017580000000000096 | +2.01% |
+| summaries.easy.metrics.sixStackProgressAuc | 0.177897 | 0.18125 | +0.003352999999999995 | +1.88% |
+| summaries.medium.metrics.meanParticipationDelta | 72.509961 | 71.700391 | -0.8095700000000079 | -1.12% |
+| summaries.hard.metrics.frozenCountChurn | 0.019314 | 0.019103 | -0.00021100000000000285 | -1.09% |
+| summaries.easy.metrics.stagnationWindowRate | 0.39625 | 0.392083 | -0.004166999999999976 | -1.05% |
+| summaries.hard.metrics.normalizedLempelZiv | 0.986566 | 0.99521 | +0.008643999999999985 | +0.88% |
+| summaries.easy.metrics.positiveParticipationPlyShare | 0.406836 | 0.40332 | -0.0035159999999999636 | -0.86% |
+| summaries.medium.metrics.stackProfileChurn | 0.007368 | 0.007313 | -0.00005500000000000036 | -0.75% |
+| regressions.hard.1.current | 0.416748 | 0.414063 | -0.002684999999999993 | -0.64% |
+| summaries.hard.metrics.sourceFamilyOpeningHhi | 0.416748 | 0.414063 | -0.002684999999999993 | -0.64% |
+| summaries.hard.metrics.homeProgressAuc | 0.136057 | 0.136903 | +0.0008459999999999857 | +0.62% |
+| regressions.easy.0.current | 0.373047 | 0.375244 | +0.0021970000000000045 | +0.59% |
+| summaries.easy.metrics.sourceFamilyOpeningHhi | 0.373047 | 0.375244 | +0.0021970000000000045 | +0.59% |
+| summaries.easy.metrics.frozenCountChurn | 0.018539 | 0.018636 | +0.00009699999999999986 | +0.52% |
+| summaries.easy.metrics.normalizedLempelZiv | 1.047069 | 1.052008 | +0.004939000000000027 | +0.47% |
+| summaries.medium.metrics.frozenCountChurn | 0.018408 | 0.018332 | -0.00007599999999999968 | -0.41% |
+| summaries.easy.metrics.drama | 1.445411 | 1.439873 | -0.005538000000000043 | -0.38% |
+| summaries.easy.metrics.leadChangeRate | 0.722706 | 0.719937 | -0.0027689999999999104 | -0.38% |
+| summaries.easy.metrics.twoPlyUndoRate | 0.060547 | 0.060742 | +0.00019500000000000073 | +0.32% |
+| summaries.hard.metrics.meanBoardDisplacement | 0.07487 | 0.074658 | -0.00021200000000000385 | -0.28% |
+| regressions.medium.6.current | 0.333008 | 0.332227 | -0.0007810000000000317 | -0.23% |
+| summaries.medium.metrics.positiveParticipationPlyShare | 0.333008 | 0.332227 | -0.0007810000000000317 | -0.23% |
+| summaries.medium.metrics.sixStackProgressAuc | 0.21224 | 0.211816 | -0.0004240000000000077 | -0.2% |
+| summaries.medium.metrics.leadChangeRate | 0.664161 | 0.665348 | +0.0011870000000000491 | +0.18% |
+| summaries.medium.metrics.drama | 1.328323 | 1.330696 | +0.0023730000000001805 | +0.18% |
+| summaries.easy.metrics.meanParticipationDelta | 35.301758 | 35.25332 | -0.04843799999999732 | -0.14% |
+| summaries.easy.metrics.meanBoardDisplacement | 0.074094 | 0.074192 | +0.00009800000000000086 | +0.13% |
+| summaries.medium.metrics.meanBoardDisplacement | 0.073964 | 0.073888 | -0.00007600000000000662 | -0.1% |
+| summaries.medium.metrics.homeProgressAuc | 0.149599 | 0.149523 | -0.0000760000000000205 | -0.05% |
+| summaries.medium.metrics.stagnationWindowRate | 0.409583 | 0.409375 | -0.00020799999999998597 | -0.05% |
+| baselineVersion | 2 | 2 | 0 | 0% |
+| regressions.easy.0.threshold | 0.327369 | 0.327369 | 0 | 0% |
+| regressions.easy.1.current | -0.0141 | -0.0141 | 0 | 0% |
+| regressions.easy.1.threshold | 0.013777 | 0.013777 | 0 | 0% |
+| regressions.easy.2.current | 0 | 0 | 0 | n/a |
+| regressions.easy.2.threshold | 1.42615 | 1.42615 | 0 | 0% |
+| regressions.easy.3.current | 0 | 0 | 0 | n/a |
+| regressions.easy.3.threshold | 0.599853 | 0.599853 | 0 | 0% |
+| regressions.hard.0.threshold | 0.000001 | 0.000001 | 0 | 0% |
+| regressions.hard.1.threshold | 0.335158 | 0.335158 | 0 | 0% |
+| regressions.hard.2.current | -0.000893 | -0.000893 | 0 | 0% |
+| regressions.hard.2.threshold | 0.013275 | 0.013275 | 0 | 0% |
+| regressions.hard.3.current | 0 | 0 | 0 | n/a |
+| regressions.hard.3.threshold | 1.42615 | 1.42615 | 0 | 0% |
+| regressions.hard.4.current | 0 | 0 | 0 | n/a |
+| regressions.hard.4.threshold | 0.599853 | 0.599853 | 0 | 0% |
+| regressions.hard.5.threshold | 0.362284 | 0.362284 | 0 | 0% |
+| regressions.medium.0.threshold | 0.011958 | 0.011958 | 0 | 0% |
+| regressions.medium.1.current | 0.380859 | 0.380859 | 0 | 0% |
+| regressions.medium.1.threshold | 0.335963 | 0.335963 | 0 | 0% |
+| regressions.medium.2.threshold | 0.066836 | 0.066836 | 0 | 0% |
+| regressions.medium.3.current | -0.015774 | -0.015774 | 0 | 0% |
+| regressions.medium.3.threshold | 0.01679 | 0.01679 | 0 | 0% |
+| regressions.medium.4.current | 0 | 0 | 0 | n/a |
+| regressions.medium.4.threshold | 1.42615 | 1.42615 | 0 | 0% |
+| regressions.medium.5.current | 0 | 0 | 0 | n/a |
+| regressions.medium.5.threshold | 0.599853 | 0.599853 | 0 | 0% |
+| regressions.medium.6.threshold | 0.354901 | 0.354901 | 0 | 0% |
 | settings.maxTurns | 80 | 80 | 0 | 0% |
 | settings.pairCount | 32 | 32 | 0 | 0% |
 | summaries.easy.gameCount | 64 | 64 | 0 | 0% |
+| summaries.easy.games.averagePlies | 80 | 80 | 0 | 0% |
 | summaries.easy.games.terminalCounts.homeField | 0 | 0 | 0 | n/a |
 | summaries.easy.games.terminalCounts.sixStacks | 0 | 0 | 0 | n/a |
 | summaries.easy.games.terminalCounts.stalemateDraw | 0 | 0 | 0 | n/a |
 | summaries.easy.games.terminalCounts.stalemateTiebreakWin | 0 | 0 | 0 | n/a |
+| summaries.easy.games.terminalCounts.threefoldDraw | 0 | 0 | 0 | n/a |
+| summaries.easy.games.terminalCounts.threefoldTiebreakWin | 0 | 0 | 0 | n/a |
+| summaries.easy.games.terminalCounts.unfinished | 64 | 64 | 0 | 0% |
 | summaries.easy.metadata.gameCount | 64 | 64 | 0 | 0% |
 | summaries.easy.metadata.maxTurns | 80 | 80 | 0 | 0% |
 | summaries.easy.metadata.mirrorPairCount | 32 | 32 | 0 | 0% |
 | summaries.easy.metadata.stableCalls | 8 | 8 | 0 | 0% |
-| summaries.easy.metrics.behaviorSpaceCoverage | 0.008929 | 0.008929 | 0 | 0% |
+| summaries.easy.metrics.behaviorSpaceCoverage | 0.005952 | 0.005952 | 0 | 0% |
+| summaries.easy.metrics.compositeInterestingness | 0.019821 | 0.019821 | 0 | 0% |
+| summaries.easy.metrics.decisiveResultShare | 0 | 0 | 0 | n/a |
+| summaries.easy.metrics.decompressionSlope | 0.002542 | 0.002542 | 0 | 0% |
 | summaries.easy.metrics.firstFourActionKindEntropy | 0.811278 | 0.811278 | 0 | 0% |
 | summaries.easy.metrics.firstFourTagEntropy | 1.721928 | 1.721928 | 0 | 0% |
+| summaries.easy.metrics.gameRefinement | 0 | 0 | 0 | n/a |
+| summaries.easy.metrics.lateSuspense | 0 | 0 | 0 | n/a |
+| summaries.easy.metrics.maxRepeatedStateRun | 1 | 1 | 0 | 0% |
+| summaries.easy.metrics.mobilityReleaseSlope | -0.0141 | -0.0141 | 0 | 0% |
+| summaries.easy.metrics.openingEntropy | 0 | 0 | 0 | n/a |
+| summaries.easy.metrics.openingJsDivergence | 0.464378 | 0.464378 | 0 | 0% |
+| summaries.easy.metrics.openingSimpsonDiversity | 0 | 0 | 0 | n/a |
+| summaries.easy.metrics.repetitionPlyShare | 0.003711 | 0.003711 | 0 | 0% |
 | summaries.easy.metrics.stalemateDrawShare | 0 | 0 | 0 | n/a |
+| summaries.easy.metrics.tension | 0 | 0 | 0 | n/a |
+| summaries.easy.metrics.threefoldDrawShare | 0 | 0 | 0 | n/a |
 | summaries.easy.samples.firstFourActionKindDistribution.climbOne | 64 | 64 | 0 | 0% |
 | summaries.easy.samples.firstFourActionKindDistribution.jumpSequence | 192 | 192 | 0 | 0% |
 | summaries.easy.samples.firstFourTagDistribution.advanceMass | 256 | 256 | 0 | 0% |
 | summaries.easy.samples.firstFourTagDistribution.captureControl | 64 | 64 | 0 | 0% |
 | summaries.easy.samples.firstFourTagDistribution.freezeBlock | 64 | 64 | 0 | 0% |
 | summaries.easy.samples.firstFourTagDistribution.openLane | 256 | 256 | 0 | 0% |
+| summaries.easy.samples.firstMoveDistribution.climbOne:C3:B4 | 64 | 64 | 0 | 0% |
+| summaries.easy.samples.firstMoveSourceFamilyDistribution.white-15 | 64 | 64 | 0 | 0% |
+| summaries.easy.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:C5:C3 | jumpSequence:E3:C5 | jumpSequence:E5:E3 | jumpSequence:C5:E5 | climbOne:E4:D3 | jumpSequence:E2:E4 | jumpSequence:A5:C5 | jumpSequence:A3:A5 | jumpSequence:C3:A3 | 35 | 35 | 0 | 0% |
+| summaries.easy.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:C5:C3 | jumpSequence:E3:C5 | jumpSequence:E5:E3 | jumpSequence:C5:E5 | climbOne:F4:F3 | jumpSequence:D2:F4 | jumpSequence:C3:C5 | jumpSequence:C1:C3 | climbOne:C4:C3 | 1 | 1 | 0 | 0% |
+| summaries.easy.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:C5:C3 | jumpSequence:E3:C5 | jumpSequence:E5:E3 | jumpSequence:C5:E5 | jumpSequence:E3:C5 | jumpSequence:C1:E3 | jumpSequence:C3:C1 | climbOne:E5:D6 | jumpSequence:C5:C3 | 2 | 2 | 0 | 0% |
+| summaries.easy.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:E5:C3 | jumpSequence:E3:E5 | jumpSequence:C5:E3 | jumpSequence:E5:C5 | climbOne:C4:B3 | jumpSequence:C2:C4 | jumpSequence:E3:E5 | climbOne:C5:B6 | jumpSequence:E4:C2 | 1 | 1 | 0 | 0% |
+| summaries.easy.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:E5:C3 | jumpSequence:E3:E5 | jumpSequence:C5:E3 | jumpSequence:E5:C5 | jumpSequence:E3:E5 | jumpSequence:C1:E3 | jumpSequence:C3:C1 | climbOne:C5:B6 | jumpSequence:E5:C3 | 7 | 7 | 0 | 0% |
+| summaries.easy.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:E5:C3 | jumpSequence:E3:E5 | jumpSequence:C5:E3 | jumpSequence:E5:C5 | jumpSequence:E3:E5 | jumpSequence:C1:E3 | jumpSequence:C3:C1 | climbOne:C5:C6 | jumpSequence:E5:C3 | 7 | 7 | 0 | 0% |
+| summaries.easy.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:E5:C3 | jumpSequence:E3:E5 | jumpSequence:C5:E3 | jumpSequence:E5:C5 | jumpSequence:E3:E5 | jumpSequence:C1:E3 | jumpSequence:C3:C1 | climbOne:C5:D6 | jumpSequence:E5:C3 | 7 | 7 | 0 | 0% |
 | summaries.easy.samples.terminalDistribution.homeField | 0 | 0 | 0 | n/a |
 | summaries.easy.samples.terminalDistribution.sixStacks | 0 | 0 | 0 | n/a |
 | summaries.easy.samples.terminalDistribution.stalemateDraw | 0 | 0 | 0 | n/a |
 | summaries.easy.samples.terminalDistribution.stalemateTiebreakWin | 0 | 0 | 0 | n/a |
+| summaries.easy.samples.terminalDistribution.threefoldDraw | 0 | 0 | 0 | n/a |
+| summaries.easy.samples.terminalDistribution.threefoldTiebreakWin | 0 | 0 | 0 | n/a |
+| summaries.easy.samples.terminalDistribution.unfinished | 64 | 64 | 0 | 0% |
 | summaries.hard.gameCount | 64 | 64 | 0 | 0% |
+| summaries.hard.games.averagePlies | 80 | 80 | 0 | 0% |
 | summaries.hard.games.terminalCounts.homeField | 0 | 0 | 0 | n/a |
 | summaries.hard.games.terminalCounts.sixStacks | 0 | 0 | 0 | n/a |
 | summaries.hard.games.terminalCounts.stalemateDraw | 0 | 0 | 0 | n/a |
 | summaries.hard.games.terminalCounts.stalemateTiebreakWin | 0 | 0 | 0 | n/a |
+| summaries.hard.games.terminalCounts.threefoldDraw | 0 | 0 | 0 | n/a |
 | summaries.hard.games.terminalCounts.threefoldTiebreakWin | 0 | 0 | 0 | n/a |
+| summaries.hard.games.terminalCounts.unfinished | 64 | 64 | 0 | 0% |
 | summaries.hard.metadata.gameCount | 64 | 64 | 0 | 0% |
 | summaries.hard.metadata.maxTurns | 80 | 80 | 0 | 0% |
 | summaries.hard.metadata.mirrorPairCount | 32 | 32 | 0 | 0% |
 | summaries.hard.metadata.stableCalls | 12 | 12 | 0 | 0% |
 | summaries.hard.metrics.behaviorSpaceCoverage | 0.005952 | 0.005952 | 0 | 0% |
+| summaries.hard.metrics.compositeInterestingness | 0.016925 | 0.016925 | 0 | 0% |
 | summaries.hard.metrics.decisiveResultShare | 0 | 0 | 0 | n/a |
+| summaries.hard.metrics.decompressionSlope | 0.001364 | 0.001364 | 0 | 0% |
 | summaries.hard.metrics.firstFourActionKindEntropy | 0.811278 | 0.811278 | 0 | 0% |
 | summaries.hard.metrics.firstFourTagEntropy | 1.721928 | 1.721928 | 0 | 0% |
 | summaries.hard.metrics.gameRefinement | 0 | 0 | 0 | n/a |
 | summaries.hard.metrics.lateSuspense | 0 | 0 | 0 | n/a |
+| summaries.hard.metrics.maxRepeatedStateRun | 1 | 1 | 0 | 0% |
+| summaries.hard.metrics.mobilityReleaseSlope | -0.000893 | -0.000893 | 0 | 0% |
+| summaries.hard.metrics.openingEntropy | 0 | 0 | 0 | n/a |
+| summaries.hard.metrics.openingJsDivergence | 0.464378 | 0.464378 | 0 | 0% |
+| summaries.hard.metrics.openingSimpsonDiversity | 0 | 0 | 0 | n/a |
 | summaries.hard.metrics.stalemateDrawShare | 0 | 0 | 0 | n/a |
 | summaries.hard.metrics.tension | 0 | 0 | 0 | n/a |
+| summaries.hard.metrics.threefoldDrawShare | 0 | 0 | 0 | n/a |
+| summaries.hard.metrics.uniqueOpeningLineShare | 0.0625 | 0.0625 | 0 | 0% |
 | summaries.hard.samples.firstFourActionKindDistribution.climbOne | 64 | 64 | 0 | 0% |
 | summaries.hard.samples.firstFourActionKindDistribution.jumpSequence | 192 | 192 | 0 | 0% |
 | summaries.hard.samples.firstFourTagDistribution.advanceMass | 256 | 256 | 0 | 0% |
 | summaries.hard.samples.firstFourTagDistribution.captureControl | 64 | 64 | 0 | 0% |
 | summaries.hard.samples.firstFourTagDistribution.freezeBlock | 64 | 64 | 0 | 0% |
 | summaries.hard.samples.firstFourTagDistribution.openLane | 256 | 256 | 0 | 0% |
+| summaries.hard.samples.firstMoveDistribution.climbOne:C3:B4 | 64 | 64 | 0 | 0% |
+| summaries.hard.samples.firstMoveSourceFamilyDistribution.white-15 | 64 | 64 | 0 | 0% |
+| summaries.hard.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:C5:C3 | jumpSequence:E3:C5 | jumpSequence:E5:E3 | jumpSequence:C5:E5 | climbOne:E4:D3 | jumpSequence:E2:E4 | jumpSequence:A5:C5 | jumpSequence:A3:A5 | jumpSequence:C3:A3 | 22 | 22 | 0 | 0% |
 | summaries.hard.samples.terminalDistribution.homeField | 0 | 0 | 0 | n/a |
 | summaries.hard.samples.terminalDistribution.sixStacks | 0 | 0 | 0 | n/a |
 | summaries.hard.samples.terminalDistribution.stalemateDraw | 0 | 0 | 0 | n/a |
 | summaries.hard.samples.terminalDistribution.stalemateTiebreakWin | 0 | 0 | 0 | n/a |
+| summaries.hard.samples.terminalDistribution.threefoldDraw | 0 | 0 | 0 | n/a |
 | summaries.hard.samples.terminalDistribution.threefoldTiebreakWin | 0 | 0 | 0 | n/a |
+| summaries.hard.samples.terminalDistribution.unfinished | 64 | 64 | 0 | 0% |
 | summaries.medium.gameCount | 64 | 64 | 0 | 0% |
+| summaries.medium.games.averagePlies | 80 | 80 | 0 | 0% |
 | summaries.medium.games.terminalCounts.homeField | 0 | 0 | 0 | n/a |
 | summaries.medium.games.terminalCounts.sixStacks | 0 | 0 | 0 | n/a |
 | summaries.medium.games.terminalCounts.stalemateDraw | 0 | 0 | 0 | n/a |
 | summaries.medium.games.terminalCounts.stalemateTiebreakWin | 0 | 0 | 0 | n/a |
 | summaries.medium.games.terminalCounts.threefoldDraw | 0 | 0 | 0 | n/a |
+| summaries.medium.games.terminalCounts.threefoldTiebreakWin | 0 | 0 | 0 | n/a |
+| summaries.medium.games.terminalCounts.unfinished | 64 | 64 | 0 | 0% |
 | summaries.medium.metadata.gameCount | 64 | 64 | 0 | 0% |
 | summaries.medium.metadata.maxTurns | 80 | 80 | 0 | 0% |
 | summaries.medium.metadata.mirrorPairCount | 32 | 32 | 0 | 0% |
 | summaries.medium.metadata.stableCalls | 10 | 10 | 0 | 0% |
+| summaries.medium.metrics.behaviorSpaceCoverage | 0.005952 | 0.005952 | 0 | 0% |
+| summaries.medium.metrics.compositeInterestingness | 0.020057 | 0.020057 | 0 | 0% |
+| summaries.medium.metrics.decisiveResultShare | 0 | 0 | 0 | n/a |
+| summaries.medium.metrics.decompressionSlope | 0.002604 | 0.002604 | 0 | 0% |
 | summaries.medium.metrics.firstFourActionKindEntropy | 0.811278 | 0.811278 | 0 | 0% |
 | summaries.medium.metrics.firstFourTagEntropy | 1.721928 | 1.721928 | 0 | 0% |
+| summaries.medium.metrics.gameRefinement | 0 | 0 | 0 | n/a |
 | summaries.medium.metrics.lateSuspense | 0 | 0 | 0 | n/a |
+| summaries.medium.metrics.maxRepeatedStateRun | 1 | 1 | 0 | 0% |
+| summaries.medium.metrics.mobilityReleaseSlope | -0.015774 | -0.015774 | 0 | 0% |
+| summaries.medium.metrics.normalizedLempelZiv | 1.045834 | 1.045834 | 0 | 0% |
+| summaries.medium.metrics.openingEntropy | 0 | 0 | 0 | n/a |
+| summaries.medium.metrics.openingJsDivergence | 0.464378 | 0.464378 | 0 | 0% |
+| summaries.medium.metrics.openingSimpsonDiversity | 0 | 0 | 0 | n/a |
+| summaries.medium.metrics.sourceFamilyOpeningHhi | 0.380859 | 0.380859 | 0 | 0% |
 | summaries.medium.metrics.stalemateDrawShare | 0 | 0 | 0 | n/a |
 | summaries.medium.metrics.tension | 0 | 0 | 0 | n/a |
 | summaries.medium.metrics.threefoldDrawShare | 0 | 0 | 0 | n/a |
+| summaries.medium.metrics.uniqueOpeningLineShare | 0.046875 | 0.046875 | 0 | 0% |
 | summaries.medium.samples.firstFourActionKindDistribution.climbOne | 64 | 64 | 0 | 0% |
 | summaries.medium.samples.firstFourActionKindDistribution.jumpSequence | 192 | 192 | 0 | 0% |
 | summaries.medium.samples.firstFourTagDistribution.advanceMass | 256 | 256 | 0 | 0% |
 | summaries.medium.samples.firstFourTagDistribution.captureControl | 64 | 64 | 0 | 0% |
 | summaries.medium.samples.firstFourTagDistribution.freezeBlock | 64 | 64 | 0 | 0% |
 | summaries.medium.samples.firstFourTagDistribution.openLane | 256 | 256 | 0 | 0% |
+| summaries.medium.samples.firstMoveDistribution.climbOne:C3:B4 | 64 | 64 | 0 | 0% |
+| summaries.medium.samples.firstMoveSourceFamilyDistribution.white-15 | 64 | 64 | 0 | 0% |
+| summaries.medium.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:C5:C3 | jumpSequence:E3:C5 | jumpSequence:E5:E3 | jumpSequence:C5:E5 | climbOne:E4:D3 | jumpSequence:E2:E4 | jumpSequence:A5:C5 | jumpSequence:A3:A5 | jumpSequence:C3:A3 | 42 | 42 | 0 | 0% |
+| summaries.medium.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:E5:C3 | jumpSequence:E3:E5 | jumpSequence:C5:E3 | jumpSequence:E5:C5 | jumpSequence:E3:E5 | jumpSequence:C1:E3 | jumpSequence:C3:C1 | climbOne:C5:B6 | jumpSequence:E5:C3 | 14 | 14 | 0 | 0% |
+| summaries.medium.samples.firstTenLineDistribution.climbOne:C3:B4 | jumpSequence:E5:C3 | jumpSequence:E3:E5 | jumpSequence:C5:E3 | jumpSequence:E5:C5 | jumpSequence:E3:E5 | jumpSequence:C1:E3 | jumpSequence:C3:C1 | climbOne:C5:C6 | jumpSequence:E5:C3 | 8 | 8 | 0 | 0% |
 | summaries.medium.samples.terminalDistribution.homeField | 0 | 0 | 0 | n/a |
 | summaries.medium.samples.terminalDistribution.sixStacks | 0 | 0 | 0 | n/a |
 | summaries.medium.samples.terminalDistribution.stalemateDraw | 0 | 0 | 0 | n/a |
 | summaries.medium.samples.terminalDistribution.stalemateTiebreakWin | 0 | 0 | 0 | n/a |
 | summaries.medium.samples.terminalDistribution.threefoldDraw | 0 | 0 | 0 | n/a |
+| summaries.medium.samples.terminalDistribution.threefoldTiebreakWin | 0 | 0 | 0 | n/a |
+| summaries.medium.samples.terminalDistribution.unfinished | 64 | 64 | 0 | 0% |
 | targetBandVersion | 1 | 1 | 0 | 0% |

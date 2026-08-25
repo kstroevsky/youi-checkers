@@ -21,8 +21,10 @@ export type FinishingProgress = {
   frontOwnCheckers: number;
   goal: FinishingGoal;
   homeCheckers: number;
+  homeReadiness: number;
   homeSingles: number;
   score: number;
+  sixStackReadiness: number;
 };
 
 function distanceToHome(row: number, player: Player): number {
@@ -139,7 +141,9 @@ export function getFinishingProgress(
     frontOwnCheckers,
     goal,
     homeCheckers,
+    homeReadiness,
     homeSingles,
     score,
+    sixStackReadiness,
   };
 }

@@ -2,22 +2,276 @@
 
 ## Purpose
 
-`ai:measure` is the validity layer for AI-quality experiments. It answers four
-different questions without collapsing them into one attractive but ambiguous
-"interestingness" number:
+`ai:measure` is the validity layer for broad AI-quality experiments, while
+`ai:competence` is the tactical-oracle and equal-work decision layer, while
+`ai:strength` measures game-level results against immutable reference policies.
+Together they answer six different questions without collapsing them into one attractive
+but ambiguous "interestingness" number:
 
-1. Did the requested search actually run?
-2. What game outcomes resulted?
-3. What observable kinds of play occurred?
-4. Is a before/after difference larger than measurement uncertainty?
+1. Does the AI choose the uniquely winning or uniquely defensive move?
+2. Did the requested search actually run?
+3. What game outcomes resulted?
+4. What observable kinds of play occurred?
+5. Is a before/after difference larger than measurement uncertainty?
+6. Is game-level strength non-inferior across a fixed opponent portfolio?
 
-The existing variety, stage, loop, threat, bucket, and cross-play reports remain
-useful specialized views. A quality claim should first pass `ai:measure`, because
+The existing variety command is retained as a legacy behavior-regression dashboard;
+the stage, loop, threat, bucket, and cross-play reports remain useful specialized
+views. Its drama, tension, and composite-interestingness values are uncalibrated
+trace proxies, not enjoyment measures or release gates. A quality claim should first pass `ai:measure`, because
 behavior measured from depth-zero fallback or from an unintended clock model is
 not evidence about the intended AI.
 
 This infrastructure does not change the shipped difficulty presets or move
 selection. A future strategy change needs a separate adoption decision.
+
+## Same-harness policy boundary
+
+`AiPolicy` is the outcome-experiment boundary. It owns a stable id and source
+hash, creates seeded per-game sessions, and returns a legal action plus optional
+policy-specific diagnostics. The current engine and `LegacyPolicyV0` implement
+the same interface; the match harness supplies both with identical current
+domain states, rules, fixed-node budgets, horizons, and color-swapped seeds.
+
+`LegacyPolicyV0` is pinned to `2bd9c455ec2537aa84b1fef38550ce13c53efd29`,
+the parent of the branch's first production-semantic commit
+`944e0f06d937d3a8bce6fba2f6063485a3266ecb`. At runtime its production AI
+sources are materialized from that immutable Git object in an isolated process,
+while `src/domain` and `src/shared` are linked from the current workspace. This
+deliberately compares old policy versus current policy under one current harness
+and one fingerprintable domain, instead of confounding policy changes with each
+revision's historical report schema. Policy-source and adapter hashes are
+separate from the domain, fixture, harness, budget-semantics, and adjudication
+identities that the campaign layer records.
+
+## Tactical competence and fixed-node regret
+
+`ai:competence` measures the first Phase 2 strength contract. Its fixture catalog
+contains rule-derived unique-win and unique-defense positions. Each source
+fixture is paired with a true horizontal mirror, and construction fails unless
+the domain rules find exactly one correct action in both variants. This prevents
+stale handwritten action labels from becoming an oracle.
+
+Every subject decision is repeated over a fixed-node curve. The default full
+curve is 64, 128, 256, 512, 1024, and 2048 evaluated nodes. A complete
+fixed-depth Hard search supplies the deeper reference root. The selected action
+is looked up in that deeper root and receives:
+
+- deeper-oracle regret and p95 regret;
+- catastrophic-regret classification at a declared score threshold;
+- oracle agreement;
+- unique-win or unique-defense accuracy;
+- oracle coverage, root coverage, fallback, and zero-depth denominators.
+
+An action absent from the complete oracle root has `null` regret and increments
+missing coverage. It never receives a convenient zero. Confirmatory gates apply
+only to the largest measured node budget for each difficulty; smaller budgets
+remain diagnostic curve points. `--enforce-gates=true` converts a failed final
+gate into a non-zero command exit.
+
+This oracle is deliberately internal and bounded: it is a stronger, complete
+search under the same evaluator, not solved-game truth. The curated tactical
+labels provide independent rule truth for immediate wins and defenses; future
+portfolio work should add deeper generated and human-incident holdouts.
+
+## Frozen-reference game strength
+
+`ai:strength` closes the gap between tactical decisions and complete-game
+outcomes. The candidate plays two games per statistical unit, once as White and
+once as Black, against the same versioned reference policy with the same
+candidate/reference seeds, fixture, fixed-node budget, rules, and horizon. The
+reference pool is deliberately not another invocation of the mutable AI:
+
+- `canonical-legal-v1` is a deterministic legal-order floor;
+- `seeded-legal-v1` is a seeded uniform legal policy;
+- `tactical-greedy-v1` takes immediate wins, avoids one-reply losses when
+  possible, then applies a frozen score formula.
+
+The pool implementation source, domain-rule source, and fixture positions are
+checksummed. Changing any of them makes old and new runs incomparable. Scenario fixtures are preassigned to
+`development` or `holdout`; the `full` profile defaults to holdout so tuning on
+the same confirmatory positions is not the normal workflow.
+
+A color-swapped pair receives a score only when both games terminate. A win is
+1, an actual draw is 0.5, and a loss is 0. A horizon-limited game is `unfinished`
+and censored, never converted into a draw. Every raw pair retains both complete
+game traces, state hashes, reference candidate rankings, and candidate search
+results.
+
+`ai:strength:compare-files` joins baseline and candidate pairs by stable ID and
+rejects schema, settings, fixture, pool, or stratum mismatches. It estimates
+candidate-minus-baseline point-share change with equal weight per
+fixture × reference stratum. Two deterministic bootstrap intervals are emitted:
+
+- a fixed-portfolio interval resamples seeds within each declared stratum and
+  drives the release gate;
+- a hierarchical interval resamples strata and then seeds, exposing uncertainty
+  when generalizing beyond the exact portfolio.
+
+The default smallest practically important loss is three percentage points and
+must be chosen before inspecting the candidate. Non-inferiority requires the
+entire fixed-portfolio interval to remain above `-margin`. A separate resolved-
+pair-share gate prevents a candidate from appearing stronger merely because
+more unfavorable games became censored. Between-stratum and within-stratum
+variance are reported independently so fixture sensitivity is visible.
+
+## Current-versus-legacy sequential strength
+
+`npm run ai:policy-strength -- --profile=full` is the preregistered branch-wide
+policy comparison. Its primary endpoint is the fixed-160-ply, domain-adjudicated
+point share from a color-swapped pair. A pair retains one of five outcomes—0,
+0.25, 0.5, 0.75, or 1 for the candidate—rather than flattening the two dependent
+games into independent trinomial observations. This follows the pentanomial
+modeling rationale used by Stockfish Fishtest, while the implementation here is
+local and game-specific rather than claimed to be numerically identical to
+Fishtest: <https://official-stockfish.github.io/docs/fishtest-wiki/Fishtest-Mathematics.html>.
+
+At each eligible checkpoint, Jeffreys-smoothed observed pentanomial probabilities
+are exponentially tilted to the null and alternative means, and their generalized
+log-likelihood ratio is compared with predeclared Wald boundaries. Stopping is
+checked only after a complete frozen-allocation block across every selected
+scenario and horizontal mirror. The implementation supports three explicit
+questions:
+
+- non-inferiority: null mean `0.5 - margin`, alternative `0.5`;
+- superiority: null mean `0.5`, alternative `0.5 + margin`;
+- equivalence: two one-sided sequential tests against `0.5 ± margin`, with alpha
+  split across the two sides.
+
+The versioned protocol fixes alpha 0.05, beta 0.20, a 0.03 practical margin,
+Hard at 2,048 evaluated nodes, the 160-ply horizon, and holdout-only fixtures.
+The allocation is deliberately equal: the retained 18-pair pilot had only three
+naturally resolved pairs, so estimated Neyman weights were too unstable to
+freeze responsibly. Natural resolution remains a secondary endpoint; it cannot
+replace an unfavorable primary fixed-horizon result through differential
+censoring. Policy, domain, harness, fixture, protocol, allocation, budget-
+semantics, adjudication, and raw-artifact identities are hashed independently.
+
+The full campaign also has a parallel, resumable execution contract. By default
+the runner reserves two logical CPUs and bounds the remaining worker count; an
+explicit run can use `--workers=8`. Each persistent worker owns an isolated
+current-policy instance and legacy-policy RPC server. Completed color-swapped
+pairs are written atomically beneath `<out>.checkpoints/<campaign-id>/`, and
+`--resume=true` accepts them only when the complete campaign identity matches.
+Results are merged back into canonical block order, so worker completion order
+cannot affect artifacts or sequential decisions. `<out>.progress.json` reports
+completed work and a current block ETA. For example:
+
+```sh
+npm run ai:policy-strength -- \
+  --profile=full \
+  --workers=8 \
+  --resume=true \
+  --out=output/ai/ai-policy-strength-full-20260810
+```
+
+If computation stops after at least one complete balanced block, the checkpoint
+set can be finalized without running more games:
+
+```sh
+npm run ai:policy-strength:finalize -- \
+  --campaign-id=<full-campaign-sha256> \
+  --checkpoint-dir=<checkpoint-directory> \
+  --out=<original-output-prefix> \
+  --worker-count=<original-worker-count> \
+  --reason='<administrative stop reason>'
+```
+
+The finalizer recomputes and verifies the original campaign identity, validates
+each checkpoint against its expected job and seed, retains only consecutive
+complete blocks in canonical order, and excludes a trailing partial block. Its
+status is `administrativelyStopped`; a sequential verdict of `continue` remains
+inconclusive and is never relabeled as a gate acceptance or rejection.
+
+Strength-campaign raw traces retain the action, actor, position hashes, policy,
+outcome, and scores needed for replay and audit, while omitting unused per-ply
+search diagnostics. The general `policyMatch` API remains diagnostics-on by
+default. On the measured 12-pair, 16-ply workload at the campaign's real
+2,048-node budget, four workers took 172.69 seconds and eight took 129.01
+seconds; the two runs produced byte-identical raw artifacts. Compact traces
+reduced the comparable raw artifact by 86.3%. Very short startup-dominated runs
+can favor fewer workers, which is why the override remains available. Sharing a
+single materialized legacy workspace between workers was also tested and
+rejected: it made both the four- and eight-worker short workloads slower.
+
+Completed raw traces can be analyzed offline without running search or playing
+additional games:
+
+```sh
+npm run ai:policy-strength:insights -- \
+  --report=<campaign.json> \
+  --samples=<campaign.samples.jsonl> \
+  --out=<insights-output-prefix>
+```
+
+The analyzer verifies the raw checksum and pair count, reproduces the campaign
+point share, and then compares observable behavior at the balanced-pair grain.
+It reports move-kind mix by phase, action/source/region diversity, repeat and
+retained-turn rates, displacement, opening diversity, exact-position recurrence,
+color sensitivity, and horizontal-mirror sensitivity. Confidence intervals use
+color-swapped pairs as observations rather than incorrectly treating individual
+plies as independent samples. The report also records whether mirror strata use
+identical policy seeds, because otherwise orientation and seed effects remain
+confounded. Compact traces do not contain root alternatives,
+checker identities, legal-move counts, strategic tags, or evaluation trajectories,
+so the report labels source diversity as a participation proxy and never claims
+policy-specific causation for whole-game recurrence or resolution.
+
+### Short causal policy portfolios
+
+Three bounded reports replace repeated branch-wide strength campaigns during
+diagnosis:
+
+```sh
+# Run each strategy-changing revision behind the same current harness/domain.
+npm run ai:policy-attribution -- --profile=smoke
+
+# Reconstruct removed search signals one group at a time; production is the
+# all-switches-disabled control.
+npm run ai:policy-ablation -- --profile=smoke
+
+# Separate intrinsic self-play behavior from current-versus-legacy interaction.
+npm run ai:policy-counterfactual -- --profile=smoke
+```
+
+Their `full` profiles use 32-ply continuations, 512 fixed nodes per decision,
+four seed pairs, and six holdout base fixtures plus horizontal mirrors. The
+counterfactual workload is therefore 288 games and at most 9,216 plies across
+current/current, legacy/legacy, and current/legacy. It is a trajectory-quality
+portfolio, not a release strength gate.
+
+The revision attribution runner materializes production `src/ai` from each Git
+revision while keeping the current domain, policy interface, fixtures, budgets,
+and measurement definitions fixed. Candidate and baseline seeds are identical
+across revision rows. Its direct mirror check uses the same policy seed for the
+original and mirrored state; unlike the old full campaign strata, orientation is
+not confounded with a different seed schedule.
+
+Rich match evidence is harness-owned rather than policy-diagnostic-owned. Each
+retained move can record continuous home/six-stack readiness, checker-family and
+region participation, repeat flags, moved mass, retained turns, legal response
+opportunity, completed depth, fallback kind, and selected/search score evidence.
+This allows old and new policies to be compared even when their internal result
+schemas differ.
+
+Search ablations are measurement-only reconstructions of removed behavior,
+participation, and novelty signals. All switches default off, product callers do
+not set them, and a parity test verifies that omitted and explicit-null ablation
+settings deliver the same action, node count, completed depth, and fallback. An
+ablation result may identify a mechanism; it does not authorize retaining that
+mechanism without competence, strength, runtime, and player-experience guards.
+
+Parallelism changes only execution. Pair identifiers and seeds, color swaps,
+fixed-node budgets, 160-ply adjudication, frozen allocation, and block-boundary
+GSPRT decisions remain unchanged. Statistical parameters were intentionally not
+retuned as a speed optimization because doing so would change the scientific
+question rather than merely execute the same experiment faster.
+
+The test suite exercises all five outcomes, balanced-block eligibility, each
+question mode, harmful and favorable synthetic sequences, and a deterministic
+null-boundary Monte Carlo calibration. The latter is a regression alarm, not a
+mathematical proof of finite-sample error control; changing smoothing, stopping,
+or allocation requires a new simulation study and protocol version.
 
 ## Search execution contracts
 
@@ -64,14 +318,46 @@ report and must match before raw samples may be paired.
 ### Search path
 
 - completed depth and completed root moves;
+- interrupted depth and partial-root moves, kept separate from the last fully
+  completed iteration;
 - evaluated and quiescence nodes;
+- completed root-preparation transitions, reported separately because fixed-node
+  search budgets do not make root feature extraction free;
 - elapsed time;
 - fallback, timeout, and zero-depth shares;
-- root-score regret of the selected reported candidate;
+- search-best and selected-action scores with explicit non-negative selection
+  regret, derived before diagnostic root-candidate truncation;
+- difficulty-specific style-regret budgets, utilization, positive-selection
+  share, and a zero-tolerance budget-violation guardrail;
 - budget type and exhaustion distributions;
 - hard assertions for missing or unexpected budget metadata.
 
 This family is a prerequisite, not a proxy for fun.
+
+### Strength/style role contract
+
+Root choice is intentionally staged rather than one blended scalar:
+
+1. adversarial search produces strength scores without persona, participation,
+   or novelty terms;
+2. actor-relative terminal truth removes dominated losses/adverse draws and
+   preserves immediate wins;
+3. the difficulty preset admits only moves inside its absolute regret budget;
+4. plan coherence, persona, productive participation, novelty, family coverage,
+   and bounded sampling choose among the survivors.
+
+Feature ownership is explicit:
+
+| Role              | Features                                                                                         | May change adversarial value? |
+| ----------------- | ------------------------------------------------------------------------------------------------ | ----------------------------- |
+| Strength          | plan potential, control, transport, lanes, frozen debt, terminal/dynamic-draw value              | yes                           |
+| Safety            | terminal utility, repetition/self-undo and draw-trap checks, regret budget                       | gate only                     |
+| Search efficiency | TT/PV/killer/history/continuation ordering, policy prior                                         | ordering/coverage only        |
+| Style             | persona tags/geometry, participation, novelty, source-family diversity, committed-plan tie-break | no                            |
+| Diagnostic        | selected/best score, regret, mobility ownership, tags, fallback and budget path                  | no                            |
+
+This contract prevents a style feature from helping define the score band that
+is supposed to constrain that same feature.
 
 ### Outcomes
 
@@ -88,6 +374,8 @@ Turn-limit truncation is reported as unfinished. It is never counted as a draw.
 - opening action and source-family diversity;
 - participation delta and positive-participation share;
 - board displacement;
+- actor-explicit mobility (same-player continuation and opponent reply counts
+  are never subtracted from one another);
 - repetition and two-ply self-undo shares;
 - horizontal spatial equivariance.
 
@@ -105,6 +393,46 @@ counterbalanced human playtests and validated player-experience instruments.
 They belong in the next measurement layer, joined to anonymous build, difficulty,
 and session metadata—not inferred from self-play alone.
 
+That next layer is now executable through `npm run ai:human-calibration`. The
+versioned protocol combines a within-participant, order-counterbalanced blinded
+full-game crossover with shorter blinded replay comparisons. Public assignments
+contain only `condition-1`/`condition-2`; the policy mapping is returned as a
+separate private artifact and must remain sealed until exclusions and analysis
+are locked. Participant identifiers are pseudonymous inputs; the report neither
+needs nor stores names, contact details, or free-form text.
+
+Overall left/right/tie preference is the primary human label. The eleven miniPXI
+construct scores remain separate secondary outcomes rather than being summed
+into a new “fun” scalar. This is deliberately conservative: the miniPXI
+validation used three studies and 628 players, but reported nuanced single-item
+reliability and confirmed validity for nine constructs, so one compact item
+should not be treated as a perfectly measured latent trait:
+<https://doi.org/10.1145/3549507>.
+
+Preference fitting uses inverse-propensity-weighted, regularized logistic MAP as
+a practical mixed-effects Bradley–Terry approximation. Shrunk participant and
+scenario effects account for repeated, correlated judgments; confirmatory
+metrics are computed on participants never used for fitting and therefore omit
+their random effects. The rationale follows paired-comparison work that models
+judge preference as random to separate judge variation and within-judge
+dependence from treatment effects:
+<https://pubmed.ncbi.nlm.nih.gov/6871353/>. This lightweight implementation is
+not presented as a full maximum-likelihood GLMM; a publication-grade study
+should replicate the locked analysis in a dedicated statistical package.
+
+Replay selection reserves 20% random exploration and otherwise favors uncertain,
+under-sampled comparisons with high approximate information. Every observation
+retains its selection probability; fitting applies capped inverse-propensity
+weights so active sampling does not masquerade as population prevalence. Active
+pair selection is a data-efficiency feature, not permission to remove the random
+exploration arm; experimental-design work under Bradley–Terry models motivates
+choosing informative comparisons (<https://www.ijcai.org/Proceedings/2018/304>),
+while held-out players remain the protection against fitting idiosyncratic judges.
+
+The confirmatory report stays false until at least 48 participants and a held-out
+player set exist. The checked-in JSONL is synthetic smoke data only; it verifies
+schema, fitting, and report behavior and is never human evidence.
+
 ## Uncertainty and comparison
 
 Numeric summaries retain count, range, median, p90, p95, and deterministic
@@ -118,6 +446,11 @@ minus baseline differences are oriented so positive always means improvement.
 A verdict is made only when the entire paired-bootstrap interval clears a
 metric-specific practical threshold; otherwise the verdict is `inconclusive`.
 Search-depth, root-coverage, and fallback regressions override latency gains.
+
+The game-strength comparator uses the stricter one-sided non-inferiority
+interpretation described above. An empty jointly resolved set is
+`inconclusive`, including when comparing an artifact with itself; zero evidence
+cannot pass a release gate.
 
 The comparator deliberately calls its result a **search-execution verdict**, not
 an AI-quality or enjoyment verdict. When many exploratory behavior metrics are
@@ -134,6 +467,44 @@ Each run writes ignored, reproducible artifacts under `output/ai/`:
 - `ai-measurement-report.md`: short review surface;
 - `ai-measurement-samples.jsonl`: lossless decision results and complete game
   traces, including root candidates and diagnostics.
+- `ai-reference-strength.{json,md}` and
+  `ai-reference-strength.samples.jsonl`: frozen-pool workload, descriptive
+  strength summary, and lossless color-swapped pairs;
+- `ai-reference-strength-paired.{json,md}`: paired non-inferiority decision,
+  censoring guardrail, stratum effects, and variance components.
+- `git-measurement-compare/{baseline,candidate}`: immutable report/raw snapshots
+  retained by `ai:measure:compare`, plus its paired uncertainty-aware verdict.
+
+Schema version 3 makes terminal utility, score ownership, selection regret,
+actor-aware mobility, and completed-versus-partial iterative-deepening evidence
+explicit. Older artifacts are intentionally incompatible in the paired
+comparator rather than being silently mixed.
+
+Advanced loop/bucket reports preserve missingness: sample entropy is `null` when
+no finite estimate is supported, and loop-escape rates are `null` when no trace
+entered loop pressure. These conditional metrics publish their eligible sample
+counts beside the estimate. Symbolic Lempel-Ziv complexity is computed over
+tokens, so renaming a position/action token cannot change the value.
+
+Near-cycle detection complements exact-hash recurrence with a normalized
+structural state vector covering empty cells, stack-height distribution, frozen
+singles, and both victory-plan progress measures. It compares only bounded-lag,
+same-actor positions and excludes identical hashes, so an `A-B-A'-B'` strategic
+oscillation is visible even when checker identity or a peripheral square keeps
+the canonical positions distinct. The rate remains descriptive until its
+distance threshold is calibrated from a larger empirical state corpus.
+
+Raw source-family HHI also remains descriptive. The release guardrail uses
+`avoidableSourceFamilyRepeatRate`: a repeated checker family counts against the
+policy only when a different family survives terminal safety and lies inside
+the difficulty's maximum strength-regret cap. Tactical necessity is therefore
+not mislabeled as a style failure.
+
+The strategy layer can now expose a normalized, ranked portfolio of home-field,
+six-stack, and hybrid plan hypotheses without changing adversarial evaluation
+or final move choice. Its confidence is observational pending fixed-horizon
+strength and human-preference evidence; attempted search extensions were not
+retained because they exceeded the existing runtime/variety guardrails.
 
 The summary records Git revision/dirty state, Node and package versions, OS,
 architecture, CPU count, fixture hash, raw-sample hash, raw path, and sample
@@ -145,6 +516,84 @@ Fast deterministic path smoke:
 
 ```bash
 pnpm ai:measure -- --profile=smoke --budget=fixedDepth --max-depth=1
+```
+
+Tactical-oracle and fixed-node curve smoke:
+
+```bash
+pnpm ai:competence -- --profile=smoke
+```
+
+Full confirmatory competence curve:
+
+```bash
+pnpm ai:competence -- --profile=full --enforce-gates=true
+```
+
+Frozen-reference wiring smoke:
+
+```bash
+pnpm ai:strength -- --profile=smoke
+```
+
+Run a retained revision on the confirmatory holdout portfolio:
+
+```bash
+pnpm ai:strength -- --profile=full --split=holdout --out=<artifact-dir>/strength
+```
+
+Long campaigns are deterministic, resumable, and shardable. Unknown CLI flags
+are rejected so a misspelled split cannot silently run the wrong portfolio:
+
+```bash
+pnpm ai:strength -- --profile=full --split=holdout \
+  --shard-count=4 --shard-index=0 --resume=true \
+  --out=<artifact-dir>/shard-0
+pnpm ai:strength:merge -- \
+  --inputs=<artifact-dir>/shard-0,<artifact-dir>/shard-1,<artifact-dir>/shard-2,<artifact-dir>/shard-3 \
+  --out=<artifact-dir>/strength
+```
+
+The natural completed-game endpoint remains primary evidence about actual game
+resolution. Because the historical 18-pair, 160-ply schema-v2 pilot naturally
+resolved only 3 pairs, the report also exposes a separate fixed-horizon endpoint
+using the domain's own stalemate tiebreak. It never rewrites an unfinished game
+as a natural draw or win; natural resolution and horizon adjudication are
+reported side by side.
+
+Schema v3 broadens the portfolio from nine scenarios to eighteen. Six scenarios
+are explicitly assigned to the untouched holdout: four seeded legal-play
+positions across early, middle, and later play, plus retained loop-pressure and
+conversion sentinels. Split membership lives in the catalog rather
+than being inferred from array position, so reordering cannot leak holdouts into
+development. Every selected scenario expands into an original and a true
+horizontal board mirror; raw pairs retain `origin` and `mirror` provenance.
+Consequently, the default full holdout is 6 scenarios × 2 geometries × 3 frozen
+references × 8 seeds = 288 color-swapped pairs.
+
+Each strength report also transforms paired point share and its bootstrap
+interval into a diagnostic logistic Elo difference against the frozen reference
+pool. This is a readable relative-strength scale, not the release gate and not a
+globally calibrated player rating. Exact 0/1 endpoints are reported as
+unbounded instead of silently clamped.
+
+Run and retain an immutable Git baseline/candidate strength comparison:
+
+```bash
+pnpm ai:strength:compare -- \
+  --baseline=<baseline-ref> --candidate=<candidate-ref-or-working> \
+  --profile=full --split=holdout --adjudicate-horizon=true
+```
+
+Compare two identically configured retained runs:
+
+```bash
+pnpm ai:strength:compare-files -- \
+  --baseline-report=<baseline>/strength.json \
+  --baseline-raw=<baseline>/strength.samples.jsonl \
+  --candidate-report=<candidate>/strength.json \
+  --candidate-raw=<candidate>/strength.samples.jsonl \
+  --score-margin=0.03 --resolution-margin=0.03 --enforce-gate=true
 ```
 
 Reproducible full suite:
@@ -169,8 +618,10 @@ pnpm ai:measure:compare-files -- \
   --candidate-raw=<candidate>/ai-measurement-samples.jsonl
 ```
 
-`ai:measure:compare` remains the convenient aggregate Git-ref comparison. Use
-the raw-file comparator for an uncertainty-aware paired decision.
+`ai:measure:compare` now retains both Git-ref reports and raw JSONL files and
+automatically emits the paired uncertainty-aware decision under
+`output/ai/git-measurement-compare/`. The aggregate diff remains useful for
+exploration; the paired artifact is the adoption guardrail.
 
 ## Interpretation rules
 
@@ -185,6 +636,16 @@ the raw-file comparator for an uncertainty-aware paired decision.
 6. Require fixture-level and difficulty-level inspection before accepting an
    aggregate improvement.
 7. Confirm player-experience claims with humans.
+8. Predeclare the strength margin and holdout split; never tune them after
+   reading the candidate interval.
+9. Require enough resolved color-swapped pairs. An inconclusive censor-heavy
+   run should be extended or redesigned, not reclassified as a draw-heavy pass.
+10. Treat persona, participation, novelty, and plan preference as root-style
+    terms. They may choose only after terminal safety and the declared strength
+    budget; they must not define the adversarial scores policing that budget.
+11. Compare only identical strength schemas and fixture hashes. The schema-v2
+    pilot is historical power-planning evidence; schema-v3 needs a fresh paired
+    baseline and candidate run before any promotion claim.
 
 ## Academic basis
 
@@ -194,6 +655,10 @@ the raw-file comparator for an uncertainty-aware paired decision.
 - Bradley Efron, “Bootstrap Methods: Another Look at the Jackknife,” _The
   Annals of Statistics_ 7(1), 1979. DOI:
   <https://doi.org/10.1214/aos/1176344552>.
+- Gilda Piaggio et al., “Reporting of Noninferiority and Equivalence Randomized
+  Trials,” _JAMA_ 295(10), 2006. DOI:
+  <https://doi.org/10.1001/jama.295.10.1152>. The protocol adapts the principle
+  of a prespecified non-inferiority margin; it is not a clinical-trial analysis.
 - M. O. Hill, “Diversity and Evenness: A Unifying Notation and Its
   Consequences,” _Ecology_ 54(2), 1973. DOI:
   <https://doi.org/10.2307/1934352>.

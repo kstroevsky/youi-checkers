@@ -2,6 +2,7 @@ import {
   getStableCallsForDifficulty,
   runAiGameTrace,
   runAiVarietySuite,
+  summarizeSamePlayerIntentTransitions,
   summarizeAiVariety,
   type AiGameTrace,
   type AiVarietySummary,
@@ -15,9 +16,19 @@ import {
 import { AI_DIFFICULTY_PRESETS, chooseComputerAction, orderMoves } from '@/ai';
 import { createEmptyBoard } from '@/domain/model/board';
 import { hashPosition } from '@/domain/model/hash';
-import type { Coord, GameState, StateSnapshot, TurnAction } from '@/domain/model/types';
+import type {
+  Coord,
+  GameState,
+  StateSnapshot,
+  TurnAction,
+} from '@/domain/model/types';
 import { createInitialState, getLegalActions } from '@/domain';
-import { checker, gameStateWithBoard, resetFactoryIds, withConfig } from '@/test/factories';
+import {
+  checker,
+  gameStateWithBoard,
+  resetFactoryIds,
+  withConfig,
+} from '@/test/factories';
 import { describe, expect, it } from 'vitest';
 
 const RULE_CONFIG = withConfig({
@@ -25,6 +36,20 @@ const RULE_CONFIG = withConfig({
   scoringMode: 'off',
 });
 const SUMMARY_CACHE = new Map<'easy' | 'medium' | 'hard', AiVarietySummary>();
+
+describe('measurement semantics', () => {
+  it('counts intent transitions only against the same player previous decision', () => {
+    const summary = summarizeSamePlayerIntentTransitions([
+      { actor: 'white', strategicIntent: 'home' },
+      { actor: 'black', strategicIntent: 'sixStack' },
+      { actor: 'white', strategicIntent: 'home' },
+      { actor: 'black', strategicIntent: 'home' },
+      { actor: 'white', strategicIntent: 'hybrid' },
+    ]);
+
+    expect(summary).toEqual({ comparisons: 3, switches: 2 });
+  });
+});
 
 function getPairCount(difficulty: 'easy' | 'medium' | 'hard'): number {
   return difficulty === 'hard' ? 4 : 4;
@@ -58,7 +83,10 @@ function getSummary(difficulty: 'easy' | 'medium' | 'hard'): AiVarietySummary {
   return summary;
 }
 
-function createSnapshot(board: GameState['board'], currentPlayer: GameState['currentPlayer']): StateSnapshot {
+function createSnapshot(
+  board: GameState['board'],
+  currentPlayer: GameState['currentPlayer'],
+): StateSnapshot {
   return {
     board: structuredClone(board),
     currentPlayer,
@@ -137,7 +165,10 @@ function getOpeningTrace(): AiGameTrace {
 
 function countIntentSwitches(trace: AiGameTrace): number {
   return trace.plies.reduce((count, ply, index) => {
-    if (index === 0 || trace.plies[index - 1].strategicIntent === ply.strategicIntent) {
+    if (
+      index === 0 ||
+      trace.plies[index - 1].strategicIntent === ply.strategicIntent
+    ) {
       return count;
     }
 
@@ -156,7 +187,9 @@ describe('AI variety guardrails', () => {
       ruleConfig: RULE_CONFIG,
       state,
     });
-    const sourceFamilies = new Set(result.rootCandidates.map((candidate) => candidate.sourceFamily));
+    const sourceFamilies = new Set(
+      result.rootCandidates.map((candidate) => candidate.sourceFamily),
+    );
     const sourceFiles = new Set(
       result.rootCandidates.flatMap((candidate) =>
         'source' in candidate.action
@@ -170,7 +203,9 @@ describe('AI variety guardrails', () => {
     expect(result.fallbackKind).toBe('orderedRoot');
     expect(sourceFamilies.size).toBeGreaterThanOrEqual(3);
     expect(sourceFiles.size).toBeGreaterThanOrEqual(2);
-    expect(actionKey(result.action)).not.toBe(actionKey(getLegalActions(state, RULE_CONFIG)[0]));
+    expect(actionKey(result.action)).not.toBe(
+      actionKey(getLegalActions(state, RULE_CONFIG)[0]),
+    );
   });
 
   it('creates additional space within the first ten opening plies', () => {
@@ -178,41 +213,79 @@ describe('AI variety guardrails', () => {
     const firstTen = trace.plies.slice(0, 10);
     const firstEmpty = trace.plies[0]?.emptyCellCount ?? 0;
 
-    expect(Math.max(...firstTen.map((ply) => ply.emptyCellCount))).toBeGreaterThan(firstEmpty);
+    expect(
+      Math.max(...firstTen.map((ply) => ply.emptyCellCount)),
+    ).toBeGreaterThan(firstEmpty);
   });
 
   it.each([
-    { altSource: 'E3', altTarget: 'E2', label: 'C5↔B5', source: 'C5', target: 'B5' },
-    { altSource: 'D3', altTarget: 'D2', label: 'B5↔B4', source: 'B5', target: 'B4' },
-    { altSource: 'C3', altTarget: 'C2', label: 'E4↔F4', source: 'E4', target: 'F4' },
-    { altSource: 'F3', altTarget: 'F2', label: 'A5↔A4', source: 'A5', target: 'A4' },
-  ] as const)('avoids reversible motif %s when a quiet alternative exists', ({ altSource, altTarget, source, target }) => {
-    resetFactoryIds();
-    const { reverseAction, state } = createSelfUndoMotifState(source, target, altSource, altTarget);
-    const ordered = orderMoves(
-      state,
-      state.currentPlayer,
-      RULE_CONFIG,
-      AI_DIFFICULTY_PRESETS.hard,
-      {
-        includeAllQuietMoves: true,
-        samePlayerPreviousAction: state.history.at(-1)?.action ?? null,
-        selfUndoPenalty: AI_DIFFICULTY_PRESETS.hard.selfUndoPenalty,
-      },
-    );
-    const result = chooseComputerAction({
-      difficulty: 'hard',
-      now: createTimeoutClock(getStableCallsForDifficulty('hard'), 100_000),
-      random: () => 0,
-      ruleConfig: RULE_CONFIG,
-      state,
-    });
-    const legalActions = getLegalActions(state, RULE_CONFIG);
+    {
+      altSource: 'E3',
+      altTarget: 'E2',
+      label: 'C5↔B5',
+      source: 'C5',
+      target: 'B5',
+    },
+    {
+      altSource: 'D3',
+      altTarget: 'D2',
+      label: 'B5↔B4',
+      source: 'B5',
+      target: 'B4',
+    },
+    {
+      altSource: 'C3',
+      altTarget: 'C2',
+      label: 'E4↔F4',
+      source: 'E4',
+      target: 'F4',
+    },
+    {
+      altSource: 'F3',
+      altTarget: 'F2',
+      label: 'A5↔A4',
+      source: 'A5',
+      target: 'A4',
+    },
+  ] as const)(
+    'avoids reversible motif %s when a quiet alternative exists',
+    ({ altSource, altTarget, source, target }) => {
+      resetFactoryIds();
+      const { reverseAction, state } = createSelfUndoMotifState(
+        source,
+        target,
+        altSource,
+        altTarget,
+      );
+      const ordered = orderMoves(
+        state,
+        state.currentPlayer,
+        RULE_CONFIG,
+        AI_DIFFICULTY_PRESETS.hard,
+        {
+          includeAllQuietMoves: true,
+          samePlayerPreviousAction: state.history.at(-1)?.action ?? null,
+          selfUndoPenalty: AI_DIFFICULTY_PRESETS.hard.selfUndoPenalty,
+        },
+      );
+      const result = chooseComputerAction({
+        difficulty: 'hard',
+        now: createTimeoutClock(getStableCallsForDifficulty('hard'), 100_000),
+        random: () => 0,
+        ruleConfig: RULE_CONFIG,
+        state,
+      });
+      const legalActions = getLegalActions(state, RULE_CONFIG);
 
-    expect(legalActions.map(actionKey)).toContain(actionKey(reverseAction));
-    expect(actionKey(result.action)).not.toBe(actionKey(reverseAction));
-    expect(ordered.find((entry) => actionKey(entry.action) === actionKey(reverseAction))?.isSelfUndo).toBe(true);
-  });
+      expect(legalActions.map(actionKey)).toContain(actionKey(reverseAction));
+      expect(actionKey(result.action)).not.toBe(actionKey(reverseAction));
+      expect(
+        ordered.find(
+          (entry) => actionKey(entry.action) === actionKey(reverseAction),
+        )?.isSelfUndo,
+      ).toBe(true);
+    },
+  );
 
   it('keeps home-field traces on the home plan when direct dispersion wins are available', () => {
     resetFactoryIds();
@@ -232,7 +305,9 @@ describe('AI variety guardrails', () => {
 
     expect(trace.terminalType).toBe('homeField');
     expect(firstPly?.strategicIntent).toBe('home');
-    expect(firstPly?.homeFieldProgress.white ?? 0).toBeGreaterThan(firstPly?.sixStackProgress.white ?? 0);
+    expect(firstPly?.homeFieldProgress.white ?? 0).toBeGreaterThan(
+      firstPly?.sixStackProgress.white ?? 0,
+    );
     expect(countIntentSwitches(trace)).toBe(0);
     expect(firstPly?.stackProfileChurn ?? 1).toBeLessThanOrEqual(0.1);
   });
@@ -255,7 +330,9 @@ describe('AI variety guardrails', () => {
 
     expect(trace.terminalType).toBe('sixStacks');
     expect(firstPly?.strategicIntent).toBe('sixStack');
-    expect(firstPly?.sixStackProgress.white ?? 0).toBeGreaterThan(firstPly?.homeFieldProgress.white ?? 0);
+    expect(firstPly?.sixStackProgress.white ?? 0).toBeGreaterThan(
+      firstPly?.homeFieldProgress.white ?? 0,
+    );
     expect(countIntentSwitches(trace)).toBe(0);
     expect(firstPly?.stackProfileChurn ?? 1).toBeLessThanOrEqual(0.1);
   });
@@ -313,9 +390,7 @@ describe('AI variety guardrails', () => {
     );
     expect(summary.metrics.positiveParticipationPlyShare).toBe(
       Number(
-        (positiveParticipationCount / Math.max(1, trace.totalPlies)).toFixed(
-          6,
-        ),
+        (positiveParticipationCount / Math.max(1, trace.totalPlies)).toFixed(6),
       ),
     );
   });
@@ -324,11 +399,11 @@ describe('AI variety guardrails', () => {
     const hard = getSummary('hard');
     const medium = getSummary('medium');
 
-    // Hard now allows a slightly wider near-best band in risk mode, so keep the
-    // guardrail strict but not brittle around tiny stochastic shifts.
+    // Raw concentration can be tactically forced. Gate only repeated-family
+    // choices where another terminal-safe family was inside the regret cap.
     expect(hard.metrics.repetitionPlyShare).toBeLessThanOrEqual(0.04);
-    expect(hard.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(
-      medium.metrics.sourceFamilyOpeningHhi * 1.05 + 1e-6,
+    expect(hard.metrics.avoidableSourceFamilyRepeatRate).toBeLessThanOrEqual(
+      medium.metrics.avoidableSourceFamilyRepeatRate + 1e-6,
     );
   }, 90_000);
 
@@ -338,7 +413,11 @@ describe('AI variety guardrails', () => {
 
     expect(medium.metrics.sameFamilyQuietRepeatRate).toBeLessThanOrEqual(0.4);
     expect(hard.metrics.sameFamilyQuietRepeatRate).toBeLessThanOrEqual(0.45);
-    expect(medium.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(0.401);
-    expect(hard.metrics.sourceFamilyOpeningHhi).toBeLessThanOrEqual(0.401);
+    expect(
+      medium.metrics.avoidableSourceFamilyRepeatRate,
+    ).toBeLessThanOrEqual(0.08);
+    expect(hard.metrics.avoidableSourceFamilyRepeatRate).toBeLessThanOrEqual(
+      0.04,
+    );
   }, 90_000);
 });

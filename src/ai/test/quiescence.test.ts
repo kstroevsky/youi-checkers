@@ -35,6 +35,7 @@ function createContext(state: EngineState): SearchContext {
     budgetExhaustion: 'none',
     continuationScores: new Map(),
     deadline: Number.POSITIVE_INFINITY,
+    diagnosticAblation: null,
     diagnostics: createSearchDiagnostics(),
     evaluatedNodes: 0,
     historyScores: new Int32Array(AI_MODEL_ACTION_COUNT),
@@ -58,6 +59,7 @@ function createContext(state: EngineState): SearchContext {
     rootStrategicIntent: 'hybrid',
     ruleConfig: withConfig(),
     table: new Map(),
+    transpositionMode: 'current',
   };
 }
 
@@ -123,7 +125,6 @@ function getLegacyQuiescenceMoves(
     context.preset,
     {
       actions: candidateActions,
-      behaviorProfile: context.behaviorProfile,
       deadline: context.deadline,
       grandparentPositionKey: getPreviousOwnPositionKeyFromLine(
         state.currentPlayer,
@@ -138,7 +139,6 @@ function getLegacyQuiescenceMoves(
       participationState,
       perfCache: context.perfCache,
       policyPriors: null,
-      previousStrategicTags: null,
       previousActionId,
       pvMoveId: context.pvMoveByDepth.get(currentDepth) ?? null,
       repetitionPenalty: context.preset.repetitionPenalty,

@@ -139,6 +139,8 @@ export function toRootCandidate(entry: RootRankedAction): AiRootCandidate {
     isRepetition: entry.isRepetition,
     isSelfUndo: entry.isSelfUndo,
     isTactical: entry.isTactical,
+    isTerminal: entry.isTerminal,
+    mobility: entry.mobility,
     mobilityDelta: entry.mobilityDelta,
     movedMass: entry.movedMass,
     participationDelta: entry.participationDelta,
@@ -148,6 +150,7 @@ export function toRootCandidate(entry: RootRankedAction): AiRootCandidate {
     sixStackDelta: entry.sixStackDelta,
     sourceFamily: entry.sourceFamily,
     tags: entry.tags,
+    terminalUtility: entry.terminalUtility,
     tiebreakEdgeKind: entry.tiebreakEdgeKind,
   };
 }

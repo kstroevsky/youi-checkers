@@ -24,6 +24,8 @@ export type AiDifficultyPreset = {
   drawAversionAhead: number;
   drawAversionBehindRelief: number;
   familyVarietyWeight: number;
+  /** Maximum root-score regret that style selection may spend. */
+  maxSelectionRegret: number;
   maxDepth: number;
   participationBias: number;
   participationWindow: number;
@@ -89,12 +91,35 @@ export type AiSearchBudgetReport = {
   type: 'presetTime' | AiSearchBudget['type'];
 };
 
+/**
+ * Measurement-only switches for reconstructing historical search semantics.
+ * Product callers must omit this field; default false preserves production play.
+ */
+export type AiSearchDiagnosticAblation = {
+  behaviorEvaluation?: boolean;
+  behaviorOrdering?: boolean;
+  exactTieParticipation?: boolean;
+  noveltyOrdering?: boolean;
+  participationEvaluation?: boolean;
+  participationEvaluationScale?: number;
+  participationOrdering?: boolean;
+  rootParticipationScale?: number;
+  transpositionMode?: AiTranspositionMode;
+};
+
+export type AiTranspositionMode = 'current' | 'repetitionAware' | 'disabled';
+
 /** Inputs accepted by the pure search entrypoint. */
 export type ChooseComputerActionRequest = {
   behaviorProfile?: AiBehaviorProfile | null;
+  /** Measurement-only reconstruction of removed search signals. */
+  diagnosticAblation?: AiSearchDiagnosticAblation | null;
+  /** Measurement-only override for how many searched root scores are returned. */
+  diagnosticRootCandidateLimit?: number;
   difficulty: AiDifficulty;
   modelGuidance?: AiModelGuidance | null;
   now?: () => number;
+  previousStrategicIntent?: AiStrategicIntent | null;
   random?: () => number;
   ruleConfig: RuleConfig;
   searchBudget?: AiSearchBudget;
@@ -109,6 +134,28 @@ export type AiModelGuidance = {
   valueEstimate: number | null;
 };
 
+/** Terminal outcome of a candidate, always expressed from the acting player's perspective. */
+export type AiTerminalUtility =
+  | 'win'
+  | 'loss'
+  | 'favorableDraw'
+  | 'neutralDraw'
+  | 'unfavorableDraw'
+  | null;
+
+/** Actor-aware branching counts around one candidate transition. */
+export type AiMobilityTransition = {
+  /** Legal actions available to the actor before the candidate. */
+  actorBefore: number;
+  /** Actor actions after a same-player continuation, when measured. */
+  actorContinuationAfter: number | null;
+  /** Opponent replies after a turn pass, when measured. */
+  opponentReplyAfter: number | null;
+  /** Whether the active post-transition player's branching count was measured. */
+  measuredAfter: boolean;
+  samePlayerContinuation: boolean;
+};
+
 export type AiRootCandidate = {
   action: TurnAction;
   drawTrapRisk: number;
@@ -121,6 +168,9 @@ export type AiRootCandidate = {
   isRepetition: boolean;
   isSelfUndo: boolean;
   isTactical: boolean;
+  isTerminal: boolean;
+  mobility: AiMobilityTransition;
+  /** Same-actor continuation delta. Zero when the candidate passes the turn. */
   mobilityDelta: number;
   movedMass: number;
   participationDelta: number;
@@ -130,6 +180,7 @@ export type AiRootCandidate = {
   sixStackDelta: number;
   sourceFamily: string;
   tags: AiStrategicTag[];
+  terminalUtility: AiTerminalUtility;
   tiebreakEdgeKind: AiTiebreakEdgeKind;
 };
 
@@ -145,6 +196,8 @@ export type AiSearchDiagnostics = {
   pvsResearches: number;
   quiescenceNodes: number;
   repetitionPenalties: number;
+  /** Candidate transitions simulated while preparing the root action set. */
+  rootPreparationTransitions: number;
   selfUndoPenalties: number;
   sourceFamilyCollisions: number;
   stagnationRiskTriggers: number;
@@ -155,20 +208,33 @@ export type AiSearchDiagnostics = {
 export type AiSearchResult = {
   action: TurnAction | null;
   behaviorProfileId: AiBehaviorProfileId | null;
+  /** Highest-scoring action before bounded variety/persona selection. */
+  bestSearchAction: TurnAction | null;
+  /** Score owned by bestSearchAction. */
+  bestSearchScore: number;
   /** Complete after-win action line. Present only when finishing search reaches victory. */
   completionPlan?: TurnAction[];
   completedDepth: number;
+  /** Root actions evaluated at completedDepth; never overwritten by partial work. */
   completedRootMoves: number;
   diagnostics: AiSearchDiagnostics;
   elapsedMs: number;
   evaluatedNodes: number;
   fallbackKind: AiFallbackKind;
+  /** Interrupted iterative-deepening depth, when at least one root action completed. */
+  partialDepth: number | null;
+  partialRootMoves: number;
   principalVariation: TurnAction[];
   riskMode: AiRiskMode;
   rootCandidates: AiRootCandidate[];
   /** Exact resource contract exercised by this decision. */
   searchBudget?: AiSearchBudgetReport;
+  /** Backward-compatible alias for selectedActionScore. */
   score: number;
+  /** Score owned by action, after the final candidate selection. */
+  selectedActionScore: number;
+  /** Non-negative score sacrificed by bounded variety/persona selection. */
+  selectionRegret: number;
   strategicIntent: AiStrategicIntent;
   timedOut: boolean;
 };
@@ -178,6 +244,7 @@ export type AiWorkerRequest = {
   behaviorProfile: AiBehaviorProfile | null;
   matchSettings: MatchSettings;
   requestId: number;
+  previousStrategicIntent: AiStrategicIntent | null;
   ruleConfig: RuleConfig;
   searchMode: AiSearchMode;
   state: EngineState;

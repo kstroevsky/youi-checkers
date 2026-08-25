@@ -1,6 +1,6 @@
 # AI Variety Report
 
-Generated at: 2026-07-15T22:15:23.909Z
+Generated at: 2026-08-09T17:12:57.630Z
 
 This file is a generated report artifact from `npm run ai:variety`.
 
@@ -17,31 +17,33 @@ Games: 64, average plies: 80, terminals: {"homeField":0,"sixStacks":0,"threefold
 | Metric | Value | Target | Status |
 | --- | ---: | --- | --- |
 | decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
-| twoPlyUndoRate | 0.081445 | <= 0.02 (warn 0.08) | bad |
-| sameFamilyQuietRepeatRate | 0.05642 | <= 0.25 (warn 0.45) | good |
-| repetitionPlyShare | 0.001953 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.060742 | <= 0.02 (warn 0.08) | warn |
+| sameFamilyQuietRepeatRate | 0.004773 | <= 0.25 (warn 0.45) | good |
+| repetitionPlyShare | 0.003711 | <= 0.1 (warn 0.2) | good |
 | threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
-| stagnationWindowRate | 0.35625 | <= 0.15 (warn 0.3) | bad |
-| openingEntropy | 1.584612 | >= 1 (warn 0.5) | good |
-| openingSimpsonDiversity | 0.666504 | n/a | n/a |
-| openingJsDivergence | 0 | n/a | n/a |
-| sourceFamilyOpeningHhi | 0.256836 | <= 0.32 (warn 0.45) | good |
-| uniqueOpeningLineShare | 0.171875 | >= 0.35 (warn 0.2) | bad |
-| normalizedLempelZiv | 4.15247 | n/a | n/a |
-| noveltyScore | 0.204356 | n/a | n/a |
+| stagnationWindowRate | 0.392083 | <= 0.15 (warn 0.3) | bad |
+| openingEntropy | 0 | >= 1 (warn 0.5) | bad |
+| openingSimpsonDiversity | 0 | n/a | n/a |
+| openingJsDivergence | 0.464378 | n/a | n/a |
+| sourceFamilyOpeningHhi | 0.375244 | <= 0.32 (warn 0.45) | warn |
+| uniqueOpeningLineShare | 0.125 | >= 0.35 (warn 0.2) | bad |
+| normalizedLempelZiv | 1.052008 | n/a | n/a |
+| noveltyScore | 0.149981 | n/a | n/a |
 | behaviorSpaceCoverage | 0.005952 | n/a | n/a |
-| meanParticipationDelta | 36.743555 | n/a | n/a |
-| positiveParticipationPlyShare | 0.425391 | n/a | n/a |
-| decompressionSlope | 0.000496 | >= 0.04 (warn 0.02) | bad |
-| mobilityReleaseSlope | 0.053106 | >= 0.05 (warn 0) | good |
-| meanBoardDisplacement | 0.074832 | >= 0.08 (warn 0.06) | warn |
-| drama | 1.552611 | >= 0.25 (warn 0.18) | good |
+| meanParticipationDelta | 35.25332 | n/a | n/a |
+| positiveParticipationPlyShare | 0.40332 | n/a | n/a |
+| decompressionSlope | 0.002542 | >= 0.04 (warn 0.02) | bad |
+| mobilityReleaseSlope | -0.0141 | >= 0.05 (warn 0) | bad |
+| meanBoardDisplacement | 0.074192 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.439873 | >= 0.25 (warn 0.18) | good |
 | tension | 0 | >= 0.45 (warn 0.3) | bad |
-| compositeInterestingness | 0.045882 | >= 0.65 (warn 0.4) | bad |
+| compositeInterestingness | 0.019821 | >= 0.65 (warn 0.4) | bad |
 
 Regressions:
-- sameFamilyQuietRepeatRate: 0.05642 vs threshold 0.036857 (lower is better)
-- twoPlyUndoRate: 0.081445 vs threshold 0.064811 (lower is better)
+- sourceFamilyOpeningHhi: 0.375244 vs threshold 0.327369 (lower is better)
+- mobilityReleaseSlope: -0.0141 vs threshold 0.013777 (higher is better)
+- openingEntropy: 0 vs threshold 1.42615 (higher is better)
+- openingSimpsonDiversity: 0 vs threshold 0.599853 (higher is better)
 
 ## medium
 
@@ -50,31 +52,36 @@ Games: 64, average plies: 80, terminals: {"homeField":0,"sixStacks":0,"threefold
 | Metric | Value | Target | Status |
 | --- | ---: | --- | --- |
 | decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
-| twoPlyUndoRate | 0.089844 | <= 0.02 (warn 0.08) | bad |
-| sameFamilyQuietRepeatRate | 0.029528 | <= 0.25 (warn 0.45) | good |
-| repetitionPlyShare | 0.001172 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.089258 | <= 0.02 (warn 0.08) | bad |
+| sameFamilyQuietRepeatRate | 0.064516 | <= 0.25 (warn 0.45) | good |
+| repetitionPlyShare | 0.004492 | <= 0.1 (warn 0.2) | good |
 | threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
-| stagnationWindowRate | 0.347917 | <= 0.15 (warn 0.3) | bad |
-| openingEntropy | 1.584612 | >= 1 (warn 0.5) | good |
-| openingSimpsonDiversity | 0.666504 | n/a | n/a |
-| openingJsDivergence | 0 | n/a | n/a |
-| sourceFamilyOpeningHhi | 0.259521 | <= 0.32 (warn 0.45) | good |
-| uniqueOpeningLineShare | 0.09375 | >= 0.35 (warn 0.2) | bad |
-| normalizedLempelZiv | 4.112958 | n/a | n/a |
-| noveltyScore | 0.15256 | n/a | n/a |
+| stagnationWindowRate | 0.409375 | <= 0.15 (warn 0.3) | bad |
+| openingEntropy | 0 | >= 1 (warn 0.5) | bad |
+| openingSimpsonDiversity | 0 | n/a | n/a |
+| openingJsDivergence | 0.464378 | n/a | n/a |
+| sourceFamilyOpeningHhi | 0.380859 | <= 0.32 (warn 0.45) | warn |
+| uniqueOpeningLineShare | 0.046875 | >= 0.35 (warn 0.2) | bad |
+| normalizedLempelZiv | 1.045834 | n/a | n/a |
+| noveltyScore | 0.08425 | n/a | n/a |
 | behaviorSpaceCoverage | 0.005952 | n/a | n/a |
-| meanParticipationDelta | 65.351758 | n/a | n/a |
-| positiveParticipationPlyShare | 0.394336 | n/a | n/a |
-| decompressionSlope | 0.00031 | >= 0.04 (warn 0.02) | bad |
-| mobilityReleaseSlope | 0.056213 | >= 0.05 (warn 0) | good |
-| meanBoardDisplacement | 0.07506 | >= 0.08 (warn 0.06) | warn |
-| drama | 1.565269 | >= 0.25 (warn 0.18) | good |
+| meanParticipationDelta | 71.700391 | n/a | n/a |
+| positiveParticipationPlyShare | 0.332227 | n/a | n/a |
+| decompressionSlope | 0.002604 | >= 0.04 (warn 0.02) | bad |
+| mobilityReleaseSlope | -0.015774 | >= 0.05 (warn 0) | bad |
+| meanBoardDisplacement | 0.073888 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.330696 | >= 0.25 (warn 0.18) | good |
 | tension | 0 | >= 0.45 (warn 0.3) | bad |
-| compositeInterestingness | 0.044485 | >= 0.65 (warn 0.4) | bad |
+| compositeInterestingness | 0.020057 | >= 0.65 (warn 0.4) | bad |
 
 Regressions:
-- sameFamilyQuietRepeatRate: 0.029528 vs threshold 0.011958 (lower is better)
-- twoPlyUndoRate: 0.089844 vs threshold 0.066836 (lower is better)
+- sameFamilyQuietRepeatRate: 0.064516 vs threshold 0.011958 (lower is better)
+- sourceFamilyOpeningHhi: 0.380859 vs threshold 0.335963 (lower is better)
+- twoPlyUndoRate: 0.089258 vs threshold 0.066836 (lower is better)
+- mobilityReleaseSlope: -0.015774 vs threshold 0.01679 (higher is better)
+- openingEntropy: 0 vs threshold 1.42615 (higher is better)
+- openingSimpsonDiversity: 0 vs threshold 0.599853 (higher is better)
+- positiveParticipationPlyShare: 0.332227 vs threshold 0.354901 (higher is better)
 
 ## hard
 
@@ -83,29 +90,33 @@ Games: 64, average plies: 80, terminals: {"homeField":0,"sixStacks":0,"threefold
 | Metric | Value | Target | Status |
 | --- | ---: | --- | --- |
 | decisiveResultShare | 0 | >= 0.35 (warn 0.15) | bad |
-| twoPlyUndoRate | 0.08457 | <= 0.02 (warn 0.08) | bad |
-| sameFamilyQuietRepeatRate | 0.035789 | <= 0.25 (warn 0.45) | good |
-| repetitionPlyShare | 0.000195 | <= 0.1 (warn 0.2) | good |
+| twoPlyUndoRate | 0.05332 | <= 0.02 (warn 0.08) | warn |
+| sameFamilyQuietRepeatRate | 0.044665 | <= 0.25 (warn 0.45) | good |
+| repetitionPlyShare | 0.006445 | <= 0.1 (warn 0.2) | good |
 | threefoldDrawShare | 0 | <= 0.3 (warn 0.55) | good |
-| stagnationWindowRate | 0.36 | <= 0.15 (warn 0.3) | bad |
-| openingEntropy | 1.584612 | >= 1 (warn 0.5) | good |
-| openingSimpsonDiversity | 0.666504 | n/a | n/a |
-| openingJsDivergence | 0 | n/a | n/a |
-| sourceFamilyOpeningHhi | 0.25415 | <= 0.32 (warn 0.45) | good |
-| uniqueOpeningLineShare | 0.109375 | >= 0.35 (warn 0.2) | bad |
-| normalizedLempelZiv | 4.146296 | n/a | n/a |
-| noveltyScore | 0.066802 | n/a | n/a |
+| stagnationWindowRate | 0.494167 | <= 0.15 (warn 0.3) | bad |
+| openingEntropy | 0 | >= 1 (warn 0.5) | bad |
+| openingSimpsonDiversity | 0 | n/a | n/a |
+| openingJsDivergence | 0.464378 | n/a | n/a |
+| sourceFamilyOpeningHhi | 0.414063 | <= 0.32 (warn 0.45) | warn |
+| uniqueOpeningLineShare | 0.0625 | >= 0.35 (warn 0.2) | bad |
+| normalizedLempelZiv | 0.99521 | n/a | n/a |
+| noveltyScore | 0.052511 | n/a | n/a |
 | behaviorSpaceCoverage | 0.005952 | n/a | n/a |
-| meanParticipationDelta | 100.686328 | n/a | n/a |
-| positiveParticipationPlyShare | 0.402539 | n/a | n/a |
-| decompressionSlope | 0.000744 | >= 0.04 (warn 0.02) | bad |
-| mobilityReleaseSlope | 0.051004 | >= 0.05 (warn 0) | good |
-| meanBoardDisplacement | 0.074463 | >= 0.08 (warn 0.06) | warn |
-| drama | 1.547073 | >= 0.25 (warn 0.18) | good |
+| meanParticipationDelta | 104.446289 | n/a | n/a |
+| positiveParticipationPlyShare | 0.291016 | n/a | n/a |
+| decompressionSlope | 0.001364 | >= 0.04 (warn 0.02) | bad |
+| mobilityReleaseSlope | -0.000893 | >= 0.05 (warn 0) | bad |
+| meanBoardDisplacement | 0.074658 | >= 0.08 (warn 0.06) | warn |
+| drama | 1.162184 | >= 0.25 (warn 0.18) | good |
 | tension | 0 | >= 0.45 (warn 0.3) | bad |
-| compositeInterestingness | 0.044566 | >= 0.65 (warn 0.4) | bad |
+| compositeInterestingness | 0.016925 | >= 0.65 (warn 0.4) | bad |
 
 Regressions:
-- sameFamilyQuietRepeatRate: 0.035789 vs threshold 0.000001 (lower is better)
-- twoPlyUndoRate: 0.08457 vs threshold 0.063319 (lower is better)
+- sameFamilyQuietRepeatRate: 0.044665 vs threshold 0.000001 (lower is better)
+- sourceFamilyOpeningHhi: 0.414063 vs threshold 0.335158 (lower is better)
+- mobilityReleaseSlope: -0.000893 vs threshold 0.013275 (higher is better)
+- openingEntropy: 0 vs threshold 1.42615 (higher is better)
+- openingSimpsonDiversity: 0 vs threshold 0.599853 (higher is better)
+- positiveParticipationPlyShare: 0.291016 vs threshold 0.362284 (higher is better)
 

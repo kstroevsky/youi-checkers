@@ -55,13 +55,13 @@ function buildMarkdown(rows: BucketRow[], pairCount: number, maxTurns: number): 
     '- For non-opening buckets, `openingEntropy` means first-reply entropy from that bucket state, not literal game openings.',
     `- Report settings: ${pairCount} mirrored seed pairs per scenario, ${maxTurns} continuation plies per trace.`,
     '',
-    '| Bucket | Difficulty | Scenarios | Opening Entropy | Unique Lines | Repetition | Stagnation | Loop Escape<=8 | Pressure | Pos LZC | SampEn | PermEn | Interestingness |',
-    '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
+    '| Bucket | Difficulty | Scenarios | Opening Entropy | Unique Lines | Repetition | Stagnation | Escape eligible N | Loop Escape<=8 | Pressure | Pos LZC | SampEn | SampEn N | PermEn | Legacy composite proxy |',
+    '| --- | --- | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |',
   ];
 
   for (const row of rows) {
     lines.push(
-      `| ${row.bucket} | ${row.difficulty} | ${row.scenarios.join(', ')} | ${row.summary.metrics.openingEntropy} | ${row.summary.metrics.uniqueOpeningLineShare} | ${row.summary.metrics.repetitionPlyShare} | ${row.summary.metrics.stagnationWindowRate} | ${row.advanced.loopEscapeRate8} | ${row.advanced.pressureEventRate} | ${row.advanced.positionLempelZiv} | ${row.advanced.scoreSampleEntropy} | ${row.advanced.scorePermutationEntropy} | ${row.summary.metrics.compositeInterestingness} |`,
+      `| ${row.bucket} | ${row.difficulty} | ${row.scenarios.join(', ')} | ${row.summary.metrics.openingEntropy} | ${row.summary.metrics.uniqueOpeningLineShare} | ${row.summary.metrics.repetitionPlyShare} | ${row.summary.metrics.stagnationWindowRate} | ${row.advanced.loopEscapeEligibleTraceCount} | ${row.advanced.loopEscapeRate8} | ${row.advanced.pressureEventRate} | ${row.advanced.positionLempelZiv} | ${row.advanced.scoreSampleEntropy} | ${row.advanced.scoreSampleEntropyTraceCount} | ${row.advanced.scorePermutationEntropy} | ${row.summary.metrics.compositeInterestingness} |`,
     );
   }
 

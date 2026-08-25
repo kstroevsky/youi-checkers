@@ -78,6 +78,7 @@ function buildMarkdown(
   targets: TargetBandFile,
 ): string {
   const keyMetrics: AiVarietyMetricKey[] = [
+    'avoidableSourceFamilyRepeatRate',
     'decisiveResultShare',
     'twoPlyUndoRate',
     'sameFamilyQuietRepeatRate',
@@ -103,11 +104,13 @@ function buildMarkdown(
   ];
 
   const lines = [
-    '# AI Variety Report',
+    '# Legacy AI Behavior Regression Report',
     '',
     `Generated at: ${new Date().toISOString()}`,
     '',
     'This file is a generated report artifact from `npm run ai:variety`.',
+    '',
+    '> Compatibility dashboard: `drama`, `tension`, and `compositeInterestingness` are uncalibrated trace proxies. They are not player-enjoyment measures or release gates.',
     '',
     'Methodology:',
     '- Each difficulty is evaluated with the same mirrored self-play harness used by `runAiVarietySuite()` in `src/ai/test/metrics.ts`.',
@@ -194,6 +197,7 @@ async function main(): Promise<void> {
   const report = {
     baselineVersion: baselineFile.version,
     generatedAt: new Date().toISOString(),
+    reportKind: 'legacyBehaviorRegression',
     regressions,
     settings: {
       maxTurns,

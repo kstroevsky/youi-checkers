@@ -35,6 +35,7 @@ export function negamax(
     context.evaluatedNodes += 1;
     return evaluateState(state, state.currentPlayer, context.ruleConfig, {
       behaviorProfile: context.behaviorProfile,
+      diagnosticAblation: context.diagnosticAblation,
       diagnostics: context.diagnostics,
       participationState,
       perfCache: context.perfCache,
@@ -45,8 +46,11 @@ export function negamax(
 
   const originalAlpha = alpha;
   const originalBeta = beta;
-  const tableKey = makeTableKey(state);
-  const cached = context.table.get(tableKey);
+  const tableKey = makeTableKey(state, context.transpositionMode);
+  const cached =
+    context.transpositionMode === 'disabled'
+      ? undefined
+      : context.table.get(tableKey);
 
   if (cached && cached.depth >= depth) {
     context.diagnostics.transpositionHits += 1;
@@ -87,6 +91,7 @@ export function negamax(
     {
       behaviorProfile: context.behaviorProfile,
       deadline: context.deadline,
+      diagnosticAblation: context.diagnosticAblation,
       grandparentPositionKey: getPreviousOwnPositionKeyFromLine(
         state.currentPlayer,
         stack,
@@ -120,6 +125,7 @@ export function negamax(
     context.evaluatedNodes += 1;
     return evaluateState(state, state.currentPlayer, context.ruleConfig, {
       behaviorProfile: context.behaviorProfile,
+      diagnosticAblation: context.diagnosticAblation,
       diagnostics: context.diagnostics,
       participationState,
       perfCache: context.perfCache,
@@ -259,12 +265,14 @@ export function negamax(
     }
   }
 
-  context.table.set(tableKey, {
-    bestAction,
-    depth,
-    flag,
-    score: bestScore,
-  });
+  if (context.transpositionMode !== 'disabled') {
+    context.table.set(tableKey, {
+      bestAction,
+      depth,
+      flag,
+      score: bestScore,
+    });
+  }
 
   if (bestAction) {
     context.pvMoveByDepth.set(currentDepth, actionId(bestAction));

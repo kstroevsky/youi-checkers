@@ -1,13 +1,49 @@
 import { describe, expect, it } from 'vitest';
 
+import { createSearchDiagnostics } from '@/ai/search/result';
 import {
   summarizeEffectiveDiversity,
   summarizeNumericDistribution,
   summarizePairedDifference,
   summarizeProportion,
+  summarizeSearchExecutions,
+  summarizeStrategicTrajectories,
 } from '@/ai/test/measurement';
 
 describe('AI measurement statistics', () => {
+  it('measures coherent plans and response-surviving progress at 2/4/8 plies', () => {
+    type Ply = Parameters<
+      typeof summarizeStrategicTrajectories
+    >[0][number][number];
+    const plies: Ply[] = Array.from({ length: 10 }, (_, index) => {
+      const actor = index % 2 === 0 ? 'white' : 'black';
+      return {
+        actor,
+        homeFieldProgress: { black: index * 0.01, white: index * 0.02 },
+        mobility: {
+          actorBefore: 5,
+          actorContinuationAfter: null,
+          measuredAfter: true,
+          opponentReplyAfter: 3,
+          samePlayerContinuation: false,
+        },
+        sixStackProgress: { black: index * 0.03, white: index * 0.01 },
+        strategicIntent:
+          actor === 'white' ? (index < 6 ? 'home' : 'sixStack') : 'sixStack',
+      };
+    });
+    const summary = summarizeStrategicTrajectories([plies]);
+
+    expect(summary.planSwitchShare).toMatchObject({ count: 1, total: 8 });
+    expect(summary.planCommitmentRun.maximum).toBe(5);
+    expect(summary.opponentReplyCount).toMatchObject({ count: 10, mean: 3 });
+    expect(
+      summary.persistentPlanProgress['2'].positiveShare.share,
+    ).toBeGreaterThan(0);
+    expect(summary.persistentPlanProgress['4'].delta.count).toBeGreaterThan(0);
+    expect(summary.persistentPlanProgress['8'].delta.count).toBe(1);
+  });
+
   it('preserves distribution shape and deterministic uncertainty intervals', () => {
     const summary = summarizeNumericDistribution([1, 2, 3, 4, 100]);
 
@@ -70,5 +106,44 @@ describe('AI measurement statistics', () => {
     expect(improved.orientedMeanDifference).toBeGreaterThan(0);
     expect(improved.pairCount).toBe(4);
     expect(noisy.verdict).toBe('inconclusive');
+  });
+
+  it('keeps partial-depth evidence separate and nullable', () => {
+    const base = {
+      completedDepth: 1,
+      completedRootMoves: 12,
+      diagnostics: createSearchDiagnostics(),
+      elapsedMs: 1,
+      evaluatedNodes: 100,
+      fallbackKind: 'none' as const,
+      partialDepth: null,
+      partialRootMoves: 0,
+      rootScoreRegret: 0,
+      searchBudget: {
+        exhaustedBy: 'none' as const,
+        maxDepth: 2,
+        maxEvaluatedNodes: 100,
+        timeBudgetMs: null,
+        type: 'fixedNodes' as const,
+      },
+      timedOut: false,
+    };
+    const withoutPartial = summarizeSearchExecutions([base]);
+    const withPartial = summarizeSearchExecutions([
+      base,
+      {
+        ...base,
+        fallbackKind: 'partialCurrentDepth',
+        partialDepth: 2,
+        partialRootMoves: 7,
+        timedOut: true,
+      },
+    ]);
+
+    expect(withoutPartial.partialDepth).toBeNull();
+    expect(withoutPartial.partialRootMoves).toBeNull();
+    expect(withPartial.partialDepth).toMatchObject({ count: 1, mean: 2 });
+    expect(withPartial.partialRootMoves).toMatchObject({ count: 1, mean: 7 });
+    expect(withPartial.partialDepthShare).toMatchObject({ count: 1, total: 2 });
   });
 });

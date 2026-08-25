@@ -15,6 +15,7 @@ import {
 import { buildParticipationState } from '@/ai/participation';
 import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
 import { getRiskProfile, hasCertifiedRiskProgress } from '@/ai/risk';
+import { stabilizeStrategicIntent } from '@/ai/strategy';
 import type { AiSearchResult, ChooseComputerActionRequest } from '@/ai/types';
 import type { TurnAction } from '@/domain';
 import {
@@ -39,13 +40,11 @@ import {
   createSearchDiagnostics,
   orderRootCandidates,
   selectCandidateAction,
+  selectExactTieParticipationV1,
   sortRankedActions,
+  summarizeDecisionScores,
 } from '@/ai/search/result';
-import {
-  actionId,
-  isSearchTimeout,
-  makeTableKey,
-} from '@/ai/search/shared';
+import { actionId, isSearchTimeout, makeTableKey } from '@/ai/search/shared';
 import type {
   RootRankedAction,
   SearchContext,
@@ -64,6 +63,8 @@ function createRootFallbackCandidate(
     emptyCellsDelta?: number;
     freezeSwingBonus?: number;
     homeFieldDelta?: number;
+    isTerminal?: boolean;
+    mobility?: RootRankedAction['mobility'];
     mobilityDelta?: number;
     movedMass: number;
     participationDelta: number;
@@ -71,6 +72,7 @@ function createRootFallbackCandidate(
     repeatedPositionCount?: number;
     sixStackDelta?: number;
     sourceFamily: string;
+    terminalUtility?: RootRankedAction['terminalUtility'];
     tiebreakEdgeKind?: AiSearchResult['rootCandidates'][number]['tiebreakEdgeKind'];
   },
   score: number,
@@ -88,6 +90,14 @@ function createRootFallbackCandidate(
     isRepetition: false,
     isSelfUndo: false,
     isTactical: false,
+    isTerminal: entry.isTerminal ?? false,
+    mobility: entry.mobility ?? {
+      actorBefore: 0,
+      actorContinuationAfter: null,
+      opponentReplyAfter: null,
+      measuredAfter: false,
+      samePlayerContinuation: false,
+    },
     mobilityDelta: entry.mobilityDelta ?? 0,
     movedMass: entry.movedMass,
     participationDelta: entry.participationDelta,
@@ -97,6 +107,7 @@ function createRootFallbackCandidate(
     sixStackDelta: entry.sixStackDelta ?? 0,
     sourceFamily: entry.sourceFamily,
     tags: [],
+    terminalUtility: entry.terminalUtility ?? null,
     tiebreakEdgeKind: entry.tiebreakEdgeKind ?? 'tied',
   };
 }
@@ -180,6 +191,8 @@ function toFallbackRanked(orderedMoves: OrderedAction[]): RootRankedAction[] {
       isRepetition: entry.isRepetition,
       isSelfUndo: entry.isSelfUndo,
       isTactical: entry.isTactical,
+      isTerminal: entry.isTerminal,
+      mobility: entry.mobility,
       mobilityDelta: entry.mobilityDelta,
       movedMass: entry.movedMass,
       participationDelta: entry.participationDelta,
@@ -189,6 +202,7 @@ function toFallbackRanked(orderedMoves: OrderedAction[]): RootRankedAction[] {
       sixStackDelta: entry.sixStackDelta,
       sourceFamily: entry.sourceFamily,
       tags: entry.tags,
+      terminalUtility: entry.terminalUtility,
       tiebreakEdgeKind: entry.tiebreakEdgeKind,
     })),
   );
@@ -197,9 +211,12 @@ function toFallbackRanked(orderedMoves: OrderedAction[]): RootRankedAction[] {
 /** Chooses one computer move using iterative deepening negamax with alpha-beta pruning. */
 export function chooseComputerAction({
   behaviorProfile = null,
+  diagnosticAblation = null,
+  diagnosticRootCandidateLimit,
   difficulty,
   modelGuidance = null,
   now = () => performance.now(),
+  previousStrategicIntent = null,
   random = Math.random,
   ruleConfig,
   searchBudget,
@@ -223,8 +240,14 @@ export function chooseComputerAction({
       state,
     });
   }
-
   const preset = AI_DIFFICULTY_PRESETS[difficulty];
+  const rootCandidateLimit =
+    diagnosticRootCandidateLimit ?? preset.rootCandidateLimit;
+  if (!Number.isSafeInteger(rootCandidateLimit) || rootCandidateLimit <= 0) {
+    throw new RangeError(
+      'diagnosticRootCandidateLimit must be a positive safe integer.',
+    );
+  }
   const startedAt = now();
   const resolvedBudget = resolveSearchBudget(searchBudget, preset, startedAt);
   const deadline = resolvedBudget.deadline;
@@ -235,11 +258,11 @@ export function chooseComputerAction({
     ruleConfig,
     rootPerfBundle.positionKey,
   );
-  const inferredIntent = getPerfStrategicIntent(
+  const inferredIntentProfile = getPerfStrategicIntent(
     rootPerfBundle,
     state,
     state.currentPlayer,
-  ).intent;
+  );
   const diagnostics = createSearchDiagnostics();
   const riskProfile = getRiskProfile(state, ruleConfig, preset, diagnostics);
   const policyPriors = modelGuidance?.actionPriors ?? null;
@@ -247,7 +270,8 @@ export function chooseComputerAction({
     state,
     preset.participationWindow,
   );
-  const rootPositionKey = makeTableKey(state);
+  const transpositionMode = diagnosticAblation?.transpositionMode ?? 'current';
+  const rootPositionKey = makeTableKey(state, transpositionMode);
   const rootPreviousOwnAction = getRootPreviousOwnAction(state);
   const rootPreviousStrategicTags = getRootPreviousStrategicTags(state);
   const rootSelfUndoPositionKey = getRootSelfUndoPositionKey(state);
@@ -268,24 +292,35 @@ export function chooseComputerAction({
     useDeadline: boolean,
     riskMode = effectiveRiskMode,
     policyPriorWeight = rootPolicyPriorWeight,
-  ): PrecomputedOrderedAction[] =>
-    precomputeOrderedActions(state, state.currentPlayer, ruleConfig, preset, {
-      actions: legalActions,
-      behaviorProfile,
-      deadline: useDeadline ? deadline : undefined,
-      diagnostics,
-      grandparentPositionKey: rootSelfUndoPositionKey,
-      now: useDeadline ? now : undefined,
-      participationState: rootParticipationState,
-      perfCache,
-      policyPriors,
-      policyPriorWeight,
-      previousStrategicTags: rootPreviousStrategicTags,
-      repetitionPenalty: preset.repetitionPenalty,
-      riskMode,
-      samePlayerPreviousAction: rootPreviousOwnAction,
-      selfUndoPenalty: preset.selfUndoPenalty,
-    });
+  ): PrecomputedOrderedAction[] => {
+    return precomputeOrderedActions(
+      state,
+      state.currentPlayer,
+      ruleConfig,
+      preset,
+      {
+        actions: legalActions,
+        behaviorProfile,
+        deadline: useDeadline ? deadline : undefined,
+        diagnostics,
+        diagnosticAblation,
+        grandparentPositionKey: rootSelfUndoPositionKey,
+        now: useDeadline ? now : undefined,
+        onPreparedTransition: () => {
+          diagnostics.rootPreparationTransitions += 1;
+        },
+        participationState: rootParticipationState,
+        perfCache,
+        policyPriors,
+        policyPriorWeight,
+        previousStrategicTags: rootPreviousStrategicTags,
+        repetitionPenalty: preset.repetitionPenalty,
+        riskMode,
+        samePlayerPreviousAction: rootPreviousOwnAction,
+        selfUndoPenalty: preset.selfUndoPenalty,
+      },
+    );
+  };
 
   if (effectiveRiskMode !== 'normal') {
     const riskProbe = createRootPrecomputed(false);
@@ -298,19 +333,24 @@ export function chooseComputerAction({
     }
   }
 
-  const strategicIntent =
+  const proposedIntent =
     effectiveRiskMode === 'normal'
-      ? (modelGuidance?.strategicIntent ?? inferredIntent)
-      : inferredIntent;
+      ? (modelGuidance?.strategicIntent ?? inferredIntentProfile.intent)
+      : inferredIntentProfile.intent;
+  const strategicIntent = stabilizeStrategicIntent(
+    { ...inferredIntentProfile, intent: proposedIntent },
+    previousStrategicIntent,
+  );
   let fallbackScore: number | null = null;
 
   /** Lazily computes the root static fallback so timeout/error paths stay cheap unless needed. */
   function getFallbackScore(): number {
     fallbackScore ??= evaluateState(state, state.currentPlayer, ruleConfig, {
       behaviorProfile,
+      diagnosticAblation,
       diagnostics,
-      perfCache,
       participationState: rootParticipationState,
+      perfCache,
       preset,
       riskMode: effectiveRiskMode,
     });
@@ -334,6 +374,7 @@ export function chooseComputerAction({
     continuationScores: new Map<number, number>(),
     deadline,
     diagnostics,
+    diagnosticAblation,
     evaluatedNodes: 0,
     historyScores: new Int32Array(AI_MODEL_ACTION_COUNT),
     killerMovesByDepth: new Map<number, number[]>(),
@@ -353,6 +394,7 @@ export function chooseComputerAction({
     rootSelfUndoPositionKey,
     ruleConfig,
     table: new Map<string, TranspositionEntry>(),
+    transpositionMode,
   };
 
   /**
@@ -370,7 +412,10 @@ export function chooseComputerAction({
       pvMoveId,
       continuationScores: context.continuationScores,
       ttMoveId: (() => {
-        const a = context.table.get(rootPositionKey)?.bestAction ?? null;
+        const a =
+          context.transpositionMode === 'disabled'
+            ? null
+            : (context.table.get(rootPositionKey)?.bestAction ?? null);
         return a ? actionId(a) : null;
       })(),
     });
@@ -383,7 +428,10 @@ export function chooseComputerAction({
       previousActionId: null,
       continuationScores: context.continuationScores,
       ttMoveId: (() => {
-        const a = context.table.get(rootPositionKey)?.bestAction ?? null;
+        const a =
+          context.transpositionMode === 'disabled'
+            ? null
+            : (context.table.get(rootPositionKey)?.bestAction ?? null);
         return a ? actionId(a) : null;
       })(),
     });
@@ -393,6 +441,8 @@ export function chooseComputerAction({
   let bestAction = legalActions[0];
   let bestScore = getFallbackScore();
   let fallbackKind: AiSearchResult['fallbackKind'] = 'none';
+  let partialDepth: number | null = null;
+  let partialRootMoves = 0;
   let timedOut = false;
   let rootCandidates: RootRankedAction[] = [];
   let rootOrderedMoves: OrderedAction[] = [];
@@ -434,6 +484,8 @@ export function chooseComputerAction({
           elapsedMs: now() - startedAt,
           evaluatedNodes: 1,
           fallbackKind: 'none',
+          partialDepth: null,
+          partialRootMoves: 0,
           principalVariation: [entry.action],
           riskMode: effectiveRiskMode,
           rootCandidates: orderRootCandidates(
@@ -450,6 +502,8 @@ export function chooseComputerAction({
                 isRepetition: entry.isRepetition,
                 isSelfUndo: entry.isSelfUndo,
                 isTactical: entry.isTactical,
+                isTerminal: entry.isTerminal,
+                mobility: entry.mobility,
                 mobilityDelta: entry.mobilityDelta,
                 movedMass: entry.movedMass,
                 participationDelta: entry.participationDelta,
@@ -459,13 +513,18 @@ export function chooseComputerAction({
                 sixStackDelta: entry.sixStackDelta,
                 sourceFamily: entry.sourceFamily,
                 tags: entry.tags,
+                terminalUtility: entry.terminalUtility,
                 tiebreakEdgeKind: entry.tiebreakEdgeKind,
               },
             ],
-            preset.rootCandidateLimit,
+            rootCandidateLimit,
           ),
           searchBudget: reportSearchBudget(resolvedBudget, 'none'),
+          bestSearchAction: entry.action,
+          bestSearchScore: 1_000_000,
           score: 1_000_000,
+          selectedActionScore: 1_000_000,
+          selectionRegret: 0,
           strategicIntent,
           timedOut: false,
         };
@@ -485,14 +544,36 @@ export function chooseComputerAction({
     const fallbackBest = fallbackRanked.length
       ? selectCandidateAction(fallbackRanked, preset, random, {
           behaviorProfileId: behaviorProfile?.id ?? null,
+          participationScale: diagnosticAblation?.rootParticipationScale ?? 0.2,
+          previousStrategicTags: rootPreviousStrategicTags,
           riskMode: effectiveRiskMode,
+          strategicIntent,
         })
       : null;
     const orderedFallbackScore = fallbackRanked[0]?.score ?? getFallbackScore();
 
+    const fallbackAction =
+      fallbackBest?.action ?? rootOrderedMoves[0]?.action ?? legalActions[0];
+    const fallbackCandidates = fallbackRanked.length
+      ? fallbackRanked
+      : [
+          createRootFallbackCandidate(
+            {
+              action: legalActions[0],
+              movedMass: 0,
+              participationDelta: 0,
+              policyPrior: policyPriors
+                ? (policyPriors[actionId(legalActions[0])] ?? 0)
+                : 0,
+              sourceFamily: 'none',
+            },
+            orderedFallbackScore,
+            strategicIntent,
+          ),
+        ];
+
     return {
-      action:
-        fallbackBest?.action ?? rootOrderedMoves[0]?.action ?? legalActions[0],
+      action: fallbackAction,
       behaviorProfileId: behaviorProfile?.id ?? null,
       completedDepth: 0,
       completedRootMoves: 0,
@@ -500,35 +581,23 @@ export function chooseComputerAction({
       elapsedMs: now() - startedAt,
       evaluatedNodes: 0,
       fallbackKind: 'orderedRoot',
-      principalVariation: [
-        fallbackBest?.action ?? rootOrderedMoves[0]?.action ?? legalActions[0],
-      ],
+      partialDepth: null,
+      partialRootMoves: 0,
+      principalVariation: [fallbackAction],
       riskMode: effectiveRiskMode,
       rootCandidates: orderRootCandidates(
-        fallbackRanked.length
-          ? fallbackRanked
-          : [
-              createRootFallbackCandidate(
-                {
-                  action: legalActions[0],
-                  movedMass: 0,
-                  participationDelta: 0,
-                  policyPrior: policyPriors
-                    ? (policyPriors[actionId(legalActions[0])] ?? 0)
-                    : 0,
-                  sourceFamily: 'none',
-                },
-                orderedFallbackScore,
-                strategicIntent,
-              ),
-            ],
-        preset.rootCandidateLimit,
+        fallbackCandidates,
+        rootCandidateLimit,
       ),
       searchBudget: reportSearchBudget(
         resolvedBudget,
         context.budgetExhaustion,
       ),
-      score: orderedFallbackScore,
+      ...summarizeDecisionScores(
+        fallbackCandidates,
+        fallbackAction,
+        orderedFallbackScore,
+      ),
       strategicIntent,
       timedOut: true,
     };
@@ -616,6 +685,8 @@ export function chooseComputerAction({
         isRepetition: entry.isRepetition,
         isSelfUndo: entry.isSelfUndo,
         isTactical: entry.isTactical,
+        isTerminal: entry.isTerminal,
+        mobility: entry.mobility,
         mobilityDelta: entry.mobilityDelta,
         movedMass: entry.movedMass,
         participationDelta: entry.participationDelta,
@@ -625,6 +696,7 @@ export function chooseComputerAction({
         sixStackDelta: entry.sixStackDelta,
         sourceFamily: entry.sourceFamily,
         tags: entry.tags,
+        terminalUtility: entry.terminalUtility,
         tiebreakEdgeKind: entry.tiebreakEdgeKind,
       });
     }
@@ -670,21 +742,10 @@ export function chooseComputerAction({
         if (ranked.length > 0) {
           const partialBest = ranked[0];
 
-          bestAction = selectCandidateAction(ranked, preset, random, {
-            bandBoost: getSelectionBandBoost(
-              state.moveNumber,
-              effectiveRiskMode,
-              {
-                completedDepth: 0,
-                fallbackKind: 'partialCurrentDepth',
-              },
-            ),
-            behaviorProfileId: behaviorProfile?.id ?? null,
-            behaviorSeed: behaviorProfile?.seed ?? null,
-            riskMode: effectiveRiskMode,
-          }).action;
+          bestAction = partialBest.action;
           bestScore = partialBest.score;
-          completedRootMoves = ranked.length;
+          partialDepth = depth;
+          partialRootMoves = ranked.length;
           rootCandidates = ranked;
           fallbackKind = 'partialCurrentDepth';
         } else if (completedDepth > 0) {
@@ -724,21 +785,10 @@ export function chooseComputerAction({
                   strategicIntent,
                 ),
               ];
-          bestAction = fallbackRanked.length
-            ? selectCandidateAction(fallbackRanked, preset, random, {
-                bandBoost: getSelectionBandBoost(
-                  state.moveNumber,
-                  effectiveRiskMode,
-                  {
-                    completedDepth: 0,
-                    fallbackKind,
-                  },
-                ),
-                behaviorProfileId: behaviorProfile?.id ?? null,
-                behaviorSeed: behaviorProfile?.seed ?? null,
-                riskMode: effectiveRiskMode,
-              }).action
-            : (orderedFallback?.action ?? legalActions[0]);
+          bestAction =
+            fallbackRanked[0]?.action ??
+            orderedFallback?.action ??
+            legalActions[0];
         }
 
         break;
@@ -753,20 +803,14 @@ export function chooseComputerAction({
 
     completedDepth = depth;
     completedRootMoves = ranked.length;
+    partialDepth = null;
+    partialRootMoves = 0;
     rootCandidates = ranked;
     bestScore = ranked[0].score;
-    bestAction = selectCandidateAction(ranked, preset, random, {
-      bandBoost: getSelectionBandBoost(state.moveNumber, effectiveRiskMode, {
-        completedDepth: depth,
-        fallbackKind: 'none',
-      }),
-      behaviorProfileId: behaviorProfile?.id ?? null,
-      behaviorSeed: behaviorProfile?.seed ?? null,
-      riskMode: effectiveRiskMode,
-    }).action;
+    bestAction = ranked[0].action;
     fallbackKind = 'none';
 
-    rootPvMoveId = actionId(bestAction);
+    rootPvMoveId = actionId(ranked[0].action);
 
     // Repository-specific history aging: shift scores right by 2 (÷4) so
     // shallow cutoff evidence fades and values stay away from saturation.
@@ -775,6 +819,37 @@ export function chooseComputerAction({
     for (let i = 0; i < context.historyScores.length; i += 1) {
       context.historyScores[i] >>= 2;
     }
+  }
+
+  if (rootCandidates.length > 0) {
+    const selectionDepth =
+      fallbackKind === 'partialCurrentDepth' ? 0 : completedDepth;
+
+    const baselineSelection = selectCandidateAction(
+      rootCandidates,
+      preset,
+      random,
+      {
+        bandBoost: getSelectionBandBoost(state.moveNumber, effectiveRiskMode, {
+          completedDepth: selectionDepth,
+          fallbackKind,
+        }),
+        behaviorProfileId: behaviorProfile?.id ?? null,
+        behaviorSeed: behaviorProfile?.seed ?? null,
+        participationScale: diagnosticAblation?.rootParticipationScale ?? 0.2,
+        previousStrategicTags: rootPreviousStrategicTags,
+        riskMode: effectiveRiskMode,
+        strategicIntent,
+      },
+    );
+    const selected = diagnosticAblation?.exactTieParticipation
+      ? selectExactTieParticipationV1(rootCandidates, baselineSelection, {
+          completedDepth,
+          completedRootMoves,
+          legalRootMoves: legalActions.length,
+        }).action
+      : baselineSelection;
+    bestAction = selected.action;
   }
 
   return {
@@ -786,6 +861,8 @@ export function chooseComputerAction({
     elapsedMs: now() - startedAt,
     evaluatedNodes: context.evaluatedNodes,
     fallbackKind,
+    partialDepth,
+    partialRootMoves,
     principalVariation: buildPrincipalVariation(
       state,
       bestAction,
@@ -793,15 +870,9 @@ export function chooseComputerAction({
       context,
     ),
     riskMode: effectiveRiskMode,
-    rootCandidates: orderRootCandidates(
-      rootCandidates,
-      preset.rootCandidateLimit,
-    ),
-    searchBudget: reportSearchBudget(
-      resolvedBudget,
-      context.budgetExhaustion,
-    ),
-    score: bestScore,
+    rootCandidates: orderRootCandidates(rootCandidates, rootCandidateLimit),
+    searchBudget: reportSearchBudget(resolvedBudget, context.budgetExhaustion),
+    ...summarizeDecisionScores(rootCandidates, bestAction, bestScore),
     strategicIntent,
     timedOut,
   };

@@ -7,8 +7,11 @@ import {
   summarizePairedDifference,
   type PairedDifferenceSummary,
 } from '@/ai/test/measurement';
+import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
+import type { AiDifficulty } from '@/shared/types/session';
 
 type DecisionSample = {
+  difficulty: AiDifficulty;
   kind: 'decision';
   observedWallMs: number;
   result: {
@@ -16,12 +19,19 @@ type DecisionSample = {
     completedRootMoves: number;
     evaluatedNodes: number;
     fallbackKind: string;
+    partialDepth: number | null;
+    partialRootMoves: number;
+    selectionRegret: number;
   };
   sampleId: string;
 };
 
 type MeasurementReport = {
-  provenance: { fixtureSha256: string; gitRevision: string };
+  provenance: {
+    fixtureSha256: string;
+    gitDirty: boolean;
+    gitRevision: string;
+  };
   schemaVersion: number;
   settings: unknown;
 };
@@ -117,6 +127,7 @@ function markdown(report: {
   candidateRevision: string;
   metrics: Record<string, ComparisonMetric>;
   overallVerdict: string;
+  styleBudgetViolations: number;
 }): string {
   const lines = [
     '# AI Measurement Paired Comparison',
@@ -126,6 +137,7 @@ function markdown(report: {
     `Candidate: \`${report.candidateRevision}\``,
     '',
     `Overall infrastructure verdict: **${report.overallVerdict}**`,
+    `Candidate style-budget violations: **${report.styleBudgetViolations}**`,
     '',
     '| Metric | Direction | Baseline mean | Candidate mean | Oriented delta | 95% CI | Verdict |',
     '| --- | --- | ---: | ---: | ---: | ---: | --- |',
@@ -219,15 +231,45 @@ async function main(): Promise<void> {
         { direction: 'lowerIsBetter', materialDifference: 2 },
       ),
     },
+    partialDepthShare: {
+      meaning:
+        'Lower partial-depth frequency means fewer decisions rely on interrupted root scores.',
+      summary: summarizePairedDifference(
+        pairedValues(baselineSamples, candidateSamples, (sample) =>
+          sample.result.partialDepth === null ? 0 : 1,
+        ),
+        { direction: 'lowerIsBetter', materialDifference: 0.01 },
+      ),
+    },
+    selectionRegret: {
+      meaning:
+        'Lower root-score regret means less adversarial strength was sacrificed during final selection.',
+      summary: summarizePairedDifference(
+        pairedValues(
+          baselineSamples,
+          candidateSamples,
+          (sample) => sample.result.selectionRegret,
+        ),
+        { direction: 'lowerIsBetter', materialDifference: 30 },
+      ),
+    },
   };
   const guardrailNames = [
     'completedDepth',
     'completedRootMoves',
     'fallbackShare',
+    'partialDepthShare',
+    'selectionRegret',
   ];
-  const hasRegression = guardrailNames.some(
-    (name) => metrics[name].summary.verdict === 'regressed',
-  );
+  const styleBudgetViolations = [...candidateSamples.values()].filter(
+    (sample) =>
+      sample.result.selectionRegret >
+      AI_DIFFICULTY_PRESETS[sample.difficulty].maxSelectionRegret,
+  ).length;
+  const hasRegression =
+    guardrailNames.some(
+      (name) => metrics[name].summary.verdict === 'regressed',
+    ) || styleBudgetViolations > 0;
   const hasImprovement = Object.values(metrics).some(
     (metric) => metric.summary.verdict === 'improved',
   );
@@ -237,13 +279,14 @@ async function main(): Promise<void> {
       ? 'improved-search-execution'
       : 'inconclusive';
   const report = {
-    baselineRevision: baselineReport.provenance.gitRevision,
-    candidateRevision: candidateReport.provenance.gitRevision,
+    baselineRevision: `${baselineReport.provenance.gitRevision}${baselineReport.provenance.gitDirty ? '+dirty' : ''}`,
+    candidateRevision: `${candidateReport.provenance.gitRevision}${candidateReport.provenance.gitDirty ? '+dirty' : ''}`,
     generatedAt: new Date().toISOString(),
     metrics,
     overallVerdict,
     pairCount: baselineSamples.size,
     schemaVersion: AI_MEASUREMENT_SCHEMA_VERSION,
+    styleBudgetViolations,
   };
   const outputPrefix =
     args.out ?? path.join('output', 'ai', 'ai-measurement-paired');

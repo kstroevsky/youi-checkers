@@ -1,8 +1,14 @@
 import type {
   AiDifficultyPreset,
   AiRiskMode,
+  AiSearchDiagnosticAblation,
   AiSearchDiagnostics,
 } from '@/ai/types';
+import { getBehaviorStateBias } from '@/ai/behavior';
+import {
+  getParticipationScore,
+  type ParticipationState,
+} from '@/ai/participation';
 import {
   getPerfStrategicIntent,
   getPerfStrategicScore,
@@ -11,17 +17,19 @@ import {
   type StatePerfBundle,
 } from '@/ai/perf';
 import type { EngineState, Player, RuleConfig } from '@/domain';
-import type { AiBehaviorProfile } from '@/shared/types/session';
-
-import { getBehaviorStateBias } from '@/ai/behavior';
-import { getParticipationScore, type ParticipationState } from '@/ai/participation';
-import { getDynamicDrawScore, getNonterminalDrawTrapBias, getRiskStateBias } from '@/ai/risk';
+import {
+  getDynamicDrawScore,
+  getNonterminalDrawTrapBias,
+  getRiskStateBias,
+} from '@/ai/risk';
 import { getStrategicIntent, getStrategicScore } from '@/ai/strategy';
+import type { AiBehaviorProfile } from '@/shared/types/session';
 
 const TERMINAL_SCORE = 1_000_000;
 
 type EvaluationOptions = {
   behaviorProfile?: AiBehaviorProfile | null;
+  diagnosticAblation?: AiSearchDiagnosticAblation | null;
   diagnostics?: AiSearchDiagnostics | null;
   participationState?: ParticipationState | null;
   perfBundle?: StatePerfBundle | null;
@@ -56,13 +64,18 @@ export function evaluateStructureState(
   state: EngineState,
   perspectivePlayer: Player,
   ruleConfig: RuleConfig,
-  options: Omit<EvaluationOptions, 'participationState'> = {},
+  options: Omit<
+    EvaluationOptions,
+    'behaviorProfile' | 'diagnosticAblation' | 'participationState'
+  > = {},
 ): number {
   const perfBundle = resolvePerfBundle(state, ruleConfig, options);
 
   if (state.status === 'gameOver') {
     if ('winner' in state.victory) {
-      return state.victory.winner === perspectivePlayer ? TERMINAL_SCORE : -TERMINAL_SCORE;
+      return state.victory.winner === perspectivePlayer
+        ? TERMINAL_SCORE
+        : -TERMINAL_SCORE;
     }
 
     return getDynamicDrawScore(
@@ -94,17 +107,21 @@ export function evaluateState(
 ): number {
   const {
     behaviorProfile = null,
+    diagnosticAblation = null,
     diagnostics = null,
     participationState = null,
     perfBundle = null,
     preset = null,
     riskMode = 'normal',
   } = options;
-  const resolvedPerfBundle = perfBundle ?? resolvePerfBundle(state, ruleConfig, options);
+  const resolvedPerfBundle =
+    perfBundle ?? resolvePerfBundle(state, ruleConfig, options);
 
   if (state.status === 'gameOver') {
     if ('winner' in state.victory) {
-      return state.victory.winner === perspectivePlayer ? TERMINAL_SCORE : -TERMINAL_SCORE;
+      return state.victory.winner === perspectivePlayer
+        ? TERMINAL_SCORE
+        : -TERMINAL_SCORE;
     }
 
     return getDynamicDrawScore(
@@ -124,10 +141,9 @@ export function evaluateState(
   const opponentIntent = resolvedPerfBundle
     ? getPerfStrategicIntent(resolvedPerfBundle, state, opponent)
     : getStrategicIntent(state, opponent);
-  let score =
-    resolvedPerfBundle
-      ? getPerfStrategicScore(resolvedPerfBundle, state, perspectivePlayer)
-      : getStrategicScore(state, perspectivePlayer);
+  let score = resolvedPerfBundle
+    ? getPerfStrategicScore(resolvedPerfBundle, state, perspectivePlayer)
+    : getStrategicScore(state, perspectivePlayer);
 
   if (ownIntent.intent === 'home') {
     score += 120;
@@ -156,20 +172,39 @@ export function evaluateState(
     );
   }
 
-  if (behaviorProfile) {
+  if (diagnosticAblation?.behaviorEvaluation && behaviorProfile) {
     score += getBehaviorStateBias(state, perspectivePlayer, behaviorProfile.id);
   }
 
-  if (riskMode !== 'normal') {
-    score += getRiskStateBias(state, perspectivePlayer, riskMode, resolvedPerfBundle);
+  const participationEvaluationScale =
+    diagnosticAblation?.participationEvaluation === true
+      ? 1
+      : (diagnosticAblation?.participationEvaluationScale ?? 0);
+  if (
+    !Number.isFinite(participationEvaluationScale) ||
+    participationEvaluationScale < 0
+  ) {
+    throw new RangeError(
+      'participationEvaluationScale must be finite and non-negative.',
+    );
+  }
+  if (participationEvaluationScale > 0 && preset) {
+    score += Math.round(
+      getParticipationScore(
+        state,
+        perspectivePlayer,
+        preset,
+        participationState,
+      ) * participationEvaluationScale,
+    );
   }
 
-  if (preset) {
-    score += getParticipationScore(
+  if (riskMode !== 'normal') {
+    score += getRiskStateBias(
       state,
       perspectivePlayer,
-      preset,
-      participationState,
+      riskMode,
+      resolvedPerfBundle,
     );
   }
 

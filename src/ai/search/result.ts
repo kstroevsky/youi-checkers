@@ -1,4 +1,8 @@
-import { advanceEngineState, type EngineState, type TurnAction } from '@/domain';
+import {
+  advanceEngineState,
+  type EngineState,
+  type TurnAction,
+} from '@/domain';
 import type {
   AiDifficultyPreset,
   AiRiskMode,
@@ -9,10 +13,14 @@ import type {
 import type { AiBehaviorProfileId } from '@/shared/types/session';
 
 import { getBehaviorActionBias, getBehaviorGeometryBias } from '@/ai/behavior';
-import { getRiskCandidateAdjustment, hasCertifiedRiskProgress } from '@/ai/risk';
+import {
+  getRiskCandidateAdjustment,
+  hasCertifiedRiskProgress,
+} from '@/ai/risk';
 import { toRootCandidate } from '@/ai/search/heuristics';
 import { actionId, makeTableKey } from '@/ai/search/shared';
 import type { RootRankedAction, SearchContext } from '@/ai/search/types';
+import { getNoveltyPenalty } from '@/ai/strategy';
 
 /** Creates the empty diagnostics payload used for all search results. */
 export function createSearchDiagnostics(): AiSearchDiagnostics {
@@ -28,6 +36,7 @@ export function createSearchDiagnostics(): AiSearchDiagnostics {
     pvsResearches: 0,
     quiescenceNodes: 0,
     repetitionPenalties: 0,
+    rootPreparationTransitions: 0,
     selfUndoPenalties: 0,
     sourceFamilyCollisions: 0,
     stagnationRiskTriggers: 0,
@@ -36,16 +45,23 @@ export function createSearchDiagnostics(): AiSearchDiagnostics {
 }
 
 /** Creates a minimal result used when no legal move exists. */
-export function createEmptyResult(action: TurnAction | null, score: number): AiSearchResult {
+export function createEmptyResult(
+  action: TurnAction | null,
+  score: number,
+): AiSearchResult {
   return {
     action,
     behaviorProfileId: null,
+    bestSearchAction: action,
+    bestSearchScore: score,
     completedDepth: 0,
     completedRootMoves: action ? 1 : 0,
     diagnostics: createSearchDiagnostics(),
     elapsedMs: 0,
     evaluatedNodes: 0,
     fallbackKind: action ? 'legalOrder' : 'none',
+    partialDepth: null,
+    partialRootMoves: 0,
     principalVariation: action ? [action] : [],
     riskMode: 'normal',
     rootCandidates: action
@@ -62,6 +78,14 @@ export function createEmptyResult(action: TurnAction | null, score: number): AiS
             isRepetition: false,
             isSelfUndo: false,
             isTactical: false,
+            isTerminal: false,
+            mobility: {
+              actorBefore: 0,
+              actorContinuationAfter: null,
+              opponentReplyAfter: null,
+              measuredAfter: false,
+              samePlayerContinuation: false,
+            },
             mobilityDelta: 0,
             movedMass: 0,
             participationDelta: 0,
@@ -71,18 +95,55 @@ export function createEmptyResult(action: TurnAction | null, score: number): AiS
             sixStackDelta: 0,
             sourceFamily: 'none',
             tags: [],
+            terminalUtility: null,
             tiebreakEdgeKind: 'tied',
           },
         ]
       : [],
     score,
+    selectedActionScore: score,
+    selectionRegret: 0,
     strategicIntent: 'hybrid',
     timedOut: false,
   };
 }
 
+/** Derives score ownership from the full internal ranking, before diagnostic truncation. */
+export function summarizeDecisionScores(
+  ranked: RootRankedAction[],
+  selectedAction: TurnAction | null,
+  fallbackScore: number,
+): Pick<
+  AiSearchResult,
+  | 'bestSearchAction'
+  | 'bestSearchScore'
+  | 'score'
+  | 'selectedActionScore'
+  | 'selectionRegret'
+> {
+  const best = ranked[0] ?? null;
+  const selectedActionId = selectedAction ? actionId(selectedAction) : null;
+  const selected =
+    selectedActionId === null
+      ? null
+      : (ranked.find((entry) => actionId(entry.action) === selectedActionId) ??
+        null);
+  const bestSearchScore = best?.score ?? fallbackScore;
+  const selectedActionScore = selected?.score ?? best?.score ?? fallbackScore;
+
+  return {
+    bestSearchAction: best?.action ?? selectedAction,
+    bestSearchScore,
+    score: selectedActionScore,
+    selectedActionScore,
+    selectionRegret: Math.max(0, bestSearchScore - selectedActionScore),
+  };
+}
+
 /** Keeps ranked root actions in stable descending order. */
-export function sortRankedActions(ranked: RootRankedAction[]): RootRankedAction[] {
+export function sortRankedActions(
+  ranked: RootRankedAction[],
+): RootRankedAction[] {
   ranked.sort((left, right) => {
     if (right.score !== left.score) {
       return right.score - left.score;
@@ -111,19 +172,72 @@ export function buildPrincipalVariation(
 
   while (currentAction && variation.length < completedDepth) {
     variation.push(currentAction);
-    currentState = advanceEngineState(currentState, currentAction, context.ruleConfig);
+    currentState = advanceEngineState(
+      currentState,
+      currentAction,
+      context.ruleConfig,
+    );
 
     if (currentState.status === 'gameOver') {
       break;
     }
 
-    currentAction = context.table.get(makeTableKey(currentState))?.bestAction ?? null;
+    currentAction =
+      (context.transpositionMode === 'disabled'
+        ? null
+        : context.table.get(
+            makeTableKey(currentState, context.transpositionMode),
+          )?.bestAction) ?? null;
   }
 
   return variation;
 }
 
-/** Chooses a top candidate with the preset's near-equal balancing policy. */
+/**
+ * Computes the strength budget available to style selection.
+ *
+ * Relative score bands still adapt to position scale and low-confidence search,
+ * but the difficulty ceiling is absolute: style can never spend more strength
+ * merely because an opening or stagnation boost widened the exploratory band.
+ */
+export function getSelectionRegretBudget(
+  bestScore: number,
+  preset: AiDifficultyPreset,
+  options: Pick<
+    NonNullable<Parameters<typeof selectCandidateAction>[3]>,
+    'bandBoost' | 'riskMode'
+  > = {},
+): number {
+  const riskMode = options.riskMode ?? 'normal';
+  const dynamicTolerance =
+    Math.max(60, Math.abs(bestScore) * preset.varietyThreshold) +
+    (riskMode === 'normal' ? 0 : Math.round(4_000 * preset.riskBandWidening)) +
+    (options.bandBoost ?? 0);
+
+  return Math.min(preset.maxSelectionRegret, dynamicTolerance);
+}
+
+/** Removes terminal outcomes that are strictly dominated before style is considered. */
+function getTerminalSafeCandidates(
+  ranked: RootRankedAction[],
+): RootRankedAction[] {
+  const immediateWins = ranked.filter(
+    (entry) => entry.terminalUtility === 'win',
+  );
+  if (immediateWins.length) {
+    return immediateWins;
+  }
+
+  const nonLosses = ranked.filter((entry) => entry.terminalUtility !== 'loss');
+  const lossSafe = nonLosses.length ? nonLosses : ranked;
+  const nonAdverseDraws = lossSafe.filter(
+    (entry) => entry.terminalUtility !== 'unfavorableDraw',
+  );
+
+  return nonAdverseDraws.length ? nonAdverseDraws : lossSafe;
+}
+
+/** Chooses a stylistically varied action only after terminal and strength safety. */
 export function selectCandidateAction(
   ranked: RootRankedAction[],
   preset: AiDifficultyPreset,
@@ -132,26 +246,42 @@ export function selectCandidateAction(
     bandBoost?: number;
     behaviorProfileId?: AiBehaviorProfileId | null;
     behaviorSeed?: string | null;
+    previousStrategicTags?: AiRootCandidate['tags'] | null;
+    participationScale?: number;
     riskMode?: AiRiskMode;
+    strategicIntent?: RootRankedAction['intent'];
   } = {},
 ): RootRankedAction {
   const riskMode = options.riskMode ?? 'normal';
+  const participationScale = options.participationScale ?? 0.2;
+  if (!Number.isFinite(participationScale) || participationScale < 0) {
+    throw new RangeError('participationScale must be finite and non-negative.');
+  }
   const bandBoost = options.bandBoost ?? 0;
-  const best = ranked[0];
+  const rawBest = ranked[0];
 
-  if (!best || preset.varietyTopCount <= 1 || ranked.length === 1) {
+  if (!rawBest) {
+    return rawBest;
+  }
+
+  const terminalSafeCandidates = getTerminalSafeCandidates(ranked);
+  const best = terminalSafeCandidates[0] ?? rawBest;
+
+  if (
+    best.isForced ||
+    preset.varietyTopCount <= 1 ||
+    terminalSafeCandidates.length === 1
+  ) {
     return best;
   }
 
-  if (best.isForced) {
-    return best;
-  }
-
-  const tolerance =
-    Math.max(60, Math.abs(best.score) * preset.varietyThreshold) +
-    (riskMode === 'normal' ? 0 : Math.round(4_000 * preset.riskBandWidening)) +
-    bandBoost;
-  const nearEqual = ranked.filter((entry) => Math.abs(best.score - entry.score) <= tolerance);
+  const tolerance = getSelectionRegretBudget(best.score, preset, {
+    bandBoost,
+    riskMode,
+  });
+  const nearEqual = terminalSafeCandidates.filter(
+    (entry) => best.score - entry.score <= tolerance,
+  );
   const rerankEligibleCandidates = nearEqual
     .filter(
       (entry) =>
@@ -164,26 +294,28 @@ export function selectCandidateAction(
   const riskCertifiedCandidates =
     riskMode === 'normal'
       ? rerankEligibleCandidates
-      : rerankEligibleCandidates.filter((entry) =>
-          entry.drawTrapRisk < 0.72 &&
-          hasCertifiedRiskProgress({
-            drawTrapRisk: entry.drawTrapRisk,
-            emptyCellsDelta: entry.emptyCellsDelta,
-            freezeSwingBonus: entry.freezeSwingBonus,
-            homeFieldDelta: entry.homeFieldDelta,
-            isForced: entry.isForced,
-            isManualUnfreeze: entry.action.type === 'manualUnfreeze',
-            isRepetition: entry.isRepetition,
-            isSelfUndo: entry.isSelfUndo,
-            isTactical: entry.isTactical,
-            mobilityDelta: entry.mobilityDelta,
-            repeatedPositionCount: entry.repeatedPositionCount,
-            sixStackDelta: entry.sixStackDelta,
-            tags: entry.tags,
-            tiebreakEdgeKind: entry.tiebreakEdgeKind,
-          }),
+      : rerankEligibleCandidates.filter(
+          (entry) =>
+            entry.drawTrapRisk < 0.72 &&
+            hasCertifiedRiskProgress({
+              drawTrapRisk: entry.drawTrapRisk,
+              emptyCellsDelta: entry.emptyCellsDelta,
+              freezeSwingBonus: entry.freezeSwingBonus,
+              homeFieldDelta: entry.homeFieldDelta,
+              isForced: entry.isForced,
+              isManualUnfreeze: entry.action.type === 'manualUnfreeze',
+              isRepetition: entry.isRepetition,
+              isSelfUndo: entry.isSelfUndo,
+              isTactical: entry.isTactical,
+              mobilityDelta: entry.mobilityDelta,
+              repeatedPositionCount: entry.repeatedPositionCount,
+              sixStackDelta: entry.sixStackDelta,
+              tags: entry.tags,
+              tiebreakEdgeKind: entry.tiebreakEdgeKind,
+            }),
         );
-  const rerankCandidates = riskMode === 'normal' ? rerankEligibleCandidates : riskCertifiedCandidates;
+  const rerankCandidates =
+    riskMode === 'normal' ? rerankEligibleCandidates : riskCertifiedCandidates;
 
   if (!rerankEligibleCandidates.length) {
     return best;
@@ -209,9 +341,10 @@ export function selectCandidateAction(
     }
   }
 
-  const candidatePool = familyFirstPass.length > 1
-    ? familyFirstPass
-    : rerankCandidates.slice(0, preset.varietyTopCount);
+  const candidatePool =
+    familyFirstPass.length > 1
+      ? familyFirstPass
+      : rerankCandidates.slice(0, preset.varietyTopCount);
 
   if (candidatePool.length === 1) {
     return candidatePool[0];
@@ -220,11 +353,7 @@ export function selectCandidateAction(
   const coveredTags = new Set<AiRootCandidate['tags'][number]>();
   const coveredFamilies = new Set<string>();
   const scoreCompression =
-    bandBoost <= 0
-      ? 1
-      : riskMode === 'normal'
-        ? 0.2
-        : 0.1;
+    bandBoost <= 0 ? 1 : riskMode === 'normal' ? 0.2 : 0.1;
   const weighted = candidatePool.map((entry, index) => {
     const riskBonus =
       riskMode === 'normal'
@@ -257,13 +386,17 @@ export function selectCandidateAction(
               entry.drawTrapRisk *
               (entry.tiebreakEdgeKind === 'behind' ? 1 : 0.35),
           );
-    const diversityBonus = entry.tags.some((tag) => !coveredTags.has(tag)) ? 40 : 0;
+    const diversityBonus = entry.tags.some((tag) => !coveredTags.has(tag))
+      ? 40
+      : 0;
     const familyBonus = coveredFamilies.has(entry.sourceFamily) ? 0 : 55;
     const personaTagBonus =
       riskMode === 'normal'
         ? Math.round(
-            getBehaviorActionBias(options.behaviorProfileId ?? null, entry.tags) *
-              Math.max(0.25, preset.familyVarietyWeight / 120),
+            getBehaviorActionBias(
+              options.behaviorProfileId ?? null,
+              entry.tags,
+            ) * Math.max(0.25, preset.familyVarietyWeight / 120),
           )
         : 0;
     const seededGeometryBonus =
@@ -273,11 +406,19 @@ export function selectCandidateAction(
               options.behaviorProfileId ?? null,
               entry.action,
               options.behaviorSeed ?? null,
-            ) *
-              Math.max(1.5, preset.familyVarietyWeight / 10),
+            ) * Math.max(1.5, preset.familyVarietyWeight / 10),
           )
         : 0;
-    const compressedScore = best.score + (entry.score - best.score) * scoreCompression;
+    const planCoherenceBonus =
+      !options.strategicIntent || options.strategicIntent === 'hybrid'
+        ? 0
+        : entry.intent === options.strategicIntent
+          ? 90
+          : entry.intent === 'hybrid'
+            ? 20
+            : -90;
+    const compressedScore =
+      best.score + (entry.score - best.score) * scoreCompression;
 
     coveredFamilies.add(entry.sourceFamily);
     entry.tags.forEach((tag) => coveredTags.add(tag));
@@ -288,27 +429,36 @@ export function selectCandidateAction(
       diversityBonus +
       personaTagBonus +
       seededGeometryBonus +
-      Math.round(entry.participationDelta * 0.2) +
-      Math.round(entry.policyPrior * 40) +
+      planCoherenceBonus +
+      Math.round(entry.participationDelta * participationScale) +
       riskBonus +
       -drawTrapPenalty +
+      -getNoveltyPenalty(entry.tags, options.previousStrategicTags ?? null) +
       (entry.intent === 'hybrid' ? 15 : 0) -
       index * 5;
 
     return {
       adjustedScore,
       entry,
-      weight: Math.exp((adjustedScore - best.score) / Math.max(0.01, preset.varietyTemperature * 400)),
+      weight: Math.exp(
+        (adjustedScore - best.score) /
+          Math.max(0.01, preset.varietyTemperature * 400),
+      ),
     };
   });
 
   if (bandBoost > 0) {
     return weighted.reduce((currentBest, candidate) =>
-      candidate.adjustedScore > currentBest.adjustedScore ? candidate : currentBest,
+      candidate.adjustedScore > currentBest.adjustedScore
+        ? candidate
+        : currentBest,
     ).entry;
   }
 
-  const totalWeight = weighted.reduce((sum, candidate) => sum + candidate.weight, 0);
+  const totalWeight = weighted.reduce(
+    (sum, candidate) => sum + candidate.weight,
+    0,
+  );
   let threshold = random() * totalWeight;
 
   for (const candidate of weighted) {
@@ -320,6 +470,77 @@ export function selectCandidateAction(
   }
 
   return weighted.at(-1)?.entry ?? best;
+}
+
+export type ExactTieParticipationDecisionV1 = {
+  action: RootRankedAction;
+  changed: boolean;
+  eligible: boolean;
+  reason:
+    | 'ambiguous'
+    | 'baselineNotTiedBest'
+    | 'eligible'
+    | 'incompleteEvidence'
+    | 'noExactTie';
+};
+
+/** Treatment E: a post-selector break of exact, complete product-score ties only. */
+export function selectExactTieParticipationV1(
+  ranked: RootRankedAction[],
+  baseline: RootRankedAction,
+  evidence: {
+    completedDepth: number;
+    completedRootMoves: number;
+    legalRootMoves: number;
+  },
+): ExactTieParticipationDecisionV1 {
+  if (
+    evidence.completedDepth <= 0 ||
+    evidence.completedRootMoves !== evidence.legalRootMoves ||
+    ranked.length !== evidence.legalRootMoves
+  ) {
+    return {
+      action: baseline,
+      changed: false,
+      eligible: false,
+      reason: 'incompleteEvidence',
+    };
+  }
+  const bestScore = Math.max(...ranked.map((entry) => entry.score));
+  const tied = ranked.filter((entry) => entry.score === bestScore);
+  if (tied.length < 2)
+    return {
+      action: baseline,
+      changed: false,
+      eligible: false,
+      reason: 'noExactTie',
+    };
+  if (!tied.includes(baseline))
+    return {
+      action: baseline,
+      changed: false,
+      eligible: false,
+      reason: 'baselineNotTiedBest',
+    };
+  const bestParticipation = Math.max(
+    ...tied.map((entry) => entry.participationDelta),
+  );
+  const preferred = tied.filter(
+    (entry) => entry.participationDelta === bestParticipation,
+  );
+  if (preferred.length !== 1)
+    return {
+      action: baseline,
+      changed: false,
+      eligible: true,
+      reason: 'ambiguous',
+    };
+  return {
+    action: preferred[0],
+    changed: preferred[0] !== baseline,
+    eligible: true,
+    reason: 'eligible',
+  };
 }
 
 /** Converts ranked root actions into the public candidate list with the preset limit. */

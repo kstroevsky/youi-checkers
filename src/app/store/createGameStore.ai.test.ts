@@ -351,7 +351,9 @@ describe('createGameStore AI integration', () => {
       return;
     }
 
-    worker.reply(createAiResult({ action: firstAiReply }));
+    worker.reply(
+      createAiResult({ action: firstAiReply, strategicIntent: 'sixStack' }),
+    );
 
     expect(store.getState().aiStatus).toBe('idle');
     expect(worker.requests).toHaveLength(1);
@@ -370,6 +372,7 @@ describe('createGameStore AI integration', () => {
 
     expect(store.getState().aiStatus).toBe('thinking');
     expect(worker.requests).toHaveLength(2);
+    expect(worker.requests[1]?.previousStrategicIntent).toBe('sixStack');
 
     vi.advanceTimersByTime(EASY_WATCHDOG_MS + 1);
 

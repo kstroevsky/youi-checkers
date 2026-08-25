@@ -22,5 +22,8 @@ describe('finishing progress', () => {
       frontOwnCheckers: 5,
       goal: 'sixStack',
     });
+    expect(progress.homeReadiness).toBeGreaterThanOrEqual(0);
+    expect(progress.homeReadiness).toBeLessThanOrEqual(1);
+    expect(progress.sixStackReadiness).toBeGreaterThan(progress.homeReadiness);
   });
 });

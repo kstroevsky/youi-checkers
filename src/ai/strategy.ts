@@ -1,5 +1,15 @@
-import { getCell, getCellHeight, getController, getTopChecker, isStack } from '@/domain/model/board';
-import { DIRECTION_VECTORS, FRONT_HOME_ROW, HOME_ROWS } from '@/domain/model/constants';
+import {
+  getCell,
+  getCellHeight,
+  getController,
+  getTopChecker,
+  isStack,
+} from '@/domain/model/board';
+import {
+  DIRECTION_VECTORS,
+  FRONT_HOME_ROW,
+  HOME_ROWS,
+} from '@/domain/model/constants';
 import {
   allCoords,
   getAdjacentCoord,
@@ -7,7 +17,12 @@ import {
   parseCoord,
 } from '@/domain/model/coordinates';
 import { hashPosition } from '@/domain/model/hash';
-import type { Coord, EngineState, Player, TurnAction } from '@/domain/model/types';
+import type {
+  Coord,
+  EngineState,
+  Player,
+  TurnAction,
+} from '@/domain/model/types';
 import {
   canJumpOverCell,
   isControlledStack,
@@ -37,13 +52,63 @@ type PlayerAnalysis = {
   transportValue: number;
 };
 
-type IntentProfile = {
+export type IntentProfile = {
   homePlanPotential: number;
   hybridPlanPotential: number;
   intent: AiStrategicIntent;
   intentDelta: number;
   sixStackPlanPotential: number;
 };
+
+export type StrategicPlanHypothesis = {
+  confidence: number;
+  intent: AiStrategicIntent;
+  potential: number;
+  rank: number;
+};
+
+const STRATEGIC_PORTFOLIO_TEMPERATURE = 900;
+
+/** Extra potential required to abandon an already-legible win plan. */
+export const STRATEGIC_PLAN_SWITCH_MARGIN = 1_400;
+
+/**
+ * Applies hysteresis to the per-position plan classifier.
+ *
+ * A committed plan survives ambiguous `hybrid` states. A direct home↔stack
+ * switch is allowed only when the challenger is materially stronger, preventing
+ * threshold noise from producing a visibly incoherent opponent.
+ */
+export function stabilizeStrategicIntent(
+  profile: IntentProfile,
+  previousIntent: AiStrategicIntent | null | undefined,
+  switchMargin = STRATEGIC_PLAN_SWITCH_MARGIN,
+): AiStrategicIntent {
+  if (
+    !previousIntent ||
+    previousIntent === 'hybrid' ||
+    profile.intent === previousIntent
+  ) {
+    return profile.intent;
+  }
+
+  if (profile.intent === 'hybrid') {
+    return previousIntent;
+  }
+
+  const previousPotential =
+    previousIntent === 'home'
+      ? profile.homePlanPotential
+      : profile.sixStackPlanPotential;
+  const challengerPotential =
+    profile.intent === 'home'
+      ? profile.homePlanPotential
+      : profile.sixStackPlanPotential;
+
+  return challengerPotential - previousPotential >= switchMargin
+    ? profile.intent
+    : previousIntent;
+}
 
 export type PositionAnalysis = {
   emptyCells: number;
@@ -104,8 +169,15 @@ function distanceToHomeRows(player: Player, row: number): number {
 }
 
 /** Counts only material that can currently contribute to mobility and pressure. */
-function isActiveMover(state: EngineState, coord: Coord, player: Player): boolean {
-  return isMovableSingle(state.board, coord, player) || isControlledStack(state.board, coord, player);
+function isActiveMover(
+  state: EngineState,
+  coord: Coord,
+  player: Player,
+): boolean {
+  return (
+    isMovableSingle(state.board, coord, player) ||
+    isControlledStack(state.board, coord, player)
+  );
 }
 
 /** Marks rows where frozen singles are strategically expensive for that player. */
@@ -170,17 +242,23 @@ function addStackStructure(
   player: Player,
   analysis: PlayerAnalysis,
 ): void {
-  if (!isStack(state.board, coord) || getController(state.board, coord) !== player) {
+  if (
+    !isStack(state.board, coord) ||
+    getController(state.board, coord) !== player
+  ) {
     return;
   }
 
   const { row } = parseCoord(coord);
   const cell = getCell(state.board, coord);
   const height = cell.checkers.length;
-  const ownCheckers = cell.checkers.filter((checker) => checker.owner === player).length;
+  const ownCheckers = cell.checkers.filter(
+    (checker) => checker.owner === player,
+  ).length;
 
   analysis.controlledStacks += 1;
-  analysis.transportValue += ownCheckers * (row === FRONT_HOME_ROW[player] ? 10 : 45);
+  analysis.transportValue +=
+    ownCheckers * (row === FRONT_HOME_ROW[player] ? 10 : 45);
 
   if (ownCheckers !== height) {
     analysis.controlledEnemyStacks += 1;
@@ -278,10 +356,12 @@ function addCellAnalysis(
   topAnalysis.movableUnits += 1;
   topAnalysis.emptyAdjacency += openness.emptyAdjacency;
   topAnalysis.jumpLanes += openness.jumpLanes;
-  topAnalysis.laneOpenness += openness.emptyAdjacency * 2 + openness.jumpLanes * 3;
+  topAnalysis.laneOpenness +=
+    openness.emptyAdjacency * 2 + openness.jumpLanes * 3;
 
   if (cell.checkers.length > 1) {
-    topAnalysis.transportValue += cell.checkers.length * (openness.emptyAdjacency + openness.jumpLanes * 2);
+    topAnalysis.transportValue +=
+      cell.checkers.length * (openness.emptyAdjacency + openness.jumpLanes * 2);
   }
 }
 
@@ -334,7 +414,10 @@ function buildAnalysis(state: EngineState): PositionAnalysis {
 }
 
 /** Keeps the analysis cache bounded so search quality does not grow browser memory unboundedly. */
-function rememberAnalysis(key: string, analysis: PositionAnalysis): PositionAnalysis {
+function rememberAnalysis(
+  key: string,
+  analysis: PositionAnalysis,
+): PositionAnalysis {
   if (analysisCache.size >= ANALYSIS_CACHE_LIMIT) {
     const oldestKey = analysisCache.keys().next().value;
 
@@ -419,12 +502,18 @@ function buildIntentProfile(
     own.totalDistanceToHome * 8 +
     own.buriedDebt * -25;
   const hybridPlanPotential =
-    Math.round((homePlanPotential * 0.58 + sixStackPlanPotential * 0.42) / 1.0) +
+    Math.round(
+      (homePlanPotential * 0.58 + sixStackPlanPotential * 0.42) / 1.0,
+    ) +
     Math.round((own.laneOpenness - other.laneOpenness) * 12) +
     Math.round((own.frozenCriticalSingles - other.frozenCriticalSingles) * -65);
   const delta = sixStackPlanPotential - homePlanPotential;
 
-  if (own.frontRowFullStacks >= 2 || own.frontRowControlledHeight >= 9 || delta >= 750) {
+  if (
+    own.frontRowFullStacks >= 2 ||
+    own.frontRowControlledHeight >= 9 ||
+    delta >= 750
+  ) {
     return {
       homePlanPotential,
       hybridPlanPotential,
@@ -434,7 +523,10 @@ function buildIntentProfile(
     };
   }
 
-  if (own.homeSingles >= 9 || homePlanPotential - sixStackPlanPotential >= 750) {
+  if (
+    own.homeSingles >= 9 ||
+    homePlanPotential - sixStackPlanPotential >= 750
+  ) {
     return {
       homePlanPotential,
       hybridPlanPotential,
@@ -465,6 +557,56 @@ function getIntentScore(profile: IntentProfile): number {
   }
 }
 
+function getPlanPotential(
+  profile: IntentProfile,
+  intent: AiStrategicIntent,
+): number {
+  switch (intent) {
+    case 'home':
+      return profile.homePlanPotential;
+    case 'sixStack':
+      return profile.sixStackPlanPotential;
+    default:
+      return profile.hybridPlanPotential;
+  }
+}
+
+/**
+ * Retains several credible strategic hypotheses instead of collapsing an
+ * ambiguous position into one brittle label. Confidence is a softmax over the
+ * same plan potentials used by evaluation, so the portfolio adds no hidden
+ * objective.
+ */
+export function getStrategicPlanPortfolio(
+  profile: IntentProfile,
+  temperature = STRATEGIC_PORTFOLIO_TEMPERATURE,
+): StrategicPlanHypothesis[] {
+  if (!(temperature > 0)) {
+    throw new RangeError('Strategic portfolio temperature must be positive.');
+  }
+  const candidates = (['home', 'sixStack', 'hybrid'] as const).map(
+    (intent) => ({ intent, potential: getPlanPotential(profile, intent) }),
+  );
+  const maximum = Math.max(...candidates.map(({ potential }) => potential));
+  const weights = candidates.map(({ potential }) =>
+    Math.exp((potential - maximum) / temperature),
+  );
+  const total = weights.reduce((sum, weight) => sum + weight, 0);
+
+  return candidates
+    .map((candidate, index) => ({
+      ...candidate,
+      confidence: weights[index] / total,
+      rank: 0,
+    }))
+    .sort(
+      (left, right) =>
+        right.confidence - left.confidence ||
+        left.intent.localeCompare(right.intent),
+    )
+    .map((candidate, index) => ({ ...candidate, rank: index + 1 }));
+}
+
 /** Normalizes heterogeneous actions onto a common target coordinate abstraction. */
 function targetCoord(action: TurnAction): Coord | null {
   switch (action.type) {
@@ -490,7 +632,11 @@ function sourceCoord(action: TurnAction): Coord | null {
 }
 
 /** Keeps semantic move tagging declarative so heuristics describe intent rather than control flow. */
-function addTag(tags: Set<AiStrategicTag>, condition: boolean, tag: AiStrategicTag): void {
+function addTag(
+  tags: Set<AiStrategicTag>,
+  condition: boolean,
+  tag: AiStrategicTag,
+): void {
   if (condition) {
     tags.add(tag);
   }
@@ -502,7 +648,10 @@ export function analyzePosition(state: EngineState): PositionAnalysis {
 }
 
 /** Reuses a caller-supplied position key when structural analysis is already hash-addressed. */
-export function analyzePositionByKey(state: EngineState, key: string): PositionAnalysis {
+export function analyzePositionByKey(
+  state: EngineState,
+  key: string,
+): PositionAnalysis {
   const cached = analysisCache.get(key);
 
   if (cached) {
@@ -594,20 +743,27 @@ export function getActionStrategicProfileFromAnalysis(
   const nextIntent = buildIntentProfile(nextAnalysis, player);
   const target = targetCoord(action);
   const source = sourceCoord(action);
-  const targetControllerBefore = target ? getController(state.board, target) : null;
-  const targetControllerAfter = target ? getController(nextState.board, target) : null;
+  const targetControllerBefore = target
+    ? getController(state.board, target)
+    : null;
+  const targetControllerAfter = target
+    ? getController(nextState.board, target)
+    : null;
   const tags = new Set<AiStrategicTag>();
 
   addTag(
     tags,
     nextAnalysis.emptyCells > baseAnalysis.emptyCells ||
-      nextAnalysis.players[player].laneOpenness > baseAnalysis.players[player].laneOpenness,
+      nextAnalysis.players[player].laneOpenness >
+        baseAnalysis.players[player].laneOpenness,
     'openLane',
   );
   addTag(
     tags,
-    nextAnalysis.players[player].totalDistanceToHome < baseAnalysis.players[player].totalDistanceToHome ||
-      nextAnalysis.players[player].homeSingles > baseAnalysis.players[player].homeSingles,
+    nextAnalysis.players[player].totalDistanceToHome <
+      baseAnalysis.players[player].totalDistanceToHome ||
+      nextAnalysis.players[player].homeSingles >
+        baseAnalysis.players[player].homeSingles,
     'advanceMass',
   );
   addTag(
@@ -620,8 +776,10 @@ export function getActionStrategicProfileFromAnalysis(
   );
   addTag(
     tags,
-    nextAnalysis.players[player].frozenSingles < baseAnalysis.players[player].frozenSingles ||
-      nextAnalysis.players[player].buriedDebt < baseAnalysis.players[player].buriedDebt,
+    nextAnalysis.players[player].frozenSingles <
+      baseAnalysis.players[player].frozenSingles ||
+      nextAnalysis.players[player].buriedDebt <
+        baseAnalysis.players[player].buriedDebt,
     'rescue',
   );
   addTag(
@@ -644,13 +802,16 @@ export function getActionStrategicProfileFromAnalysis(
   );
   addTag(
     tags,
-    nextAnalysis.players[player].controlledStacks < baseAnalysis.players[player].controlledStacks ||
-      nextAnalysis.players[player].buriedDebt < baseAnalysis.players[player].buriedDebt ||
+    nextAnalysis.players[player].controlledStacks <
+      baseAnalysis.players[player].controlledStacks ||
+      nextAnalysis.players[player].buriedDebt <
+        baseAnalysis.players[player].buriedDebt ||
       (source !== null &&
         action.type !== 'manualUnfreeze' &&
         getCellHeight(state.board, source) >= 2 &&
         target !== null &&
-        getCellHeight(nextState.board, target) <= getCellHeight(state.board, source)),
+        getCellHeight(nextState.board, target) <=
+          getCellHeight(state.board, source)),
     'decompress',
   );
 
@@ -733,7 +894,12 @@ export function inferPreviousStrategicTags(
       positionCounts: state.positionCounts,
     };
 
-    return getActionStrategicProfile(beforeState, record.action, afterState, player).tags;
+    return getActionStrategicProfile(
+      beforeState,
+      record.action,
+      afterState,
+      player,
+    ).tags;
   }
 
   return null;

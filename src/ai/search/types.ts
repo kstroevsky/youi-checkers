@@ -5,8 +5,10 @@ import type {
   AiDifficultyPreset,
   AiRiskMode,
   AiSearchDiagnostics,
+  AiSearchDiagnosticAblation,
   AiStrategicIntent,
   AiStrategicTag,
+  AiTranspositionMode,
 } from '@/ai/types';
 import type { Player, RuleConfig, TurnAction } from '@/domain';
 import type { AiBehaviorProfile } from '@/shared/types/session';
@@ -54,6 +56,8 @@ export type RootRankedAction = Pick<
   | 'isRepetition'
   | 'isSelfUndo'
   | 'isTactical'
+  | 'isTerminal'
+  | 'mobility'
   | 'mobilityDelta'
   | 'movedMass'
   | 'participationDelta'
@@ -62,6 +66,7 @@ export type RootRankedAction = Pick<
   | 'sixStackDelta'
   | 'sourceFamily'
   | 'tags'
+  | 'terminalUtility'
   | 'tiebreakEdgeKind'
 > & {
   score: number;
@@ -74,6 +79,7 @@ export type SearchContext = {
   continuationScores: Map<number, number>;
   deadline: number;
   diagnostics: AiSearchDiagnostics;
+  diagnosticAblation: AiSearchDiagnosticAblation | null;
   evaluatedNodes: number;
   /** Fixed-size typed array; index is the numeric action ID (0..AI_MODEL_ACTION_COUNT-1). */
   historyScores: Int32Array;
@@ -95,4 +101,5 @@ export type SearchContext = {
   rootSelfUndoPositionKey: string | null;
   ruleConfig: RuleConfig;
   table: Map<string, TranspositionEntry>;
+  transpositionMode: AiTranspositionMode;
 };

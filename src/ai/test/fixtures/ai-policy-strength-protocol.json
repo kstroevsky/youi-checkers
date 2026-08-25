@@ -1,0 +1,34 @@
+{
+  "experimentId": "current-vs-legacy-v0-strength-v1",
+  "pairing": {
+    "colorSwap": true,
+    "geometricMirror": true,
+    "unit": "color-swapped pair"
+  },
+  "policies": {
+    "baseline": "legacy-v0",
+    "candidate": "current"
+  },
+  "primary": {
+    "alpha": 0.05,
+    "beta": 0.2,
+    "endpoint": "fixed-horizon adjudicated pentanomial point share",
+    "horizonPlies": 160,
+    "margin": 0.03,
+    "question": "nonInferiority"
+  },
+  "sampling": {
+    "maxBalancedBlocks": 100,
+    "minBalancedBlocks": 2,
+    "split": "holdout"
+  },
+  "search": {
+    "difficulty": "hard",
+    "fixedNodeBudget": 2048
+  },
+  "sequential": {
+    "checkpoints": "complete frozen-allocation blocks only",
+    "method": "smoothed pentanomial generalized likelihood-ratio test"
+  },
+  "version": 1
+}

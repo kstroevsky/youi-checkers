@@ -456,6 +456,7 @@ export function createAiController({
       state: state.gameState,
       matchSettings: state.matchSettings,
       behaviorProfile: state.aiBehaviorProfile,
+      previousStrategicIntent: state.lastAiDecision?.strategicIntent ?? null,
       searchMode,
     });
   }

@@ -1,0 +1,19 @@
+{
+  "allocation": {
+    "midgame20": 1,
+    "midgame20-mirror-horizontal": 1,
+    "random10b": 1,
+    "random10b-mirror-horizontal": 1,
+    "random50a": 1,
+    "random50a-mirror-horizontal": 1,
+    "random75b": 1,
+    "random75b-mirror-horizontal": 1,
+    "turn150": 1,
+    "turn150-mirror-horizontal": 1,
+    "turn50": 1,
+    "turn50-mirror-horizontal": 1
+  },
+  "decision": "equal allocation retained because the 18-pair pilot had too few naturally resolved pairs for stable Neyman weights",
+  "derivedFrom": "strength-candidate-holdout pilot documented 2026-08-09",
+  "version": 1
+}

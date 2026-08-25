@@ -22,7 +22,8 @@ type CellSummary = {
   compositeInterestingness: number;
   decisiveResultShare: number;
   drawShare: number;
-  loopEscapeRate8: number;
+  loopEscapeRate8: number | null;
+  nearCycleRate: number | null;
   pointShare: number;
   pressureEventRate: number;
   recurrenceLaminarity: number;
@@ -87,6 +88,7 @@ function summarizeCell(
         Math.max(1, traces.length),
     ),
     loopEscapeRate8: advanced.loopEscapeRate8,
+    nearCycleRate: advanced.nearCycleRate,
     pointShare,
     pressureEventRate: advanced.pressureEventRate,
     recurrenceLaminarity: advanced.recurrenceLaminarity,
@@ -220,7 +222,7 @@ function buildMatrixReport<TKey extends string>(
 function buildMatrixTable<TKey extends string>(
   title: string,
   matrix: MatrixReport<TKey>,
-  selector: (cell: CellSummary) => number,
+  selector: (cell: CellSummary) => number | null,
 ): string[] {
   const lines = [title, '', `| row \\ col | ${matrix.labels.join(' | ')} |`, `| --- | ${matrix.labels.map(() => '---:').join(' | ')} |`];
 
@@ -258,13 +260,13 @@ function buildMarkdown(
   ];
 
   lines.push(...buildMatrixTable('### Point Share', difficultyMatrix, (cell) => cell.pointShare));
-  lines.push(...buildMatrixTable('### Composite Interestingness', difficultyMatrix, (cell) => cell.compositeInterestingness));
+  lines.push(...buildMatrixTable('### Legacy Composite Proxy', difficultyMatrix, (cell) => cell.compositeInterestingness));
   lines.push(...buildMatrixTable('### Loop Escape <= 8 Plies', difficultyMatrix, (cell) => cell.loopEscapeRate8));
   lines.push(...buildMatrixTable('### Pressure Event Rate', difficultyMatrix, (cell) => cell.pressureEventRate));
   lines.push('## Persona Matrix (`hard` only)');
   lines.push('');
   lines.push(...buildMatrixTable('### Point Share', personaMatrix, (cell) => cell.pointShare));
-  lines.push(...buildMatrixTable('### Composite Interestingness', personaMatrix, (cell) => cell.compositeInterestingness));
+  lines.push(...buildMatrixTable('### Legacy Composite Proxy', personaMatrix, (cell) => cell.compositeInterestingness));
   lines.push(...buildMatrixTable('### Recurrence Laminarity', personaMatrix, (cell) => cell.recurrenceLaminarity));
   lines.push(...buildMatrixTable('### Decisive Result Share', personaMatrix, (cell) => cell.decisiveResultShare));
 

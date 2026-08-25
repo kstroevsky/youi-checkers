@@ -1,9 +1,16 @@
 import type { AiStrategicTag } from '@/ai/types';
 import { analyzePosition } from '@/ai/strategy';
-import type { EngineState, Player } from '@/domain';
 import { parseCoord } from '@/domain/model/coordinates';
-import type { Coord, TurnAction } from '@/domain/model/types';
-import type { AiBehaviorProfile, AiBehaviorProfileId } from '@/shared/types/session';
+import type {
+  Coord,
+  EngineState,
+  Player,
+  TurnAction,
+} from '@/domain/model/types';
+import type {
+  AiBehaviorProfile,
+  AiBehaviorProfileId,
+} from '@/shared/types/session';
 
 const PROFILE_IDS: AiBehaviorProfileId[] = ['expander', 'hunter', 'builder'];
 
@@ -44,7 +51,10 @@ export function getBehaviorActionBias(
     return 0;
   }
 
-  const tagWeights: Record<AiBehaviorProfileId, Partial<Record<AiStrategicTag, number>>> = {
+  const tagWeights: Record<
+    AiBehaviorProfileId,
+    Partial<Record<AiStrategicTag, number>>
+  > = {
     expander: {
       advanceMass: 80,
       decompress: 180,
@@ -76,7 +86,9 @@ function getActionAnchor(action: TurnAction): Coord | null {
   }
 }
 
-function getGeometryBand(coord: Coord | null): 'center' | 'edge' | 'inner' | 'none' {
+function getGeometryBand(
+  coord: Coord | null,
+): 'center' | 'edge' | 'inner' | 'none' {
   if (!coord) {
     return 'none';
   }
@@ -108,7 +120,10 @@ export function getBehaviorGeometryBias(
   }
 
   const geometryBand = getGeometryBand(getActionAnchor(action));
-  const geometryOrders: Record<AiBehaviorProfileId, Array<Array<'center' | 'edge' | 'inner'>>> = {
+  const geometryOrders: Record<
+    AiBehaviorProfileId,
+    Array<Array<'center' | 'edge' | 'inner'>>
+  > = {
     expander: [
       ['center', 'inner', 'edge'],
       ['center', 'edge', 'inner'],
@@ -125,13 +140,17 @@ export function getBehaviorGeometryBias(
       ['inner', 'edge', 'center'],
     ],
   };
-  const orderedBands = geometryOrders[profileId][seed ? hashSeed(seed) % geometryOrders[profileId].length : 0];
-  const geometryWeights: Record<'center' | 'edge' | 'inner' | 'none', number> = {
-    center: 20,
-    edge: 20,
-    inner: 20,
-    none: 0,
-  };
+  const orderedBands =
+    geometryOrders[profileId][
+      seed ? hashSeed(seed) % geometryOrders[profileId].length : 0
+    ];
+  const geometryWeights: Record<'center' | 'edge' | 'inner' | 'none', number> =
+    {
+      center: 20,
+      edge: 20,
+      inner: 20,
+      none: 0,
+    };
 
   geometryWeights[orderedBands[0]] = 220;
   geometryWeights[orderedBands[1]] = 120;
@@ -140,18 +159,13 @@ export function getBehaviorGeometryBias(
   return geometryWeights[geometryBand];
 }
 
-/**
- * Adds a quiet-leaf style bias so different personas still value the same
- * tactical truth, but prefer different strategic shapes when lines are close.
- */
+/** Reconstructs the pre-separation persona leaf bias for controlled attribution only. */
 export function getBehaviorStateBias(
   state: EngineState,
   player: Player,
   profileId: AiBehaviorProfileId | null,
 ): number {
-  if (!profileId) {
-    return 0;
-  }
+  if (!profileId) return 0;
 
   const analysis = analyzePosition(state);
   const opponent = getOpponent(player);

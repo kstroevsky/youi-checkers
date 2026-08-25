@@ -116,7 +116,10 @@ export function getQuiescenceMoves(
   }
 
   const ttBestAction =
-    context.table.get(makeTableKey(state))?.bestAction ?? null;
+    (context.transpositionMode === 'disabled'
+      ? null
+      : context.table.get(makeTableKey(state, context.transpositionMode))
+          ?.bestAction) ?? null;
   const ordered = orderMoves(
     state,
     state.currentPlayer,
@@ -126,6 +129,7 @@ export function getQuiescenceMoves(
       actions: scoringActions,
       behaviorProfile: context.behaviorProfile,
       deadline: context.deadline,
+      diagnosticAblation: context.diagnosticAblation,
       grandparentPositionKey: getPreviousOwnPositionKeyFromLine(
         state.currentPlayer,
         stack,
@@ -189,6 +193,7 @@ export function quiescence(
     context.ruleConfig,
     {
       behaviorProfile: context.behaviorProfile,
+      diagnosticAblation: context.diagnosticAblation,
       diagnostics: context.diagnostics,
       participationState,
       perfCache: context.perfCache,

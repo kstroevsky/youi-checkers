@@ -16,6 +16,7 @@ async function handleChooseMove(
       behaviorProfile: message.behaviorProfile,
       difficulty: message.matchSettings.aiDifficulty,
       modelGuidance,
+      previousStrategicIntent: message.previousStrategicIntent,
       ruleConfig: message.ruleConfig,
       searchMode: message.searchMode,
       state: message.state,

@@ -16,6 +16,7 @@ function context(): SearchContext {
     budgetExhaustion: 'none',
     continuationScores: new Map(),
     deadline: Number.POSITIVE_INFINITY,
+    diagnosticAblation: null,
     diagnostics: {
       adverseDrawTrapPenalties: 0,
       aspirationResearches: 0,
@@ -28,6 +29,7 @@ function context(): SearchContext {
       pvsResearches: 0,
       quiescenceNodes: 0,
       repetitionPenalties: 0,
+      rootPreparationTransitions: 0,
       selfUndoPenalties: 0,
       sourceFamilyCollisions: 0,
       stagnationRiskTriggers: 0,
@@ -52,6 +54,7 @@ function context(): SearchContext {
     rootStrategicIntent: 'hybrid',
     ruleConfig: withConfig(),
     table: new Map(),
+    transpositionMode: 'current',
   };
 }
 

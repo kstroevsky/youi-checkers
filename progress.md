@@ -652,3 +652,170 @@ Verification 2026-07-19 (multiplayer history and input follow-up):
 - The required bundled web-game Playwright client created a waiting room from the production build and exported the expanded state (`historyLength`, `lastMove`, rule selection, selection state) without a console-error artifact; reviewed `/tmp/youi-multiplayer-followup/shot-0.png` and `state-0.json`.
 - The repository-wide run completed 324 passing tests and one intentional skip; the known resource-sensitive finishing-plan test failed while the 63-second benchmark saturated the runner, then passed all 3 tests immediately in isolation.
 - `git diff --check` passes. No production deployment was attempted from this branch because local `main` contains the previously deployed but still-unpushed AI measurement commit, while this review branch intentionally excludes it.
+
+Update 2026-08-04 (AI measurement semantic contract, Phase 1A):
+
+- Split terminality from utility in ordered/root candidates. Every candidate now reports `isTerminal` plus actor-relative `terminalUtility`; `isForced` is deliberately restricted to immediate actor wins, so terminal draws/losses no longer bypass safety, novelty, repetition, or draw-risk policy.
+- Made final decision score ownership explicit. Search results now report `bestSearchAction`/`bestSearchScore`, `selectedActionScore`, and `selectionRegret`; legacy `score` is a documented alias of the selected action's score. The fields are derived from the full internal root ranking before diagnostic candidate truncation.
+- Replaced heterogeneous mobility subtraction with an actor-aware transition record: actor branching before, same-player continuation branching, opponent reply branching, whether the post-state count was measured, and whether the actor kept the turn. Compatibility `mobilityDelta` is now same-actor-only and is zero across turn changes.
+- Traces now preserve the decision score contract and actor-aware mobility. Root regret is sourced from the search result instead of being reconstructed from the possibly truncated/diversified public root-candidate list.
+- Intent switching now compares each player with that player's previous decision; its denominator is the number of valid same-player comparisons rather than adjacent, usually opposing-player plies.
+- Repaired long scenario construction in `ai:measure`: cyclic late-game replay fixtures are built with draw termination disabled, then normalized into active continuation states. This prevents the threefold measurement rule from terminating fixture construction before the scenario can be sampled.
+- Made the long finishing-plan correctness replay use a deterministic clock; budget-exhaustion behavior remains covered by its dedicated test.
+
+Verification 2026-08-04 (AI measurement semantic contract, Phase 1A):
+
+- Red/green focused regressions cover neutral threefold terminal classification, selected-vs-best score ownership, actor-explicit mobility, and same-player intent transitions.
+- `tsc --noEmit`, changed-file ESLint, and production `vite build` pass.
+- Focused AI verification passes 42 tests with one intentional skip across behavior, variety, quiescence, and finishing search.
+- A fixed-node `ai:measure` smoke traversed all nine scenario buckets, including cyclic turn-25 through turn-200 fixtures, and emitted raw JSONL/report artifacts without path-construction failures. Sampled decisions satisfy `score === selectedActionScore` and contain explicit score/mobility/terminal fields.
+- Production preview browser acceptance passed: after starting an Easy computer match, White played A1 -> B2 and the AI replied C4 -> B3; exported state showed move 3, White to act, two history entries, no selection, and an active game. The final board screenshot was visually reviewed. The only console error was the expected local-preview 404 for the Worker-only telemetry endpoint.
+- Repository-wide Vitest reached 330 passing tests and one skip; nine unrelated UI tests failed under benchmark/soak saturation. Rerunning the two affected UI files reduced this to one pre-existing lazy-game-tab order-sensitive failure; that test also fails alone before any AI path is exercised.
+
+Update 2026-08-04 (advanced interestingness estimators, Phase 1B):
+
+- Sample entropy now returns `null` for short/no-match series instead of conflating insufficient evidence with perfectly regular zero entropy. Advanced summaries average only finite estimates and publish the contributing trace count.
+- Replaced character-substring Lempel-Ziv parsing with token-level phrase parsing and reused the same implementation in both core variety and advanced reports. The metric is now invariant under bijective renaming or different-length spellings of action/position tokens.
+- Loop-escape rates now condition on traces that actually entered risk/repetition/self-undo pressure. Reports publish eligible and observed-escape counts; no eligible traces produce `null`, not a manufactured zero.
+- Frontier compression now uses only measured same-player continuation transitions and publishes its sample count. It no longer interprets opponent reply branching as compression of the actor's action space.
+- Added evidence-count columns to loop and position-bucket Markdown reports and documented missingness/conditioning rules. Bumped the lossless `ai:measure` schema to version 2 so old/new raw contracts cannot be paired silently.
+
+Verification 2026-08-04 (advanced interestingness estimators, Phase 1B):
+
+- Red/green regressions cover sample-entropy insufficiency, Lempel-Ziv token-label invariance, loop-pressure denominator conditioning, and missing frontier-compression evidence.
+- Advanced plus core AI focused verification passes 50 tests with one intentional skip; `tsc --noEmit` and changed-file ESLint pass.
+- A one-pair/four-ply loop-report smoke emitted explicit `null` estimates and evidence counts, while loop-pressure buckets produced conditioned escape rates. The tracked baseline artifacts were restored after inspection.
+
+Update 2026-08-09 (competence and fixed-node oracle foundation, Phase 2A):
+
+- Added a rule-derived tactical catalog for unique home-field wins, unique six-stack wins, and unique immediate defenses. Every fixture has a true geometric mirror, and catalog construction fails unless both variants have exactly one correct action.
+- Added a measurement-only root-candidate limit override. Production presets remain unchanged, while a deeper fixed-depth oracle can expose every searched root score needed to rescore a subject action.
+- Added fixed-node regret curves across difficulty and work budgets, with oracle agreement, unique-win/defense accuracy, p95 regret, catastrophic-regret rate, root coverage, fallback, zero-depth, and explicit oracle-missing denominators.
+- Added largest-budget confirmatory gates with difficulty-specific regret tolerances. Smoke curves remain exploratory unless `--enforce-gates=true` is requested.
+- Added lossless raw JSONL, checksummed fixture manifests, complete settings, Git/runtime provenance, a Markdown review surface, and the authoritative `ai:competence` command.
+
+Update 2026-08-09 (completed versus partial search evidence, Phase 2B):
+
+- Stopped overwriting `completedRootMoves` when the next iterative-deepening pass is interrupted. It now remains owned by `completedDepth`.
+- Added explicit nullable `partialDepth` and `partialRootMoves` to every search result and AI trace. No interrupted root evidence produces `null` plus zero moves rather than being conflated with completed work.
+- Added partial-depth distributions and shares to the authoritative measurement report, paired comparison guardrails, and competence curves. Immediate unique-win proofs count as completed-root coverage without pretending all losing root moves were searched.
+- Added completed root-preparation transition counts to search diagnostics, the general measurement summaries, and fixed-node competence curves so equal-node results also expose mandatory root work.
+- Bumped lossless `ai:measure` artifacts to schema version 3 so the corrected search-path semantics cannot be silently compared with earlier traces.
+
+Update 2026-08-09 (frozen-reference strength and non-inferiority, Phase 2C):
+
+- Added a versioned deterministic opponent pool with canonical, seeded-uniform, and tactical-greedy policies. Pool and fixture checksums prevent silent comparison across workload changes.
+- Added `ai:strength`, which runs fixed-node candidate search in seeded color-swapped pairs across development/holdout scenario strata and retains lossless per-ply game/search evidence.
+- Unfinished games are censored rather than scored as draws; a pair score exists only when both colors resolve.
+- Added `ai:strength:compare-files` with stable pair matching, equal fixture × reference weighting, fixed-portfolio and hierarchical paired bootstrap intervals, a predeclared score non-inferiority margin, a separate resolution/censoring guardrail, and fixture/seed variance components.
+- Added deterministic policy and statistical-contract regressions. Product AI presets and move-selection policy remain unchanged.
+
+Verification 2026-08-09 (Phase 2C):
+
+- `npm run test:run -- src/ai/test/frozenReferencePool.test.ts src/ai/test/referenceStrengthStats.test.ts`
+- focused ESLint and TypeScript checks passed for the new runner, comparator, policies, and tests.
+- A minimal strength/report/identical-artifact comparator smoke emitted valid artifacts; because the eight-ply opening had no resolved pair, the score gate correctly returned `inconclusive` instead of manufacturing a draw or passing zero evidence.
+- A 160-ply holdout slice resolved both color assignments; its identical-artifact comparison passed the score and resolution gates. The default six-stratum smoke, full build, lint, and documentation link checks also passed.
+- The full test suite reached 354 passing tests and one intentional skip; the existing App tab-state test timed out at its five-second limit both in the concurrent suite and alone. No production/UI code changed in this phase.
+
+Update 2026-08-09 (resumable strength campaigns and strength/style separation):
+
+- Added deterministic strength job ids, modulo sharding, atomic per-pair checkpoints, resume validation, and strict shard merging. Campaign identity includes schema, settings, fixture/reference/domain hashes, and production-AI source identity.
+- Added immutable Git strength comparisons and retained paired measurement comparisons. Reports now include censoring incidence, terminal-ply distributions, power diagnostics when pilot variance supports them, and candidate style-regret budget violations.
+- The 18-pair/36-game, 160-ply holdout pilot exposed 72.2% game censoring and only 3 naturally resolved pairs. Schema-v2 strength artifacts therefore keep natural outcomes untouched while adding a distinct fixed-horizon domain-tiebreak endpoint.
+- Root selection is now staged: terminal safety first, then an explicit maximum strength-regret band (Easy 960, Medium 480, Hard 240), then plan/persona/participation/novelty shaping. Immediate wins are preserved and avoidable terminal losses cannot be selected for style.
+- Removed persona, participation, and novelty from adversarial leaf evaluation and move-order scores. Persona-conditioned strength rankings are now identical; style is applied only after the strength gate.
+- Added strategic-plan hysteresis. The prior computer plan is carried into the next worker decision and into self-play/reference harnesses; hybrid ambiguity preserves commitment, a home↔six-stack switch requires a 1,400-point potential advantage, and the committed plan breaks safe-band root ties.
+- Strength/measurement CLIs now reject unknown arguments after a misspelled holdout option was caught during confirmation, preventing a silently wrong portfolio from producing apparently valid evidence.
+
+Verification 2026-08-09 (strength/style and plan-coherence tranche):
+
+- Focused tactical competence smoke passes its enforced largest-budget gates with zero failures.
+- Direct selection, evaluation, quiescence, strategic-plan, worker/store propagation, and frozen-reference regressions pass; TypeScript, changed-file ESLint, Prettier, and `git diff --check` pass.
+- The retained paired `ai:measure:compare` smoke reports zero style-budget violations and preserves raw baseline/candidate artifacts.
+- The full 18-pair holdout screening campaign was retained under `output/ai/strength-candidate-holdout/`. Fixed-horizon point share was 0.666667 versus 0.736111 at the baseline (paired delta -0.069444, fixed-portfolio 95% CI -0.166667 to 0.027778); natural resolution was 2/18 versus 3/18. Both gates correctly remain `inconclusive`. The observed variance implies about 67 pairs per stratum for 80% power at the declared 0.03 margin, so this pilot does not establish non-inferiority or regression.
+
+Update 2026-08-09 (strength portfolio expansion):
+
+- Expanded the shared position catalog from nine to eighteen deterministic scenarios, adding seeded legal-play early, middle, and later positions so the historical loop trace no longer dominates coverage.
+- Replaced index-derived development/holdout assignment with explicit immutable catalog membership. Six scenarios now form the holdout, balanced across realistic legal play and loop/conversion sentinels.
+- The strength runner now evaluates each scenario together with its true horizontal board mirror and records fixture origin/mirror provenance in raw pairs. Schema v3 intentionally prevents comparison with the narrower schema-v2 pilot.
+- Added diagnostic logistic Elo differences with transformed uncertainty intervals against the frozen reference pool. Point-share non-inferiority remains the release gate; the rating is an interpretable secondary scale.
+
+Verification 2026-08-09 (final AI measurement and strategy tranche):
+
+- The clean serial correctness suite passed 67 files and 351 tests with one intentional skip. The dedicated performance benchmark passed all 22 tests, and the 200/500-turn search soak passed all 6 tests on Easy, Medium, and Hard.
+- TypeScript, repository-scoped ESLint, documentation link checks, the production build, tactical competence gates, focused selection/strategy/timeout suites, and the schema-v3 six-pair smoke all pass. The top-level lint command still discovers the unrelated nested `.claude/worktrees/zealous-lalande-46eeb8` checkout, whose files are outside this change and use a different parser root.
+- Browser verification rendered the real board, selected A1, opened the localized move dialog, and exposed the expected `pieceSelected` game state without a console-error artifact. The multi-game browser E2E then imported a finishing position, accepted the human move, exercised the worker-backed computer reply, and reached the completed finishing result.
+- The regenerated 64-game-per-difficulty variety corpus reports strategic-intent switch rates of 0.047476 (Easy), 0.047877 (Medium), and 0.036258 (Hard), down 80.35%, 75.13%, and 81.79% from commit `69872da`. Repetition ply share remains 0.003711, 0.004492, and 0.006445 respectively.
+- The same corpus remains entirely horizon-censored at 80 plies and still violates several historical absolute target bands. Its composite score must therefore not be treated as evidence of real-player enjoyment or strength. The fresh schema-v3 paired holdout campaign and blinded human study remain the required promotion evidence.
+
+Update 2026-08-09 (measurement-validity corrections):
+
+- Final style selection now runs once, after iterative deepening has finished or stopped. The strength-best root action—not a persona/RNG-selected action—seeds the next principal variation, so fixed-work search evidence is invariant to final style sampling.
+- Removed the policy prior from final behavioral reranking. It remains a search-ordering signal but is no longer counted twice when choosing within the explicit strength-regret band.
+- Replaced the ambiguous same-player mobility proxy for frontier pressure with candidate-relative opponent-reply compression. Each eligible ply compares the selected move's opponent reply count with the median legal root candidate; terminal moves and same-player continuations produce missing evidence rather than a synthetic zero.
+- Root-preparation diagnostics now increment after every generated root transition, including the completed prefix when a deadline interrupts preparation. Fixed-node results therefore expose mandatory work outside the evaluated-node counter without pretending both counters are equivalent.
+- Renamed the generated variety summary in-place as a legacy behavior-regression dashboard. Compatibility commands and artifact paths remain stable, while drama, tension, and composite-interestingness are explicitly documented as uncalibrated trace proxies rather than enjoyment measures or release gates.
+
+Verification 2026-08-09 (measurement-validity corrections):
+
+- Added regressions proving fixed-node candidates/scores/depth evidence do not change with style RNG, policy priors do not affect final behavioral sampling, continuation mobility is not mislabeled as opponent pressure, and root-preparation counts remain deterministic across wall-clock implementations.
+- Focused selection, behavior, variety, timeout, budget, move-ordering, advanced-metric, and measurement suites pass; TypeScript and changed-file ESLint pass.
+- A one-pair/two-ply legacy-report smoke generated the new report kind, heading, and calibration warning. Its expected non-zero exit reflected deliberately tiny-sample baseline regressions; generated tracked artifacts were restored after inspection.
+
+Update 2026-08-09 (same-harness legacy policy boundary):
+
+- Added a first-class asynchronous `AiPolicy` contract with seeded per-game sessions, immutable policy ids/source hashes, a common decision request, optional policy-specific diagnostics, and explicit disposal.
+- Pinned `LegacyPolicyV0` to `2bd9c455ec2537aa84b1fef38550ce13c53efd29`, the structural feature-branch merge-base and parent of the first production-semantic commit. The adapter materializes that revision's production AI sources into an isolated process but links the current domain/shared implementation, so policy—not historical harness or domain code—is the experimental variable.
+- Added the current-policy adapter and hashes that cover production AI source plus adapter source/version. The legacy hash covers the immutable revision source, adapter server source, and adapter version.
+- Added a current-harness policy match runner with identical fixed-node decision contracts, starting fixtures, horizons, domain adjudication, and color-swapped games. Natural and fixed-horizon scores remain separate.
+- Extracted the existing fixed-horizon outcome/adjudication functions into a shared versioned module so frozen-reference and policy-vs-policy experiments cannot silently implement different terminal scoring.
+
+Verification 2026-08-09 (same-harness legacy policy boundary):
+
+- A regression proves the pinned legacy revision is exactly the parent of the first feature policy commit.
+- Both legacy and current policies returned legal moves for the same current state and fixed-node request, exposed distinct 64-character source hashes, and completed a current-harness two-game color swap.
+- Existing frozen-reference strength tests continue to pass against the shared adjudication implementation; TypeScript, changed-file ESLint, and diff hygiene pass.
+
+Update 2026-08-09 (fixed-horizon pentanomial sequential protocol):
+
+- Added a preregistered current-versus-legacy strength command whose primary endpoint is the fixed-160-ply domain-adjudicated score of a color-swapped pair. Natural game resolution remains a separately reported secondary endpoint.
+- Retained the five dependent pair outcomes as pentanomial counts. Sequential evidence uses Jeffreys-smoothed empirical shape plus hypothesis-specific exponential tilting, explicit Wald boundaries, and distinct non-inferiority, superiority, and two-one-sided equivalence modes.
+- Stopping is eligible only at complete frozen-allocation blocks containing every selected holdout scenario and horizontal mirror. The frozen allocation remains equal because the retained 18-pair pilot produced too few natural resolutions for stable variance-optimal weights.
+- Added a versioned protocol manifest fixing the primary endpoint, alpha/beta, 0.03 practical margin, Hard 2,048-node work contract, 160-ply horizon, holdout split, and balanced-block limits.
+- Report provenance independently hashes current and legacy policies, current domain rules, harness, fixtures, protocol, allocation, raw pairs, fixed-node semantics, and adjudication version.
+
+Verification 2026-08-09 (fixed-horizon pentanomial sequential protocol):
+
+- Unit regressions cover all five pair outcomes, unequal/equal allocation blocks, favorable and harmful non-inferiority evidence, superiority, equivalence, and deterministic null-boundary Monte Carlo calibration.
+- A two-pair current-versus-legacy smoke completed both geometric variants and both color assignments under the same current harness, emitted all JSON/Markdown/JSONL artifacts, and correctly stopped as `inconclusiveAtMaxPairs` rather than passing zero evidence.
+- Protocol, policy-boundary, and existing frozen-reference tests pass; TypeScript and changed-file ESLint pass.
+
+Update 2026-08-09 (human experience calibration infrastructure):
+
+- Added a versioned human-study protocol for blinded, within-participant full-game crossover and paired replay preference collection. Public assignments expose only opaque condition labels; policy mappings remain separate and private until the analysis lock.
+- Added strict observation validation, pseudonymous participant/scenario grouping, explicit left/right/tie preference, per-construct 1–7 miniPXI storage, and active-selection propensities. No personal details or free-form responses are required by the analysis schema.
+- Added inverse-propensity-weighted regularized logistic fitting as an explicitly approximate mixed-effects Bradley–Terry model. Shrunk participant and scenario effects handle repeated judgments, policy contrasts and automated descriptor differences remain separate coefficients, and confirmatory metrics are calculated on held-out participants without fitted participant effects.
+- Added uncertainty/information-based replay selection with under-sampling preference and a mandatory 20% random-exploration path. Propensity weights are capped in analysis to limit instability.
+- Added `ai:human-calibration`, protocol/input hashes, separate miniPXI construct summaries, study-mode counts, and a hard false `confirmatoryReady` flag below 48 participants or without held-out-player evidence.
+
+Verification 2026-08-09 (human experience calibration infrastructure):
+
+- Regressions cover opaque counterbalancing, held-out-player isolation, recovery of a known synthetic descriptor preference, uncertainty selection, and exploration propensities.
+- The synthetic five-participant/ten-observation smoke generated valid JSON and Markdown, held out one complete participant, recovered the planted productive-participation direction, and correctly reported `confirmatoryReady: false`.
+- Human-calibration tests, TypeScript, changed-file ESLint, and report execution pass. The checked-in JSONL is explicitly synthetic infrastructure data, not human evidence.
+
+Update 2026-08-09 (strategic hypotheses and concentration semantics):
+
+- Added a normalized, ranked portfolio of home-field, six-stack, and hybrid plan hypotheses. It is deliberately observational: 25% and 10% attempts to blend portfolio progress into move choice were rejected when the existing variety guardrail did not improve, and the experimental selective extension was removed after materially increasing search cost.
+- Added strategic near-cycle measurement over a normalized structural state vector. It detects bounded-lag, same-actor near-recurrence between distinct hashes and reports both rate and eligible sample count alongside exact recurrence analytics.
+- Replaced raw source-family HHI as a release assertion with `avoidableSourceFamilyRepeatRate`. A repeated source family is counted only when another family is terminal-safe, non-repeating, non-self-undoing, below the draw-trap ceiling, and inside the declared difficulty regret cap.
+- Retained raw HHI as a descriptive measurement. On the deterministic four-pair corpus, the corrected avoidable-repeat rate is 0.058333 on Medium and 0.016667 on Hard, explaining why Hard's slightly higher raw HHI reflects tactical necessity rather than more discretionary checker reuse.
+
+Verification 2026-08-09 (strategic hypotheses and concentration semantics):
+
+- The clean serial suite passes 72 files and 396 tests with one intentional skip, including the 22-case performance benchmark and all six 200/500-turn search soaks. The focused strategic-plan, advanced-metric, and variety suites pass 28 tests.
+- Production build, repository-scoped ESLint, documentation links, enforced tactical-competence smoke, TypeScript, and diff hygiene pass.
+- Browser verification rendered the production build, selected A1, opened the move dialog, and exposed the expected `pieceSelected` state without a console-error artifact. The worker-backed multi-game finishing E2E also passed.
+- No unvalidated plan score or selective search extension was promoted into production move selection.

@@ -2,12 +2,32 @@ import { describe, expect, it } from 'vitest';
 
 import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
 import { evaluateState, evaluateStructureState } from '@/ai/evaluation';
-import { getNonterminalDrawTrapBias, getTiebreakPressureProfile } from '@/ai/risk';
+import {
+  getNonterminalDrawTrapBias,
+  getTiebreakPressureProfile,
+} from '@/ai/risk';
 import { createInitialState } from '@/domain';
 import { getDynamicDrawScore } from '@/ai/risk';
-import { boardWithPieces, checker, gameStateWithBoard, withConfig } from '@/test/factories';
+import {
+  boardWithPieces,
+  checker,
+  gameStateWithBoard,
+  withConfig,
+} from '@/test/factories';
 
 describe('AI evaluation terminal scoring', () => {
+  it('rejects invalid participation-evaluation ablation scales', () => {
+    const config = withConfig();
+    const state = createInitialState(config);
+
+    expect(() =>
+      evaluateState(state, 'white', config, {
+        diagnosticAblation: { participationEvaluationScale: -0.1 },
+        preset: AI_DIFFICULTY_PRESETS.hard,
+      }),
+    ).toThrow('participationEvaluationScale');
+  });
+
   it('scores draw-tiebreak wins as decisive terminal outcomes', () => {
     const config = withConfig({ drawRule: 'threefold' });
     const state = {
@@ -23,8 +43,12 @@ describe('AI evaluation terminal scoring', () => {
       },
     };
 
-    expect(evaluateStructureState(state, 'white', config)).toBeGreaterThan(900_000);
-    expect(evaluateStructureState(state, 'black', config)).toBeLessThan(-900_000);
+    expect(evaluateStructureState(state, 'white', config)).toBeGreaterThan(
+      900_000,
+    );
+    expect(evaluateStructureState(state, 'black', config)).toBeLessThan(
+      -900_000,
+    );
     expect(evaluateState(state, 'white', config)).toBeGreaterThan(900_000);
     expect(evaluateState(state, 'black', config)).toBeLessThan(-900_000);
   });
@@ -52,15 +76,35 @@ describe('AI evaluation terminal scoring', () => {
     };
 
     expect(
-      getDynamicDrawScore(equalDrawState, 'white', AI_DIFFICULTY_PRESETS.medium, 'normal'),
+      getDynamicDrawScore(
+        equalDrawState,
+        'white',
+        AI_DIFFICULTY_PRESETS.medium,
+        'normal',
+      ),
     ).toBeLessThan(0);
     expect(
-      getDynamicDrawScore(behindDrawState, 'white', AI_DIFFICULTY_PRESETS.hard, 'normal'),
+      getDynamicDrawScore(
+        behindDrawState,
+        'white',
+        AI_DIFFICULTY_PRESETS.hard,
+        'normal',
+      ),
     ).toBeGreaterThanOrEqual(0);
     expect(
-      getDynamicDrawScore(equalDrawState, 'white', AI_DIFFICULTY_PRESETS.medium, 'late'),
+      getDynamicDrawScore(
+        equalDrawState,
+        'white',
+        AI_DIFFICULTY_PRESETS.medium,
+        'late',
+      ),
     ).toBeLessThan(
-      getDynamicDrawScore(equalDrawState, 'white', AI_DIFFICULTY_PRESETS.medium, 'normal'),
+      getDynamicDrawScore(
+        equalDrawState,
+        'white',
+        AI_DIFFICULTY_PRESETS.medium,
+        'normal',
+      ),
     );
   });
 
@@ -82,12 +126,16 @@ describe('AI evaluation terminal scoring', () => {
       { currentPlayer: 'white' },
     );
 
-    expect(getTiebreakPressureProfile(checkerEdgeState, 'black', 'normal')).toMatchObject({
+    expect(
+      getTiebreakPressureProfile(checkerEdgeState, 'black', 'normal'),
+    ).toMatchObject({
       tiebreakCheckerEdge: 1,
       tiebreakEdgeKind: 'ahead',
       tiebreakStackEdge: 0,
     });
-    expect(getTiebreakPressureProfile(stackEdgeState, 'white', 'normal')).toMatchObject({
+    expect(
+      getTiebreakPressureProfile(stackEdgeState, 'white', 'normal'),
+    ).toMatchObject({
       tiebreakCheckerEdge: 1,
       tiebreakEdgeKind: 'ahead',
       tiebreakStackEdge: 1,

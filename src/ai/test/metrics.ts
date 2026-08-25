@@ -1,21 +1,45 @@
 import {
+  AI_DIFFICULTY_PRESETS,
   chooseComputerAction,
   type AiRiskMode,
   type AiSearchBudget,
   type AiSearchBudgetReport,
   type AiSearchDiagnostics,
+  type AiMobilityTransition,
   type AiRootCandidate,
   type AiStrategicIntent,
   type AiStrategicTag,
 } from '@/ai';
 import { createAiBehaviorProfile } from '@/ai/behavior';
+import { computeNormalizedLempelZiv } from '@/ai/test/advancedMetrics';
 import { hasCertifiedRiskProgress } from '@/ai/risk';
 import { analyzePosition } from '@/ai/strategy';
-import { getLegalActions, getScoreSummary, applyAction, createInitialState, hashPosition } from '@/domain';
-import type { ActionKind, GameState, Player, RuleConfig, TurnAction, Victory } from '@/domain/model/types';
+import {
+  getLegalActions,
+  getScoreSummary,
+  applyAction,
+  createInitialState,
+  hashPosition,
+} from '@/domain';
+import type {
+  ActionKind,
+  GameState,
+  Player,
+  RuleConfig,
+  TurnAction,
+  Victory,
+} from '@/domain/model/types';
 import { getCellHeight, getTopChecker } from '@/domain/model/board';
-import { allCoords, getAdjacentCoord, getJumpDirection } from '@/domain/model/coordinates';
-import type { AiBehaviorProfile, AiBehaviorProfileId, AiDifficulty } from '@/shared/types/session';
+import {
+  allCoords,
+  getAdjacentCoord,
+  getJumpDirection,
+} from '@/domain/model/coordinates';
+import type {
+  AiBehaviorProfile,
+  AiBehaviorProfileId,
+  AiDifficulty,
+} from '@/shared/types/session';
 
 export type AiTracePly = {
   action: TurnAction;
@@ -25,6 +49,7 @@ export type AiTracePly = {
   afterLegalMoveCount: number;
   afterPositionKey: string;
   behaviorProfileId: AiBehaviorProfileId | null;
+  bestSearchScore: number;
   beforeLegalMoveCount: number;
   boardDisplacement: number;
   completedDepth: number;
@@ -45,16 +70,23 @@ export type AiTracePly = {
   isSelfUndo: boolean;
   isTactical: boolean;
   legalRootCandidateCount: number;
+  mobility: AiMobilityTransition;
   mobilityDelta: number;
+  /** Candidate-relative log compression of the opponent's immediate reply set. */
+  opponentReplyCompression: number | null;
   movedMass: number;
   normalizedWhiteScore: number;
   participationDelta: number;
+  partialDepth: number | null;
+  partialRootMoves: number;
   ply: number;
   repeatedPositionCount: number;
   rootCandidates: AiRootCandidate[];
   rootScoreRegret: number;
   riskMode: AiRiskMode;
   score: number;
+  selectedActionScore: number;
+  selectionRegret: number;
   searchBudget: AiSearchBudgetReport | null;
   sixStackDelta: number;
   sixStackProgress: Record<Player, number>;
@@ -98,6 +130,7 @@ export type AiTerminalType =
   | 'unfinished';
 
 export type AiVarietyMetricKey =
+  | 'avoidableSourceFamilyRepeatRate'
   | 'behaviorSpaceCoverage'
   | 'compositeInterestingness'
   | 'decisiveResultShare'
@@ -319,9 +352,7 @@ function zeroTagHistogram(): Record<AiStrategicTag, number> {
   };
 }
 
-function createScoreProgress(
-  state: GameState,
-): {
+function createScoreProgress(state: GameState): {
   frozenSingles: Record<Player, number>;
   homeFieldProgress: Record<Player, number>;
   sixStackProgress: Record<Player, number>;
@@ -344,7 +375,9 @@ function createScoreProgress(
   };
 }
 
-function createStackHeightHistogram(state: GameState): [number, number, number, number] {
+function createStackHeightHistogram(
+  state: GameState,
+): [number, number, number, number] {
   const histogram: [number, number, number, number] = [0, 0, 0, 0];
 
   for (const coord of allCoords()) {
@@ -393,7 +426,9 @@ function getDerivedFreezeSwingBonus(
 
   const landing = action.path[0];
   const direction = landing ? getJumpDirection(action.source, landing) : null;
-  const jumpedCoord = direction ? getAdjacentCoord(action.source, direction) : null;
+  const jumpedCoord = direction
+    ? getAdjacentCoord(action.source, direction)
+    : null;
 
   if (!jumpedCoord) {
     return 0;
@@ -425,19 +460,89 @@ function deriveCandidateSignals(
   emptyCellsDelta: number;
   freezeSwingBonus: number;
   homeFieldDelta: number;
+  mobility: AiMobilityTransition;
   mobilityDelta: number;
   sixStackDelta: number;
 } {
+  const samePlayerContinuation =
+    nextState.status !== 'gameOver' && nextState.currentPlayer === actor;
+  const mobility: AiMobilityTransition = {
+    actorBefore: beforeLegalMoveCount,
+    actorContinuationAfter: samePlayerContinuation ? afterLegalMoveCount : null,
+    opponentReplyAfter:
+      nextState.status !== 'gameOver' && !samePlayerContinuation
+        ? afterLegalMoveCount
+        : null,
+    measuredAfter: nextState.status !== 'gameOver',
+    samePlayerContinuation,
+  };
+
   return {
-    emptyCellsDelta: analyzePosition(nextState).emptyCells - analyzePosition(state).emptyCells,
+    emptyCellsDelta:
+      analyzePosition(nextState).emptyCells - analyzePosition(state).emptyCells,
     freezeSwingBonus: getDerivedFreezeSwingBonus(state, action, actor),
-    homeFieldDelta: afterProgress.homeFieldProgress[actor] - beforeProgress.homeFieldProgress[actor],
-    mobilityDelta: afterLegalMoveCount - beforeLegalMoveCount,
-    sixStackDelta: afterProgress.sixStackProgress[actor] - beforeProgress.sixStackProgress[actor],
+    homeFieldDelta:
+      afterProgress.homeFieldProgress[actor] -
+      beforeProgress.homeFieldProgress[actor],
+    mobility,
+    mobilityDelta: samePlayerContinuation
+      ? afterLegalMoveCount - beforeLegalMoveCount
+      : 0,
+    sixStackDelta:
+      afterProgress.sixStackProgress[actor] -
+      beforeProgress.sixStackProgress[actor],
   };
 }
 
-function computeDistributionEntropy(distribution: Record<string, number>): number {
+function median(values: number[]): number | null {
+  if (!values.length) {
+    return null;
+  }
+
+  const ordered = [...values].sort((left, right) => left - right);
+  const middle = Math.floor(ordered.length / 2);
+
+  return ordered.length % 2 === 0
+    ? ((ordered[middle - 1] ?? 0) + (ordered[middle] ?? 0)) / 2
+    : (ordered[middle] ?? null);
+}
+
+/**
+ * Compares the chosen move's immediate opponent mobility with the alternatives
+ * available in the same root position. Positive values mean the chosen move
+ * restricts the opponent more than the median candidate does.
+ */
+function getOpponentReplyCompression(
+  candidates: AiRootCandidate[],
+  selectedCandidate: AiRootCandidate | null,
+): number | null {
+  const selectedReplies = selectedCandidate?.mobility.opponentReplyAfter;
+
+  if (selectedReplies === null || selectedReplies === undefined) {
+    return null;
+  }
+
+  const baselineReplies = median(
+    candidates.flatMap((candidate) => {
+      const replies = candidate.mobility.opponentReplyAfter;
+      return candidate.mobility.measuredAfter &&
+        !candidate.mobility.samePlayerContinuation &&
+        replies !== null
+        ? [replies]
+        : [];
+    }),
+  );
+
+  if (baselineReplies === null) {
+    return null;
+  }
+
+  return roundMetric(Math.log((baselineReplies + 1) / (selectedReplies + 1)));
+}
+
+function computeDistributionEntropy(
+  distribution: Record<string, number>,
+): number {
   const entries = Object.values(distribution);
   const total = entries.reduce((sum, count) => sum + count, 0);
 
@@ -490,7 +595,9 @@ function computeHhi(distribution: Record<string, number>): number {
   );
 }
 
-function normalizeDistribution(distribution: Record<string, number>): Record<string, number> {
+function normalizeDistribution(
+  distribution: Record<string, number>,
+): Record<string, number> {
   const keys = Object.keys(distribution);
   const total = keys.reduce((sum, key) => sum + distribution[key], 0);
 
@@ -498,7 +605,9 @@ function normalizeDistribution(distribution: Record<string, number>): Record<str
     return Object.fromEntries(keys.map((key) => [key, 0]));
   }
 
-  return Object.fromEntries(keys.map((key) => [key, distribution[key] / total]));
+  return Object.fromEntries(
+    keys.map((key) => [key, distribution[key] / total]),
+  );
 }
 
 function computeJensenShannonDivergence(
@@ -513,7 +622,10 @@ function computeJensenShannonDivergence(
     Object.fromEntries([...keys].map((key) => [key, baseline[key] ?? 0])),
   );
   const mean = Object.fromEntries(
-    [...keys].map((key) => [key, (normalizedCurrent[key] + normalizedBaseline[key]) / 2]),
+    [...keys].map((key) => [
+      key,
+      (normalizedCurrent[key] + normalizedBaseline[key]) / 2,
+    ]),
   );
 
   const divergencePart = (
@@ -532,7 +644,8 @@ function computeJensenShannonDivergence(
     }, 0);
 
   return roundMetric(
-    0.5 * divergencePart(normalizedCurrent, mean) + 0.5 * divergencePart(normalizedBaseline, mean),
+    0.5 * divergencePart(normalizedCurrent, mean) +
+      0.5 * divergencePart(normalizedBaseline, mean),
   );
 }
 
@@ -556,47 +669,6 @@ function computeSlope(values: number[]): number {
   }
 
   return denominator === 0 ? 0 : numerator / denominator;
-}
-
-function computeNormalizedLempelZiv(sequence: string[]): number {
-  const n = sequence.length;
-
-  if (n <= 1) {
-    return 0;
-  }
-
-  const joined = sequence.join('|');
-  let complexity = 1;
-  let start = 0;
-  let substringLength = 1;
-  let maxMatched = 1;
-
-  while (true) {
-    if (start + substringLength > joined.length) {
-      complexity += 1;
-      break;
-    }
-
-    const candidate = joined.slice(start, start + substringLength);
-    const searchSpace = joined.slice(0, start);
-
-    if (searchSpace.includes(candidate)) {
-      substringLength += 1;
-      maxMatched = Math.max(maxMatched, substringLength);
-      continue;
-    }
-
-    complexity += 1;
-    start += maxMatched;
-    substringLength = 1;
-    maxMatched = 1;
-
-    if (start >= joined.length) {
-      break;
-    }
-  }
-
-  return roundMetric((complexity * Math.log2(n)) / n);
 }
 
 function average(values: number[]): number {
@@ -662,19 +734,24 @@ function createBehaviorDescriptor(trace: AiGameTrace): BehaviorDescriptor {
     }
   }
 
-  const totalTags = Object.values(tags).reduce((sum, value) => sum + value, 0) || 1;
+  const totalTags =
+    Object.values(tags).reduce((sum, value) => sum + value, 0) || 1;
 
   return {
     emptyCellsAtPly6: (firstSix.at(-1)?.emptyCellCount ?? 0) / 36,
     gameLength: trace.totalPlies / Math.max(1, trace.maxTurns),
     homeProgressAuc: integrateAverage(
-      trace.plies.map((ply) => Math.max(ply.homeFieldProgress.white, ply.homeFieldProgress.black)),
+      trace.plies.map((ply) =>
+        Math.max(ply.homeFieldProgress.white, ply.homeFieldProgress.black),
+      ),
     ),
     intentSwitchCount,
     mobilityAtPly6: (firstSix.at(-1)?.afterLegalMoveCount ?? 0) / 24,
     repetitionPlyShare: repetitionCount / Math.max(1, trace.totalPlies),
     sixStackProgressAuc: integrateAverage(
-      trace.plies.map((ply) => Math.max(ply.sixStackProgress.white, ply.sixStackProgress.black)),
+      trace.plies.map((ply) =>
+        Math.max(ply.sixStackProgress.white, ply.sixStackProgress.black),
+      ),
     ),
     tagHistogram: Object.fromEntries(
       TAGS.map((tag) => [tag, tags[tag] / totalTags]),
@@ -719,14 +796,18 @@ function computeNoveltyScore(traces: AiGameTrace[]): number {
     return 0;
   }
 
-  const vectors = traces.map((trace) => behaviorVector(createBehaviorDescriptor(trace)));
+  const vectors = traces.map((trace) =>
+    behaviorVector(createBehaviorDescriptor(trace)),
+  );
 
   return roundMetric(
     average(
       vectors.map((vector, index) => {
         const distances = vectors
           .map((candidate, candidateIndex) =>
-            candidateIndex === index ? Number.POSITIVE_INFINITY : euclideanDistance(vector, candidate),
+            candidateIndex === index
+              ? Number.POSITIVE_INFINITY
+              : euclideanDistance(vector, candidate),
           )
           .filter(Number.isFinite)
           .sort((left, right) => left - right)
@@ -751,9 +832,15 @@ function bucketIndex(value: number, thresholds: number[]): number {
 function behaviorSpaceBin(trace: AiGameTrace): string {
   const plies = trace.plies.slice(0, 6);
   const emptyCells = plies.map((ply) => ply.emptyCellCount / 36);
-  const decompressionBucket = bucketIndex(computeSlope(emptyCells), [0, 0.08, 0.16]);
+  const decompressionBucket = bucketIndex(
+    computeSlope(emptyCells),
+    [0, 0.08, 0.16],
+  );
   const intentSwitches = trace.plies.reduce((count, ply, index) => {
-    if (index === 0 || trace.plies[index - 1].strategicIntent === ply.strategicIntent) {
+    if (
+      index === 0 ||
+      trace.plies[index - 1].strategicIntent === ply.strategicIntent
+    ) {
       return count;
     }
 
@@ -784,7 +871,9 @@ function computeGameRefinement(traces: AiGameTrace[]): number {
   }
 
   const averageBranchingFactor = average(
-    decisive.flatMap((trace) => trace.plies.map((ply) => ply.beforeLegalMoveCount)),
+    decisive.flatMap((trace) =>
+      trace.plies.map((ply) => ply.beforeLegalMoveCount),
+    ),
   );
   const averageLength = average(decisive.map((trace) => trace.totalPlies));
 
@@ -795,7 +884,11 @@ function computeGameRefinement(traces: AiGameTrace[]): number {
   return roundMetric(Math.sqrt(averageBranchingFactor) / averageLength);
 }
 
-function compareAgainstBand(value: number, baseline: number, band: AiVarietyTargetBand): number {
+function compareAgainstBand(
+  value: number,
+  baseline: number,
+  band: AiVarietyTargetBand,
+): number {
   const epsilon = 1e-9;
 
   if (band.direction === 'higher') {
@@ -820,7 +913,11 @@ function compareAgainstBand(value: number, baseline: number, band: AiVarietyTarg
     return 0;
   }
 
-  return clamp((ceiling - value) / Math.max(epsilon, ceiling - band.good), 0, 1);
+  return clamp(
+    (ceiling - value) / Math.max(epsilon, ceiling - band.good),
+    0,
+    1,
+  );
 }
 
 function computeCompositeInterestingness(
@@ -859,7 +956,9 @@ function computeCompositeInterestingness(
   }
 
   return roundMetric(
-    Math.exp(scores.reduce((sum, value) => sum + Math.log(value), 0) / scores.length),
+    Math.exp(
+      scores.reduce((sum, value) => sum + Math.log(value), 0) / scores.length,
+    ),
   );
 }
 
@@ -878,14 +977,21 @@ function traceWindowMetric(
   return trace.plies.slice(0, length).map(selector);
 }
 
-function countStagnationWindows(trace: AiGameTrace): { stagnation: number; total: number } {
+function countStagnationWindows(trace: AiGameTrace): {
+  stagnation: number;
+  total: number;
+} {
   if (trace.plies.length < STAGNATION_WINDOW) {
     return { stagnation: 0, total: 0 };
   }
 
   let stagnation = 0;
 
-  for (let index = 0; index <= trace.plies.length - STAGNATION_WINDOW; index += 1) {
+  for (
+    let index = 0;
+    index <= trace.plies.length - STAGNATION_WINDOW;
+    index += 1
+  ) {
     const window = trace.plies.slice(index, index + STAGNATION_WINDOW);
     const start = window[0];
     const final = window.at(-1) as AiTracePly;
@@ -943,8 +1049,11 @@ function computeSourceFamilyOpeningHhi(traces: AiGameTrace[]): number {
     (['white', 'black'] as const).map((player) => {
       const distribution: Record<string, number> = {};
 
-      for (const ply of trace.plies.filter((entry) => entry.actor === player).slice(0, 8)) {
-        distribution[ply.sourceFamily] = (distribution[ply.sourceFamily] ?? 0) + 1;
+      for (const ply of trace.plies
+        .filter((entry) => entry.actor === player)
+        .slice(0, 8)) {
+        distribution[ply.sourceFamily] =
+          (distribution[ply.sourceFamily] ?? 0) + 1;
       }
 
       return computeHhi(distribution);
@@ -952,6 +1061,87 @@ function computeSourceFamilyOpeningHhi(traces: AiGameTrace[]): number {
   );
 
   return roundMetric(average(values));
+}
+
+function getTerminalSafeRootCandidates(
+  candidates: AiRootCandidate[],
+): AiRootCandidate[] {
+  const immediateWins = candidates.filter(
+    (candidate) => candidate.terminalUtility === 'win',
+  );
+
+  if (immediateWins.length) {
+    return immediateWins;
+  }
+
+  const nonLosses = candidates.filter(
+    (candidate) => candidate.terminalUtility !== 'loss',
+  );
+  const lossSafe = nonLosses.length ? nonLosses : candidates;
+  const nonAdverseDraws = lossSafe.filter(
+    (candidate) => candidate.terminalUtility !== 'unfavorableDraw',
+  );
+
+  return nonAdverseDraws.length ? nonAdverseDraws : lossSafe;
+}
+
+/**
+ * Counts repeated source-family choices only when another family was eligible
+ * inside the final terminal-safe strength-regret set. This separates avoidable
+ * stylistic concentration from tactically forced checker reuse.
+ */
+function computeAvoidableSourceFamilyRepeatRate(
+  traces: AiGameTrace[],
+): number {
+  let avoidableRepeats = 0;
+  let samePlayerComparisons = 0;
+
+  for (const trace of traces) {
+    const previousSourceFamily: Partial<Record<Player, string>> = {};
+
+    for (const ply of trace.plies) {
+      const previous = previousSourceFamily[ply.actor];
+      previousSourceFamily[ply.actor] = ply.sourceFamily;
+
+      if (!previous) {
+        continue;
+      }
+
+      samePlayerComparisons += 1;
+
+      if (previous !== ply.sourceFamily) {
+        continue;
+      }
+
+      const terminalSafe = getTerminalSafeRootCandidates(ply.rootCandidates);
+      const best = terminalSafe[0];
+
+      if (!best) {
+        continue;
+      }
+
+      const regretCap =
+        AI_DIFFICULTY_PRESETS[trace.sideDifficulties[ply.actor]]
+          .maxSelectionRegret;
+      const hasSafeAlternativeFamily = terminalSafe.some(
+        (candidate) =>
+          best.score - candidate.score <= regretCap &&
+          !candidate.isForced &&
+          !candidate.isRepetition &&
+          !candidate.isSelfUndo &&
+          candidate.drawTrapRisk < 0.95 &&
+          candidate.sourceFamily !== ply.sourceFamily,
+      );
+
+      if (hasSafeAlternativeFamily) {
+        avoidableRepeats += 1;
+      }
+    }
+  }
+
+  return roundMetric(
+    avoidableRepeats / Math.max(1, samePlayerComparisons),
+  );
 }
 
 export function getStableCallsForDifficulty(difficulty: AiDifficulty): number {
@@ -1002,9 +1192,15 @@ export function runAiGameTrace({
   const effectiveWhiteDifficulty = whiteDifficulty ?? difficulty;
   const effectiveBlackDifficulty = blackDifficulty ?? difficulty;
   const effectiveWhiteStableCalls =
-    whiteStableCalls ?? (whiteDifficulty ? getStableCallsForDifficulty(whiteDifficulty) : stableCalls);
+    whiteStableCalls ??
+    (whiteDifficulty
+      ? getStableCallsForDifficulty(whiteDifficulty)
+      : stableCalls);
   const effectiveBlackStableCalls =
-    blackStableCalls ?? (blackDifficulty ? getStableCallsForDifficulty(blackDifficulty) : stableCalls);
+    blackStableCalls ??
+    (blackDifficulty
+      ? getStableCallsForDifficulty(blackDifficulty)
+      : stableCalls);
   let state = initialState
     ? {
         ...initialState,
@@ -1020,22 +1216,37 @@ export function runAiGameTrace({
     whiteBehaviorProfile ?? createAiBehaviorProfile(`white-${whiteSeed}`);
   const effectiveBlackBehaviorProfile =
     blackBehaviorProfile ?? createAiBehaviorProfile(`black-${blackSeed}`);
+  const previousStrategicIntents: Record<Player, AiStrategicIntent | null> = {
+    black: null,
+    white: null,
+  };
   const seenPositionCounts: Record<string, number> = {
     [hashPosition(state)]: 1,
   };
 
-  for (let plyIndex = 0; plyIndex < maxTurns && state.status !== 'gameOver'; plyIndex += 1) {
+  for (
+    let plyIndex = 0;
+    plyIndex < maxTurns && state.status !== 'gameOver';
+    plyIndex += 1
+  ) {
     const beforeLegalMoveCount = getLegalActions(state, ruleConfig).length;
     const beforeProgress = createScoreProgress(state);
     const beforeHistogram = createStackHeightHistogram(state);
     const activeBehaviorProfile =
-      state.currentPlayer === 'white' ? effectiveWhiteBehaviorProfile : effectiveBlackBehaviorProfile;
+      state.currentPlayer === 'white'
+        ? effectiveWhiteBehaviorProfile
+        : effectiveBlackBehaviorProfile;
     const activeDifficulty =
-      state.currentPlayer === 'white' ? effectiveWhiteDifficulty : effectiveBlackDifficulty;
+      state.currentPlayer === 'white'
+        ? effectiveWhiteDifficulty
+        : effectiveBlackDifficulty;
     const activeStableCalls =
-      state.currentPlayer === 'white' ? effectiveWhiteStableCalls : effectiveBlackStableCalls;
+      state.currentPlayer === 'white'
+        ? effectiveWhiteStableCalls
+        : effectiveBlackStableCalls;
     const result = chooseComputerAction({
       behaviorProfile: activeBehaviorProfile,
+      diagnosticRootCandidateLimit: beforeLegalMoveCount,
       difficulty: activeDifficulty,
       ...(searchBudget
         ? { searchBudget }
@@ -1043,9 +1254,11 @@ export function runAiGameTrace({
           ? {}
           : { now: createTimeoutClock(activeStableCalls, 100_000) }),
       random: state.currentPlayer === 'white' ? whiteRandom : blackRandom,
+      previousStrategicIntent: previousStrategicIntents[state.currentPlayer],
       ruleConfig,
       state,
     });
+    previousStrategicIntents[state.currentPlayer] = result.strategicIntent;
 
     if (!result.action) {
       break;
@@ -1054,18 +1267,27 @@ export function runAiGameTrace({
     const chosenAction = result.action;
 
     const selectedCandidate =
-      result.rootCandidates.find((candidate) => actionKey(candidate.action) === actionKey(chosenAction)) ??
-      null;
-    const bestRootScore = result.rootCandidates[0]?.score ?? result.score;
+      result.rootCandidates.find(
+        (candidate) => actionKey(candidate.action) === actionKey(chosenAction),
+      ) ?? null;
+    const opponentReplyCompression = getOpponentReplyCompression(
+      result.rootCandidates,
+      selectedCandidate,
+    );
     const nextState = applyAction(state, chosenAction, ruleConfig);
     const afterProgress = createScoreProgress(nextState);
     const afterHistogram = createStackHeightHistogram(nextState);
     const afterLegalMoveCount =
-      nextState.status === 'gameOver' ? 0 : getLegalActions(nextState, ruleConfig).length;
+      nextState.status === 'gameOver'
+        ? 0
+        : getLegalActions(nextState, ruleConfig).length;
     const nextPositionKey = hashPosition(nextState);
-    const repeatedPositionCount = (seenPositionCounts[nextPositionKey] ?? 0) + 1;
+    const repeatedPositionCount =
+      (seenPositionCounts[nextPositionKey] ?? 0) + 1;
     const whitePerspectiveScore =
-      state.currentPlayer === 'white' ? result.score : -result.score;
+      state.currentPlayer === 'white'
+        ? result.selectedActionScore
+        : -result.selectedActionScore;
     const derivedSignals = deriveCandidateSignals(
       state,
       nextState,
@@ -1102,6 +1324,7 @@ export function runAiGameTrace({
       afterLegalMoveCount,
       afterPositionKey: nextPositionKey,
       behaviorProfileId: result.behaviorProfileId,
+      bestSearchScore: result.bestSearchScore,
       beforeLegalMoveCount,
       boardDisplacement: roundMetric(countChangedCells(state, nextState) / 36),
       completedDepth: result.completedDepth,
@@ -1124,17 +1347,22 @@ export function runAiGameTrace({
       frozenSingles: afterProgress.frozenSingles,
       homeFieldDelta: derivedSignals.homeFieldDelta,
       homeFieldProgress: afterProgress.homeFieldProgress,
-      isRepetition: Boolean(selectedCandidate?.isRepetition) || repeatedPositionCount > 1,
+      isRepetition:
+        Boolean(selectedCandidate?.isRepetition) || repeatedPositionCount > 1,
       isRiskProgressCertified: riskProgressCertified,
       isSelfUndo: selectedCandidate?.isSelfUndo ?? false,
       isTactical: selectedCandidate?.isTactical ?? false,
       legalRootCandidateCount: result.rootCandidates.length,
+      mobility: derivedSignals.mobility,
       mobilityDelta: derivedSignals.mobilityDelta,
+      opponentReplyCompression,
       movedMass: selectedCandidate?.movedMass ?? 0,
       normalizedWhiteScore: roundMetric(
         clamp(whitePerspectiveScore / MAX_SCORE_FOR_TENSION, -1, 1),
       ),
       participationDelta: selectedCandidate?.participationDelta ?? 0,
+      partialDepth: result.partialDepth,
+      partialRootMoves: result.partialRootMoves,
       ply: plyIndex + 1,
       repeatedPositionCount,
       rootCandidates: result.rootCandidates.map((candidate) => ({
@@ -1142,11 +1370,11 @@ export function runAiGameTrace({
         action: structuredClone(candidate.action),
         tags: [...candidate.tags],
       })),
-      rootScoreRegret: roundMetric(
-        Math.max(0, bestRootScore - (selectedCandidate?.score ?? result.score)),
-      ),
+      rootScoreRegret: roundMetric(result.selectionRegret),
       riskMode: result.riskMode,
-      score: result.score,
+      score: result.selectedActionScore,
+      selectedActionScore: result.selectedActionScore,
+      selectionRegret: roundMetric(result.selectionRegret),
       searchBudget: result.searchBudget ? { ...result.searchBudget } : null,
       sixStackDelta: derivedSignals.sixStackDelta,
       sixStackProgress: afterProgress.sixStackProgress,
@@ -1169,7 +1397,8 @@ export function runAiGameTrace({
 
   return {
     difficulty,
-    finalVictory: state.status === 'gameOver' ? state.victory : { type: 'none' },
+    finalVictory:
+      state.status === 'gameOver' ? state.victory : { type: 'none' },
     firstMoveKey: plies[0]?.actionKey ?? null,
     gameIndex,
     maxTurns,
@@ -1190,7 +1419,10 @@ export function runAiGameTrace({
       black: blackSeed,
       white: whiteSeed,
     },
-    terminalType: state.status === 'gameOver' ? normalizeVictory(state.victory) : 'unfinished',
+    terminalType:
+      state.status === 'gameOver'
+        ? normalizeVictory(state.victory)
+        : 'unfinished',
     totalPlies: plies.length,
   };
 }
@@ -1248,6 +1480,31 @@ export function runAiVarietySuite({
   return traces;
 }
 
+/** Counts plan changes against each actor's own previous decision. */
+export function summarizeSamePlayerIntentTransitions(
+  plies: Array<Pick<AiTracePly, 'actor' | 'strategicIntent'>>,
+): { comparisons: number; switches: number } {
+  const previousIntentByActor: Partial<Record<Player, AiStrategicIntent>> = {};
+  let comparisons = 0;
+  let switches = 0;
+
+  for (const ply of plies) {
+    const previousIntent = previousIntentByActor[ply.actor];
+
+    if (previousIntent !== undefined) {
+      comparisons += 1;
+
+      if (previousIntent !== ply.strategicIntent) {
+        switches += 1;
+      }
+    }
+
+    previousIntentByActor[ply.actor] = ply.strategicIntent;
+  }
+
+  return { comparisons, switches };
+}
+
 export function summarizeAiVariety(
   traces: AiGameTrace[],
   options: {
@@ -1272,6 +1529,7 @@ export function summarizeAiVariety(
   let maxRepeatedStateRun = 0;
   let decisiveCount = 0;
   let intentSwitchCount = 0;
+  let intentComparisonCount = 0;
   let participationDeltaSum = 0;
   let positiveParticipationCount = 0;
 
@@ -1287,7 +1545,8 @@ export function summarizeAiVariety(
 
     if (trace.plies[0]?.sourceFamily) {
       firstMoveSourceFamilyDistribution[trace.plies[0].sourceFamily] =
-        (firstMoveSourceFamilyDistribution[trace.plies[0].sourceFamily] ?? 0) + 1;
+        (firstMoveSourceFamilyDistribution[trace.plies[0].sourceFamily] ?? 0) +
+        1;
     }
 
     if ('winner' in trace.finalVictory) {
@@ -1312,18 +1571,17 @@ export function summarizeAiVariety(
       }
     }
 
-    for (let index = 1; index < trace.plies.length; index += 1) {
-      if (trace.plies[index - 1].strategicIntent !== trace.plies[index].strategicIntent) {
-        intentSwitchCount += 1;
-      }
-    }
+    const intentTransitions = summarizeSamePlayerIntentTransitions(trace.plies);
+    intentSwitchCount += intentTransitions.switches;
+    intentComparisonCount += intentTransitions.comparisons;
 
     for (const ply of trace.plies.slice(0, 4)) {
       firstFourActionKindDistribution[ply.actionKind] =
         (firstFourActionKindDistribution[ply.actionKind] ?? 0) + 1;
 
       for (const tag of ply.tags) {
-        firstFourTagDistribution[tag] = (firstFourTagDistribution[tag] ?? 0) + 1;
+        firstFourTagDistribution[tag] =
+          (firstFourTagDistribution[tag] ?? 0) + 1;
       }
     }
 
@@ -1344,24 +1602,37 @@ export function summarizeAiVariety(
     trace.plies.map((ply) => ply.normalizedWhiteScore),
   );
   const dramaValues = traces.flatMap((trace) =>
-    trace.plies.slice(1).map((ply, index) =>
-      Math.abs(ply.normalizedWhiteScore - trace.plies[index].normalizedWhiteScore),
-    ),
+    trace.plies
+      .slice(1)
+      .map((ply, index) =>
+        Math.abs(
+          ply.normalizedWhiteScore - trace.plies[index].normalizedWhiteScore,
+        ),
+      ),
   );
   const lateSuspenseValues = traces.map((trace) => {
     if (!trace.plies.length) {
       return 0;
     }
 
-    const totalWeight = trace.plies.reduce((sum, _ply, index) => sum + index + 1, 0);
+    const totalWeight = trace.plies.reduce(
+      (sum, _ply, index) => sum + index + 1,
+      0,
+    );
 
     return trace.plies.reduce((sum, ply, index) => {
-      return sum + (1 - Math.abs(ply.normalizedWhiteScore)) * ((index + 1) / totalWeight);
+      return (
+        sum +
+        (1 - Math.abs(ply.normalizedWhiteScore)) * ((index + 1) / totalWeight)
+      );
     }, 0);
   });
   const leadChangeRate = average(
     traces.map((trace) =>
-      trace.totalPlies <= 1 ? 0 : countLeadChanges(trace.plies.map((ply) => ply.normalizedWhiteScore)) / (trace.totalPlies - 1),
+      trace.totalPlies <= 1
+        ? 0
+        : countLeadChanges(trace.plies.map((ply) => ply.normalizedWhiteScore)) /
+          (trace.totalPlies - 1),
     ),
   );
   const decompressionSlope = average(
@@ -1371,42 +1642,64 @@ export function summarizeAiVariety(
   );
   const mobilityReleaseSlope = average(
     traces.map((trace) =>
-      computeSlope(traceWindowMetric(trace, (ply) => ply.afterLegalMoveCount / 24)),
+      computeSlope(
+        traceWindowMetric(trace, (ply) => ply.afterLegalMoveCount / 24),
+      ),
     ),
   );
   const homeProgressAuc = average(
     traces.map((trace) =>
       integrateAverage(
-        trace.plies.map((ply) => Math.max(ply.homeFieldProgress.white, ply.homeFieldProgress.black)),
+        trace.plies.map((ply) =>
+          Math.max(ply.homeFieldProgress.white, ply.homeFieldProgress.black),
+        ),
       ),
     ),
   );
   const sixStackProgressAuc = average(
     traces.map((trace) =>
       integrateAverage(
-        trace.plies.map((ply) => Math.max(ply.sixStackProgress.white, ply.sixStackProgress.black)),
+        trace.plies.map((ply) =>
+          Math.max(ply.sixStackProgress.white, ply.sixStackProgress.black),
+        ),
       ),
     ),
   );
   const metrics: AiVarietySummary['metrics'] = {
+    avoidableSourceFamilyRepeatRate:
+      computeAvoidableSourceFamilyRepeatRate(traces),
     behaviorSpaceCoverage: computeBehaviorSpaceCoverage(traces),
     compositeInterestingness: 0,
-    decisiveResultShare: roundMetric(decisiveCount / Math.max(1, traces.length)),
+    decisiveResultShare: roundMetric(
+      decisiveCount / Math.max(1, traces.length),
+    ),
     decompressionSlope: roundMetric(decompressionSlope),
     drama: roundMetric(average(dramaValues)),
-    firstFourActionKindEntropy: computeDistributionEntropy(firstFourActionKindDistribution),
+    firstFourActionKindEntropy: computeDistributionEntropy(
+      firstFourActionKindDistribution,
+    ),
     firstFourTagEntropy: computeDistributionEntropy(firstFourTagDistribution),
     frozenCountChurn: roundMetric(
-      average(traces.flatMap((trace) => trace.plies.map((ply) => ply.frozenCountChurn))),
+      average(
+        traces.flatMap((trace) =>
+          trace.plies.map((ply) => ply.frozenCountChurn),
+        ),
+      ),
     ),
     gameRefinement: computeGameRefinement(traces),
     homeProgressAuc: roundMetric(homeProgressAuc),
-    intentSwitchRate: roundMetric(intentSwitchCount / Math.max(1, totalPlies - traces.length)),
+    intentSwitchRate: roundMetric(
+      intentSwitchCount / Math.max(1, intentComparisonCount),
+    ),
     lateSuspense: roundMetric(average(lateSuspenseValues)),
     leadChangeRate: roundMetric(leadChangeRate),
     maxRepeatedStateRun: roundMetric(maxRepeatedStateRun),
     meanBoardDisplacement: roundMetric(
-      average(traces.flatMap((trace) => trace.plies.map((ply) => ply.boardDisplacement))),
+      average(
+        traces.flatMap((trace) =>
+          trace.plies.map((ply) => ply.boardDisplacement),
+        ),
+      ),
     ),
     meanParticipationDelta: roundMetric(
       participationDeltaSum / Math.max(1, totalPlies),
@@ -1435,7 +1728,11 @@ export function summarizeAiVariety(
     sameFamilyQuietRepeatRate: computeSameFamilyQuietRepeatRate(traces),
     sixStackProgressAuc: roundMetric(sixStackProgressAuc),
     stackProfileChurn: roundMetric(
-      average(traces.flatMap((trace) => trace.plies.map((ply) => ply.stackProfileChurn))),
+      average(
+        traces.flatMap((trace) =>
+          trace.plies.map((ply) => ply.stackProfileChurn),
+        ),
+      ),
     ),
     stagnationWindowRate: roundMetric(
       stagnation.reduce((sum, entry) => sum + entry.stagnation, 0) /
@@ -1444,13 +1741,20 @@ export function summarizeAiVariety(
           stagnation.reduce((sum, entry) => sum + entry.total, 0),
         ),
     ),
-    stalemateDrawShare: roundMetric(terminalCounts.stalemateDraw / Math.max(1, traces.length)),
+    stalemateDrawShare: roundMetric(
+      terminalCounts.stalemateDraw / Math.max(1, traces.length),
+    ),
     sourceFamilyOpeningHhi: computeSourceFamilyOpeningHhi(traces),
-    tension: roundMetric(average(normalizedScores.map((score) => 1 - Math.abs(score)))),
-    threefoldDrawShare: roundMetric(terminalCounts.threefoldDraw / Math.max(1, traces.length)),
+    tension: roundMetric(
+      average(normalizedScores.map((score) => 1 - Math.abs(score))),
+    ),
+    threefoldDrawShare: roundMetric(
+      terminalCounts.threefoldDraw / Math.max(1, traces.length),
+    ),
     twoPlyUndoRate: roundMetric(selfUndoCount / Math.max(1, totalPlies)),
     uniqueOpeningLineShare: roundMetric(
-      Object.keys(firstTenLineDistribution).filter(Boolean).length / Math.max(1, traces.length),
+      Object.keys(firstTenLineDistribution).filter(Boolean).length /
+        Math.max(1, traces.length),
     ),
   };
 
@@ -1491,9 +1795,20 @@ export function summarizeAiVariety(
 export function compareSummaryToBaseline(
   summary: AiVarietySummary,
   baseline: AiVarietySummary,
-): Array<{ current: number; direction: 'higher' | 'lower'; metric: AiVarietyMetricKey; threshold: number }> {
-  const regressions: Array<{ current: number; direction: 'higher' | 'lower'; metric: AiVarietyMetricKey; threshold: number }> = [];
+): Array<{
+  current: number;
+  direction: 'higher' | 'lower';
+  metric: AiVarietyMetricKey;
+  threshold: number;
+}> {
+  const regressions: Array<{
+    current: number;
+    direction: 'higher' | 'lower';
+    metric: AiVarietyMetricKey;
+    threshold: number;
+  }> = [];
   const lowerIsBetter: AiVarietyMetricKey[] = [
+    'avoidableSourceFamilyRepeatRate',
     'maxRepeatedStateRun',
     'repetitionPlyShare',
     'sameFamilyQuietRepeatRate',

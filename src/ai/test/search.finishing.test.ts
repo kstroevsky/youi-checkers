@@ -82,6 +82,8 @@ describe('computer finishing search', () => {
     const visited = new Set([hashPosition(state)]);
     const decision = chooseComputerAction({
       difficulty: 'easy',
+      // This is a correctness replay, not a wall-clock performance assertion.
+      now: () => 0,
       random: () => 0,
       ruleConfig,
       searchMode: 'finishing',
