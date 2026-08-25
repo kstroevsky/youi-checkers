@@ -1,5 +1,5 @@
 import type { AiPolicy, AiPolicyDecision } from '@/ai/test/policy';
-import type { AiSearchDiagnosticAblation } from '@/ai/types';
+import type { AiSearchBudget, AiSearchDiagnosticAblation } from '@/ai/types';
 import type { StrengthFixture } from '@/ai/test/referenceStrength';
 import {
   mirrorActionHorizontally,
@@ -42,16 +42,25 @@ export async function measurePolicyMirrorEquivariance({
   policy,
   ruleConfig,
   seeds,
+  searchBudget,
 }: {
   difficulty: AiDifficulty;
   diagnosticAblation?: AiSearchDiagnosticAblation | null;
   fixtures: StrengthFixture[];
-  nodeBudget: number;
+  nodeBudget?: number;
   policy: AiPolicy;
   ruleConfig: RuleConfig;
   seeds: number[];
+  searchBudget?: AiSearchBudget;
 }): Promise<PolicyMirrorSummary> {
   const samples: PolicyMirrorSample[] = [];
+  const resolvedSearchBudget =
+    searchBudget ??
+    (nodeBudget === undefined
+      ? null
+      : { maxEvaluatedNodes: nodeBudget, type: 'fixedNodes' as const });
+  if (!resolvedSearchBudget)
+    throw new Error('Mirror attribution requires searchBudget or nodeBudget.');
 
   for (const fixture of fixtures) {
     if (fixture.mirror !== 'original') {
@@ -70,10 +79,7 @@ export async function measurePolicyMirrorEquivariance({
           difficulty,
           diagnosticAblation,
           ruleConfig,
-          searchBudget: {
-            maxEvaluatedNodes: nodeBudget,
-            type: 'fixedNodes' as const,
-          },
+          searchBudget: resolvedSearchBudget,
         };
         const [original, mirrored] = await Promise.all([
           originalSession.decide({ ...request, state: fixture.state }),

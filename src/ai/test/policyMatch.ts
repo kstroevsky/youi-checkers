@@ -1,6 +1,6 @@
 import type { AiPolicy, AiPolicyDecision } from '@/ai/test/policy';
 import { AI_DIFFICULTY_PRESETS } from '@/ai/presets';
-import type { AiSearchDiagnosticAblation } from '@/ai/types';
+import type { AiSearchBudget, AiSearchDiagnosticAblation } from '@/ai/types';
 import {
   buildParticipationState,
   getActionParticipationProfile,
@@ -103,6 +103,7 @@ export async function runPolicyMatchGame({
   retainDecisionDiagnostics = true,
   retainMeasurementEvidence = false,
   ruleConfig,
+  searchBudget,
 }: {
   adjudicateHorizon: boolean;
   diagnosticAblation?: AiSearchDiagnosticAblation | null;
@@ -110,7 +111,7 @@ export async function runPolicyMatchGame({
   fixture: StrengthFixture;
   gameId: string;
   maxPlies: number;
-  nodeBudget: number;
+  nodeBudget?: number;
   policyA: AiPolicy;
   policyAColor: Player;
   policyASeed: number;
@@ -119,6 +120,7 @@ export async function runPolicyMatchGame({
   retainDecisionDiagnostics?: boolean;
   retainMeasurementEvidence?: boolean;
   ruleConfig: RuleConfig;
+  searchBudget?: AiSearchBudget;
 }): Promise<PolicyMatchGame> {
   let state = cloneStrengthState(fixture.state);
   const policyBColor: Player = policyAColor === 'white' ? 'black' : 'white';
@@ -135,6 +137,13 @@ export async function runPolicyMatchGame({
   let participationState: ParticipationState | null = retainMeasurementEvidence
     ? buildParticipationState(state, preset.participationWindow)
     : null;
+  const resolvedSearchBudget =
+    searchBudget ??
+    (nodeBudget === undefined
+      ? null
+      : ({ maxEvaluatedNodes: nodeBudget, type: 'fixedNodes' } as const));
+  if (!resolvedSearchBudget)
+    throw new Error('Policy match requires searchBudget or nodeBudget.');
 
   try {
     for (let ply = 0; ply < maxPlies && state.status !== 'gameOver'; ply += 1) {
@@ -144,7 +153,7 @@ export async function runPolicyMatchGame({
         diagnosticAblation,
         difficulty,
         ruleConfig,
-        searchBudget: { maxEvaluatedNodes: nodeBudget, type: 'fixedNodes' },
+        searchBudget: resolvedSearchBudget,
         state,
       });
 
@@ -262,6 +271,7 @@ export async function runPolicyMatchPair({
   retainDecisionDiagnostics,
   retainMeasurementEvidence,
   ruleConfig,
+  searchBudget,
 }: Omit<Parameters<typeof runPolicyMatchGame>[0], 'gameId' | 'policyAColor'> & {
   pairId: string;
 }): Promise<PolicyMatchPair> {
@@ -282,6 +292,7 @@ export async function runPolicyMatchPair({
       retainDecisionDiagnostics,
       retainMeasurementEvidence,
       ruleConfig,
+      searchBudget,
     }),
     runPolicyMatchGame({
       adjudicateHorizon,
@@ -299,6 +310,7 @@ export async function runPolicyMatchPair({
       retainDecisionDiagnostics,
       retainMeasurementEvidence,
       ruleConfig,
+      searchBudget,
     }),
   ])) as [PolicyMatchGame, PolicyMatchGame];
   const naturalScores = games.map((game) => game.policyAPoints);

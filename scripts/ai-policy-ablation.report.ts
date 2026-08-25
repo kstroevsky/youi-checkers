@@ -18,7 +18,7 @@ import {
   expandStrengthFixtureSymmetry,
   type StrengthFixture,
 } from '@/ai/test/referenceStrength';
-import type { AiSearchDiagnosticAblation } from '@/ai/types';
+import type { AiSearchBudget, AiSearchDiagnosticAblation } from '@/ai/types';
 import { withRuleDefaults } from '@/domain/model/ruleConfig';
 
 import {
@@ -36,11 +36,12 @@ type Variant = {
 
 type Settings = {
   maxPlies: number;
-  nodeBudget: number;
+  nodeBudget: number | null;
   out: string;
   pairCount: number;
   profile: Profile;
   scenarioLimit: number;
+  searchBudget: AiSearchBudget;
   variants: Variant[];
 };
 
@@ -168,6 +169,7 @@ function parsePositiveInteger(value: string, name: string): number {
 function parseArgs(argv: string[]): Settings {
   const args = new Map<string, string>();
   const allowed = new Set([
+    'depth',
     'max-plies',
     'nodes',
     'out',
@@ -194,15 +196,24 @@ function parseArgs(argv: string[]): Settings {
         return variant;
       })
     : VARIANTS;
+  if (args.has('depth') && args.has('nodes'))
+    throw new Error('--depth and --nodes are mutually exclusive.');
+  const depth = args.has('depth')
+    ? parsePositiveInteger(args.get('depth') ?? '', 'depth')
+    : null;
+  const nodeBudget =
+    depth === null
+      ? parsePositiveInteger(
+          args.get('nodes') ?? (profile === 'full' ? '512' : '128'),
+          'nodes',
+        )
+      : null;
   return {
     maxPlies: parsePositiveInteger(
       args.get('max-plies') ?? (profile === 'full' ? '32' : '12'),
       'max-plies',
     ),
-    nodeBudget: parsePositiveInteger(
-      args.get('nodes') ?? (profile === 'full' ? '512' : '128'),
-      'nodes',
-    ),
+    nodeBudget,
     out:
       args.get('out') ??
       path.join(process.cwd(), 'output', 'ai', 'ai-policy-ablation'),
@@ -215,6 +226,10 @@ function parseArgs(argv: string[]): Settings {
       args.get('scenario-limit') ?? (profile === 'full' ? '6' : '2'),
       'scenario-limit',
     ),
+    searchBudget:
+      depth === null
+        ? { maxEvaluatedNodes: nodeBudget as number, type: 'fixedNodes' }
+        : { depth, type: 'fixedDepth' },
     variants,
   };
 }
@@ -319,7 +334,8 @@ async function runVariant(
       diagnosticAblation: variant.ablation,
       difficulty: 'hard',
       fixtures: fixtures.originals,
-      nodeBudget: settings.nodeBudget,
+      nodeBudget: settings.nodeBudget ?? undefined,
+      searchBudget: settings.searchBudget,
       policy: current,
       ruleConfig,
       seeds,
@@ -337,7 +353,7 @@ async function runVariant(
             difficulty: 'hard',
             fixture,
             maxPlies: settings.maxPlies,
-            nodeBudget: settings.nodeBudget,
+            nodeBudget: settings.nodeBudget ?? undefined,
             pairId: `${variant.id}/${fixture.id}/repeat-${repeat}`,
             policyA: current,
             policyASeed:
@@ -348,6 +364,7 @@ async function runVariant(
             retainDecisionDiagnostics: true,
             retainMeasurementEvidence: true,
             ruleConfig,
+            searchBudget: settings.searchBudget,
           }),
         );
       }
@@ -418,7 +435,7 @@ function markdown(results: VariantResult[], settings: Settings): string {
   const lines = [
     '# AI Search Signal Ablation',
     '',
-    `Profile: **${settings.profile}**; ${settings.pairCount} seed pair(s), ${settings.scenarioLimit} base fixture(s) plus mirrors, ${settings.maxPlies} plies, ${settings.nodeBudget} fixed nodes.`,
+    `Profile: **${settings.profile}**; ${settings.pairCount} seed pair(s), ${settings.scenarioLimit} base fixture(s) plus mirrors, ${settings.maxPlies} plies, ${settings.searchBudget.type === 'fixedDepth' ? `fixed depth ${settings.searchBudget.depth}` : `${settings.searchBudget.maxEvaluatedNodes} fixed nodes`}.`,
     '',
     'Every row changes only the explicitly named measurement-only search signals. Product semantics are the `production` row.',
     '',
@@ -510,6 +527,7 @@ async function main(): Promise<void> {
       pairCount: settings.pairCount,
       profile: settings.profile,
       scenarioLimit: settings.scenarioLimit,
+      searchBudget: settings.searchBudget,
       variants: settings.variants,
     },
   };
