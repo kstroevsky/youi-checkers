@@ -33,8 +33,9 @@ export type WdlProofCertificateV1 = {
   stateOutcomes: Array<{
     edges: Array<{
       action: TurnAction;
-      childKey: string;
+      childKey: string | null;
       controlChanged: boolean;
+      terminalOutcome: WdlValueV1 | null;
     }>;
     outcome: WdlValueV1;
     state: EngineState;
@@ -59,15 +60,15 @@ export type WdlProofResultV1 = {
 type GraphEdge = {
   action: TurnAction;
   actionKey: string;
-  childKey: string;
+  childKey: string | null;
   controlChanged: boolean;
+  terminalOutcome: WdlValueV1 | null;
 };
 
 type GraphNode = {
   edges: GraphEdge[];
   expanded: boolean;
   state: EngineState;
-  terminal: WdlValueV1 | null;
 };
 
 function canonicalJson(value: unknown): string {
@@ -84,7 +85,7 @@ function hash(value: unknown): string {
 }
 
 export const WDL_PROOF_PROTOCOL_HASH_V1 = hash({
-  canonicalization: 'referenceOracleStateKeyV1',
+  activeCanonicalization: 'referenceOracleStateKeyV1',
   cycleSemantics: 'fully-expanded-unresolved-SCC-is-draw',
   limits: WDL_PROOF_LIMITS_V1,
   terminalBeforeCache: true,
@@ -102,13 +103,23 @@ export function wdlProofStateKeyV1(
   state: EngineState,
   config: RuleConfig,
 ): string {
-  if (state.status === 'active')
-    return referenceOracleStateKeyV1(state, config);
-  return `terminal\u0000${hashPosition(state)}\u0000${hash(
-    Object.entries(state.positionCounts)
-      .sort(([left], [right]) => left.localeCompare(right))
-      .map(([key, count]) => [key, Math.min(count, 2)]),
-  )}\u0000${state.victory.type}`;
+  if (state.status !== 'active') {
+    throw new Error(
+      'WDL proof cache keys are defined only for active nonterminal states.',
+    );
+  }
+  return referenceOracleStateKeyV1(state, config);
+}
+
+/** Query/certificate identity; terminal identities are never cache keys. */
+export function wdlProofQueryIdentityV1(
+  state: EngineState,
+  config: RuleConfig,
+): string {
+  if (state.status === 'active') return wdlProofStateKeyV1(state, config);
+  return `terminal-query-v1\u0000${hashPosition(state)}\u0000${hash(
+    state.victory,
+  )}`;
 }
 
 function invert(outcome: WdlValueV1): WdlValueV1 {
@@ -142,9 +153,9 @@ export function solveWdlProofQueryV1({
 }): WdlProofResultV1 {
   const config = withRuleDefaults(configInput);
   const root = structuredClone(input);
-  const rootKey = wdlProofStateKeyV1(root, config);
   const rootTerminal = terminalOutcome(root);
   if (rootTerminal) {
+    const rootKey = wdlProofQueryIdentityV1(root, config);
     return {
       bounds: { lower: rootTerminal, upper: rootTerminal },
       certificate: {
@@ -172,9 +183,11 @@ export function solveWdlProofQueryV1({
     };
   }
 
+  const rootKey = wdlProofStateKeyV1(root, config);
+
   const started = now();
   const graph = new Map<string, GraphNode>([
-    [rootKey, { edges: [], expanded: false, state: root, terminal: null }],
+    [rootKey, { edges: [], expanded: false, state: root }],
   ]);
   const queue = [rootKey];
   let cursor = 0;
@@ -187,7 +200,9 @@ export function solveWdlProofQueryV1({
       for (const [key, node] of graph) {
         if (outcomes.has(key) || !node.expanded) continue;
         const resolved = node.edges.map((edge) => {
-          const child = outcomes.get(edge.childKey);
+          const child =
+            edge.terminalOutcome ??
+            (edge.childKey === null ? undefined : outcomes.get(edge.childKey));
           return child ? actionOutcome(child, edge) : null;
         });
         const outcome = resolved.includes('win')
@@ -224,23 +239,31 @@ export function solveWdlProofQueryV1({
       .sort((left, right) => actionKey(left).localeCompare(actionKey(right)));
     node.edges = actions.map((action: TurnAction): GraphEdge => {
       const next = advanceGeneratedEngineState(node.state, action, config);
+      const nextTerminal = terminalOutcome(next);
+      if (nextTerminal) {
+        return {
+          action: structuredClone(action),
+          actionKey: actionKey(action),
+          childKey: null,
+          controlChanged: next.currentPlayer !== node.state.currentPlayer,
+          terminalOutcome: nextTerminal,
+        };
+      }
       const childKey = wdlProofStateKeyV1(next, config);
       if (!graph.has(childKey)) {
         graph.set(childKey, {
           edges: [],
-          expanded: next.status === 'gameOver',
+          expanded: false,
           state: next,
-          terminal: terminalOutcome(next),
         });
-        const childTerminal = terminalOutcome(next);
-        if (childTerminal) outcomes.set(childKey, childTerminal);
-        if (next.status !== 'gameOver') queue.push(childKey);
+        queue.push(childKey);
       }
       return {
         action: structuredClone(action),
         actionKey: actionKey(action),
         childKey,
         controlChanged: next.currentPlayer !== node.state.currentPlayer,
+        terminalOutcome: null,
       };
     });
     node.expanded = true;
@@ -248,9 +271,6 @@ export function solveWdlProofQueryV1({
     if (outcomes.has(rootKey)) break;
   }
 
-  for (const [key, node] of graph) {
-    if (node.terminal) outcomes.set(key, node.terminal);
-  }
   propagateResolved();
 
   if (exhaustion === 'none' && cursor >= queue.length) {
@@ -273,7 +293,11 @@ export function solveWdlProofQueryV1({
             const node = graph.get(key);
             if (!node) throw new Error('Proof graph lost a resolved state.');
             const witness = node.edges.find((edge) => {
-              const child = outcomes.get(edge.childKey);
+              const child =
+                edge.terminalOutcome ??
+                (edge.childKey === null
+                  ? undefined
+                  : outcomes.get(edge.childKey));
               return child && actionOutcome(child, edge) === outcome;
             });
             return {
@@ -281,6 +305,7 @@ export function solveWdlProofQueryV1({
                 action: structuredClone(edge.action),
                 childKey: edge.childKey,
                 controlChanged: edge.controlChanged,
+                terminalOutcome: edge.terminalOutcome,
               })),
               outcome,
               state: structuredClone(node.state),
@@ -345,11 +370,14 @@ export function verifyWdlProofCertificateV1(
       errors.push('duplicateStateRecord');
 
     for (const record of certificate.stateOutcomes) {
-      if (wdlProofStateKeyV1(record.state, config) !== record.stateKey) {
+      const terminal = terminalOutcome(record.state);
+      const replayedIdentity = terminal
+        ? wdlProofQueryIdentityV1(record.state, config)
+        : wdlProofStateKeyV1(record.state, config);
+      if (replayedIdentity !== record.stateKey) {
         errors.push(`stateKeyReplayMismatch:${record.stateKey}`);
         continue;
       }
-      const terminal = terminalOutcome(record.state);
       if (terminal) {
         if (terminal !== record.outcome)
           errors.push(`terminalOutcomeMismatch:${record.stateKey}`);
@@ -372,17 +400,31 @@ export function verifyWdlProofCertificateV1(
           edge.action,
           config,
         );
-        if (wdlProofStateKeyV1(next, config) !== edge.childKey)
-          errors.push(`childReplayMismatch:${record.stateKey}:${key}`);
+        const nextTerminal = terminalOutcome(next);
+        if (nextTerminal) {
+          if (edge.childKey !== null || edge.terminalOutcome !== nextTerminal) {
+            errors.push(`terminalEdgeMismatch:${record.stateKey}:${key}`);
+          }
+        } else {
+          if (
+            edge.terminalOutcome !== null ||
+            edge.childKey === null ||
+            wdlProofStateKeyV1(next, config) !== edge.childKey
+          ) {
+            errors.push(`childReplayMismatch:${record.stateKey}:${key}`);
+          }
+        }
         if (
           (next.currentPlayer !== record.state.currentPlayer) !==
           edge.controlChanged
         )
           errors.push(`controlChangeMismatch:${record.stateKey}:${key}`);
-        const child = records.get(edge.childKey);
-        if (child) {
+        const child =
+          edge.childKey === null ? null : records.get(edge.childKey);
+        const childOutcome = edge.terminalOutcome ?? child?.outcome;
+        if (childOutcome) {
           actionOutcomes.push(
-            edge.controlChanged ? invert(child.outcome) : child.outcome,
+            edge.controlChanged ? invert(childOutcome) : childOutcome,
           );
         }
       }

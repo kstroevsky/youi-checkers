@@ -7,7 +7,7 @@ import {
   solveWdlProofQueryV1,
   verifyWdlProofCertificateV1,
   WDL_PROOF_PROTOCOL_HASH_V1,
-  wdlProofStateKeyV1,
+  wdlProofQueryIdentityV1,
   type WdlProofLimitsV1,
   type WdlProofResultV1,
 } from '@/ai/test/wdlProof.node';
@@ -107,7 +107,7 @@ export function buildWdlProofQuerySetV1({
       kind: 'catalogRoot',
       lineageId,
       state: structuredClone(state),
-      stateKey: wdlProofStateKeyV1(state, config),
+      stateKey: wdlProofQueryIdentityV1(state, config),
     });
     for (const action of getLegalActions(state, config)
       .slice()
@@ -118,7 +118,7 @@ export function buildWdlProofQuerySetV1({
         kind: 'rootActionSuccessor',
         lineageId,
         state: successor,
-        stateKey: wdlProofStateKeyV1(successor, config),
+        stateKey: wdlProofQueryIdentityV1(successor, config),
       });
     }
   }
@@ -128,7 +128,7 @@ export function buildWdlProofQuerySetV1({
       kind: query.kind,
       lineageId: query.lineageId,
       state: structuredClone(query.state),
-      stateKey: wdlProofStateKeyV1(query.state, config),
+      stateKey: wdlProofQueryIdentityV1(query.state, config),
     });
   }
 

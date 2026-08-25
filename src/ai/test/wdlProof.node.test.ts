@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest';
 import {
   solveWdlProofQueryV1,
   verifyWdlProofCertificateV1,
+  wdlProofStateKeyV1,
 } from '@/ai/test/wdlProof.node';
 import { createHomeFieldWinState } from '@/ai/test/tacticalFixtures';
 import {
@@ -26,6 +27,9 @@ describe('WdlProofProtocolV1', () => {
     });
     expect(result.bounds).toEqual({ lower: 'loss', upper: 'loss' });
     expect(verifyWdlProofCertificateV1(result).valid).toBe(true);
+    expect(() => wdlProofStateKeyV1(state, withConfig())).toThrow(
+      /active nonterminal/u,
+    );
   });
 
   it('returns unknown rather than heuristic WDL when its state cap is exhausted', () => {
@@ -61,6 +65,18 @@ describe('WdlProofProtocolV1', () => {
       state: createHomeFieldWinState(),
     });
     expect(result.bounds).toEqual({ lower: 'win', upper: 'win' });
+    expect(
+      result.certificate?.stateOutcomes.every(
+        (record) => record.state.status === 'active',
+      ),
+    ).toBe(true);
+    expect(
+      result.certificate?.stateOutcomes.some((record) =>
+        record.edges.some(
+          (edge) => edge.childKey === null && edge.terminalOutcome === 'win',
+        ),
+      ),
+    ).toBe(true);
     expect(verifyWdlProofCertificateV1(result, config)).toEqual({
       errors: [],
       valid: true,
