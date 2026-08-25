@@ -36,11 +36,13 @@ import { chooseFinishingAction } from '@/ai/search/finishingSearch';
 import { negamax } from '@/ai/search/negamax';
 import {
   buildPrincipalVariation,
+  buildProductSafeRootStyleRowsV1,
   createEmptyResult,
   createSearchDiagnostics,
   orderRootCandidates,
   selectCandidateAction,
   selectExactTieParticipationV1,
+  selectRootStyleRerankerV1,
   sortRankedActions,
   summarizeDecisionScores,
 } from '@/ai/search/result';
@@ -239,6 +241,12 @@ export function chooseComputerAction({
       searchMode,
       state,
     });
+  }
+  if (
+    diagnosticAblation?.exactTieParticipation &&
+    diagnosticAblation.rootStyleReranker
+  ) {
+    throw new Error('Treatment E and treatment SR cannot be combined.');
   }
 
   const preset = AI_DIFFICULTY_PRESETS[difficulty];
@@ -843,14 +851,60 @@ export function chooseComputerAction({
         strategicIntent,
       },
     );
-    bestAction = diagnosticAblation?.exactTieParticipation
+    const selected = diagnosticAblation?.exactTieParticipation
       ? selectExactTieParticipationV1(rootCandidates, baselineSelection, {
           completedDepth,
           completedRootMoves,
           legalRootMoves: legalActions.length,
-        }).action.action
-      : baselineSelection.action;
+        }).action
+      : diagnosticAblation?.rootStyleReranker
+        ? selectRootStyleRerankerV1(
+            rootCandidates,
+            baselineSelection,
+            preset,
+            random,
+            {
+              behaviorProfileId: behaviorProfile?.id ?? null,
+              behaviorSeed: behaviorProfile?.seed ?? null,
+              calibration: diagnosticAblation.rootStyleReranker.calibration,
+              completedDepth,
+              completedRootMoves,
+              legalRootMoves: legalActions.length,
+              previousSourceFamily:
+                rootParticipationState.players[state.currentPlayer]
+                  .lastSourceFamily,
+              previousSourceRegion:
+                rootParticipationState.players[state.currentPlayer]
+                  .lastSourceRegion,
+              previousStrategicTags: rootPreviousStrategicTags,
+              rootPlayer: state.currentPlayer,
+              strategicIntent,
+              temperature: diagnosticAblation.rootStyleReranker.temperature,
+            },
+          )
+        : baselineSelection;
+    bestAction = selected.action;
   }
+
+  const capturedRootStyleFeatures =
+    diagnosticAblation?.captureRootStyleFeatures &&
+    completedDepth > 0 &&
+    completedRootMoves === legalActions.length &&
+    rootCandidates.length === legalActions.length
+      ? buildProductSafeRootStyleRowsV1(rootCandidates, preset, {
+          behaviorProfileId: behaviorProfile?.id ?? null,
+          behaviorSeed: behaviorProfile?.seed ?? null,
+          previousSourceFamily:
+            rootParticipationState.players[state.currentPlayer]
+              .lastSourceFamily,
+          previousSourceRegion:
+            rootParticipationState.players[state.currentPlayer]
+              .lastSourceRegion,
+          previousStrategicTags: rootPreviousStrategicTags,
+          rootPlayer: state.currentPlayer,
+          strategicIntent,
+        }).rows
+      : null;
 
   return {
     action: bestAction,
@@ -871,6 +925,9 @@ export function chooseComputerAction({
     ),
     riskMode: effectiveRiskMode,
     rootCandidates: orderRootCandidates(rootCandidates, rootCandidateLimit),
+    ...(capturedRootStyleFeatures
+      ? { rootStyleFeatures: capturedRootStyleFeatures }
+      : {}),
     searchBudget: reportSearchBudget(resolvedBudget, context.budgetExhaustion),
     ...summarizeDecisionScores(rootCandidates, bestAction, bestScore),
     strategicIntent,

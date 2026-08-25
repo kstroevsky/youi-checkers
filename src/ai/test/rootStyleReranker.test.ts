@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  calibrateRootStyleV1,
   rerankRootStyleV1,
   type RootStyleCalibrationV1,
   type RootStyleRawFeaturesV1,
@@ -37,6 +38,16 @@ function row(target: 'A2' | 'B1', family: string): RootStyleRawFeaturesV1 {
 }
 
 describe('duplicate-invariant root reranker', () => {
+  it('freezes treatment-independent median/IQR preprocessing from baseline rows', () => {
+    const fitted = calibrateRootStyleV1([
+      { ...row('A2', 'family-a'), participation: -2 },
+      { ...row('B1', 'family-b'), participation: 0 },
+      { ...row('A2', 'family-c'), participation: 2 },
+    ]);
+    expect(fitted.participation).toEqual({ iqr: 2, median: 0 });
+    expect(fitted.strength.median).toBe(0);
+  });
+
   it('preserves family mass when an equivalence-class member is duplicated', () => {
     const a = row('A2', 'family-a');
     const b = row('B1', 'family-b');

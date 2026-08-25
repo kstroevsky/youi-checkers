@@ -4,6 +4,10 @@ import type {
   AiBehaviorProfile,
   AiBehaviorProfileId,
 } from '@/shared/types/session';
+import type {
+  RootStyleCalibrationV1,
+  RootStyleRawFeaturesV1,
+} from '@/ai/rootStyleReranker';
 
 export type AiStrategicIntent = 'home' | 'sixStack' | 'hybrid';
 export type AiStrategicTag =
@@ -98,12 +102,17 @@ export type AiSearchBudgetReport = {
 export type AiSearchDiagnosticAblation = {
   behaviorEvaluation?: boolean;
   behaviorOrdering?: boolean;
+  captureRootStyleFeatures?: boolean;
   exactTieParticipation?: boolean;
   noveltyOrdering?: boolean;
   participationEvaluation?: boolean;
   participationEvaluationScale?: number;
   participationOrdering?: boolean;
   rootParticipationScale?: number;
+  rootStyleReranker?: {
+    calibration: RootStyleCalibrationV1;
+    temperature: 0.25 | 0.5 | 1 | 2;
+  };
   transpositionMode?: AiTranspositionMode;
 };
 
@@ -227,6 +236,8 @@ export type AiSearchResult = {
   principalVariation: TurnAction[];
   riskMode: AiRiskMode;
   rootCandidates: AiRootCandidate[];
+  /** Measurement-only baseline rows for treatment-independent SR calibration. */
+  rootStyleFeatures?: RootStyleRawFeaturesV1[];
   /** Exact resource contract exercised by this decision. */
   searchBudget?: AiSearchBudgetReport;
   /** Backward-compatible alias for selectedActionScore. */

@@ -51,6 +51,54 @@ const WEIGHTS: Record<FeatureName, number> = {
   strength: 1,
 };
 
+function quantile(values: number[], probability: number) {
+  const sorted = values.slice().sort((left, right) => left - right);
+  const position = (sorted.length - 1) * probability;
+  const lower = Math.floor(position);
+  const fraction = position - lower;
+  return (
+    sorted[lower] * (1 - fraction) + sorted[Math.ceil(position)] * fraction
+  );
+}
+
+/** Fits treatment-independent per-difficulty median/IQR preprocessing. */
+export function calibrateRootStyleV1(
+  rows: RootStyleRawFeaturesV1[],
+): RootStyleCalibrationV1 {
+  if (!rows.length) throw new Error('Root style calibration requires rows.');
+  const values: Record<FeatureName, number[]> = {
+    history: rows.flatMap((row) => (row.history === null ? [] : [row.history])),
+    participation: rows.flatMap((row) =>
+      row.participation === null ? [] : [row.participation],
+    ),
+    persona: rows.flatMap((row) => (row.persona === null ? [] : [row.persona])),
+    plan: rows.flatMap((row) => (row.plan === null ? [] : [row.plan])),
+    progress: rows.flatMap((row) =>
+      row.progress === null ? [] : [row.progress],
+    ),
+    risk: rows.flatMap((row) =>
+      row.drawTrapRisk === null ? [] : [1 - row.drawTrapRisk],
+    ),
+    strength: rows.map((row) => -row.productRegret),
+  };
+  return Object.fromEntries(
+    (Object.keys(values) as FeatureName[]).map((name) => {
+      const present = values[name];
+      if (!present.length) return [name, { iqr: 0, median: 0 }];
+      return [
+        name,
+        {
+          iqr:
+            quantile(present, 0.75) - quantile(present, 0.25) === 0
+              ? 0
+              : quantile(present, 0.75) - quantile(present, 0.25),
+          median: quantile(present, 0.5) === 0 ? 0 : quantile(present, 0.5),
+        },
+      ];
+    }),
+  ) as RootStyleCalibrationV1;
+}
+
 function z(
   value: number | null,
   calibration: { iqr: number; median: number },
