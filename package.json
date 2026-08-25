@@ -24,6 +24,7 @@
     "ai:policy-ablation": "tsx scripts/ai-policy-ablation.report.ts",
     "ai:policy-counterfactual": "tsx scripts/ai-policy-counterfactual.report.ts",
     "ai:reranker-stage-b": "tsx scripts/ai-reranker-stage-b.report.ts",
+    "ai:performance:isolated": "node scripts/run-isolated-ai-performance-compare.mjs",
     "ai:position-buckets:compare": "node scripts/run-git-report-compare.mjs --pipeline=ai-position-buckets",
     "ai:strength": "tsx scripts/ai-reference-strength.report.ts",
     "ai:strength:compare": "node scripts/run-git-strength-compare.mjs",
