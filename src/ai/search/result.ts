@@ -1,7 +1,6 @@
 import {
   advanceEngineState,
   type EngineState,
-  type Player,
   type TurnAction,
 } from '@/domain';
 import type {
@@ -22,12 +21,6 @@ import { toRootCandidate } from '@/ai/search/heuristics';
 import { actionId, makeTableKey } from '@/ai/search/shared';
 import type { RootRankedAction, SearchContext } from '@/ai/search/types';
 import { getNoveltyPenalty } from '@/ai/strategy';
-import {
-  rerankRootStyleV1,
-  type RootStyleCalibrationV1,
-  type RootStyleRawFeaturesV1,
-} from '@/ai/rootStyleReranker';
-import { parseCoord } from '@/domain/model/coordinates';
 
 /** Creates the empty diagnostics payload used for all search results. */
 export function createSearchDiagnostics(): AiSearchDiagnostics {
@@ -490,166 +483,6 @@ export type ExactTieParticipationDecisionV1 = {
     | 'incompleteEvidence'
     | 'noExactTie';
 };
-
-function sourceRegionForAction(action: TurnAction, player: Player): string {
-  const coord = action.type === 'manualUnfreeze' ? action.coord : action.source;
-  const { column, row } = parseCoord(coord);
-  const file =
-    column === 'A' || column === 'B'
-      ? 'left'
-      : column === 'E' || column === 'F'
-        ? 'right'
-        : 'center';
-  const relativeRow = player === 'white' ? row : 7 - row;
-  const rank = relativeRow <= 2 ? 'rear' : relativeRow <= 4 ? 'mid' : 'front';
-  return `${file}-${rank}`;
-}
-
-function jaccardDistance(
-  left: AiRootCandidate['tags'],
-  right: AiRootCandidate['tags'] | null,
-) {
-  if (!right) return 0;
-  const union = new Set([...left, ...right]);
-  if (!union.size) return 0;
-  const intersection = left.filter((value) => right.includes(value)).length;
-  return 1 - intersection / union.size;
-}
-
-/** Stage-B SR: complete-root, product-safe, duplicate-invariant selection. */
-export function selectRootStyleRerankerV1(
-  ranked: RootRankedAction[],
-  baseline: RootRankedAction,
-  preset: AiDifficultyPreset,
-  random: () => number,
-  options: {
-    behaviorProfileId: AiBehaviorProfileId | null;
-    behaviorSeed: string | null;
-    calibration: RootStyleCalibrationV1;
-    completedDepth: number;
-    completedRootMoves: number;
-    legalRootMoves: number;
-    previousSourceFamily: string | null;
-    previousSourceRegion: string | null;
-    previousStrategicTags: AiRootCandidate['tags'] | null;
-    rootPlayer: Player;
-    strategicIntent: RootRankedAction['intent'];
-    temperature: 0.25 | 0.5 | 1 | 2;
-  },
-): RootRankedAction {
-  if (
-    options.completedDepth <= 0 ||
-    options.completedRootMoves !== options.legalRootMoves ||
-    ranked.length !== options.legalRootMoves
-  )
-    return baseline;
-  const prepared = buildProductSafeRootStyleRowsV1(ranked, preset, options);
-  if (prepared.eligible.length < 2) return baseline;
-  const probabilities = rerankRootStyleV1({
-    calibration: options.calibration,
-    rows: prepared.rows,
-    temperature: options.temperature,
-  }).sort((left, right) => left.actionKey.localeCompare(right.actionKey));
-  let threshold = random();
-  for (const probability of probabilities) {
-    threshold -= probability.probability;
-    if (threshold <= 0) {
-      return (
-        prepared.eligible.find(
-          (entry) => actionId(entry.action) === actionId(probability.action),
-        ) ?? baseline
-      );
-    }
-  }
-  return baseline;
-}
-
-export function buildProductSafeRootStyleRowsV1(
-  ranked: RootRankedAction[],
-  preset: AiDifficultyPreset,
-  options: Parameters<typeof buildRootStyleRowsV1>[2],
-) {
-  const terminalSafe = getTerminalSafeCandidates(ranked);
-  const best = terminalSafe[0] ?? ranked[0];
-  const tolerance = getSelectionRegretBudget(best.score, preset);
-  const eligible = terminalSafe.filter(
-    (entry) =>
-      best.score - entry.score <= tolerance &&
-      !entry.isForced &&
-      !entry.isSelfUndo &&
-      !entry.isRepetition &&
-      entry.drawTrapRisk < 0.95,
-  );
-  return {
-    eligible,
-    rows: buildRootStyleRowsV1(eligible, best, options),
-  };
-}
-
-export function buildRootStyleRowsV1(
-  eligible: RootRankedAction[],
-  best: RootRankedAction,
-  options: Pick<
-    NonNullable<Parameters<typeof selectRootStyleRerankerV1>[4]>,
-    | 'behaviorProfileId'
-    | 'behaviorSeed'
-    | 'previousSourceFamily'
-    | 'previousSourceRegion'
-    | 'previousStrategicTags'
-    | 'rootPlayer'
-    | 'strategicIntent'
-  >,
-): RootStyleRawFeaturesV1[] {
-  return eligible.map((entry) => {
-    const region = sourceRegionForAction(entry.action, options.rootPlayer);
-    const plan: RootStyleRawFeaturesV1['plan'] =
-      options.strategicIntent === 'hybrid'
-        ? 0.25
-        : entry.intent === options.strategicIntent
-          ? 1
-          : entry.intent === 'hybrid'
-            ? 0.25
-            : -1;
-    return {
-      action: entry.action,
-      actionKind: entry.action.type,
-      drawTrapRisk: entry.drawTrapRisk,
-      history:
-        options.previousStrategicTags === null &&
-        options.previousSourceFamily === null &&
-        options.previousSourceRegion === null
-          ? null
-          : 0.5 * jaccardDistance(entry.tags, options.previousStrategicTags) +
-            0.25 *
-              (options.previousSourceFamily !== null &&
-              entry.sourceFamily !== options.previousSourceFamily
-                ? 1
-                : 0) +
-            0.25 *
-              (options.previousSourceRegion !== null &&
-              region !== options.previousSourceRegion
-                ? 1
-                : 0),
-      participation: entry.participationDelta,
-      persona:
-        getBehaviorActionBias(options.behaviorProfileId, entry.tags) +
-        6 *
-          getBehaviorGeometryBias(
-            options.behaviorProfileId,
-            entry.action,
-            options.behaviorSeed,
-          ),
-      plan,
-      productRegret: best.score - entry.score,
-      progress: Math.max(entry.homeFieldDelta, entry.sixStackDelta),
-      sourceFamily: entry.sourceFamily,
-      strategicIntent: entry.intent,
-      tactical: entry.isTactical,
-      tags: entry.tags,
-      terminalClass: entry.terminalUtility ?? 'nonterminal',
-    };
-  });
-}
 
 /** Treatment E: a post-selector break of exact, complete product-score ties only. */
 export function selectExactTieParticipationV1(

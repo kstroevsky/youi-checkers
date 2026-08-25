@@ -11,6 +11,10 @@ import {
 import { chooseComputerAction } from '@/ai/search/rootSearch';
 import { actionKey } from '@/ai/search/shared';
 import { createSeededRandom } from '@/ai/test/searchTestUtils';
+import {
+  buildRootStyleTreatmentRowsV1,
+  selectRootStyleTreatmentV1,
+} from '@/ai/test/rootStyleTreatment';
 import { getLegalActions, withRuleDefaults } from '@/domain';
 import type { AiDifficulty } from '@/shared/types/session';
 
@@ -80,11 +84,11 @@ async function main() {
   for (const difficulty of DIFFICULTIES) {
     for (const fixture of fixtures) {
       for (let seed = 0; seed < seedCount; seed += 1) {
+        const behaviorProfile = createAiBehaviorProfile(
+          `reranker-calibration-${difficulty}-${fixture.id}-${seed}`,
+        );
         const result = chooseComputerAction({
-          behaviorProfile: createAiBehaviorProfile(
-            `reranker-calibration-${difficulty}-${fixture.id}-${seed}`,
-          ),
-          diagnosticAblation: { captureRootStyleFeatures: true },
+          behaviorProfile,
           diagnosticRootCandidateLimit: getLegalActions(
             fixture.state,
             ruleConfig,
@@ -95,11 +99,21 @@ async function main() {
           searchBudget: { depth, type: 'fixedDepth' },
           state: fixture.state,
         });
-        if (!result.rootStyleFeatures)
+        const rows = buildRootStyleTreatmentRowsV1({
+          behaviorProfile,
+          difficulty,
+          result,
+          ruleConfig,
+          state: fixture.state,
+        });
+        if (
+          result.completedDepth <= 0 ||
+          result.completedRootMoves !== result.rootCandidates.length
+        )
           throw new Error(
             `Incomplete calibration root ${difficulty}/${fixture.id}.`,
           );
-        calibrationRows[difficulty].push(...result.rootStyleFeatures);
+        calibrationRows[difficulty].push(...rows);
       }
     }
   }
@@ -114,10 +128,11 @@ async function main() {
     for (const temperature of TEMPERATURES) {
       for (const fixture of fixtures) {
         for (let seed = 0; seed < seedCount; seed += 1) {
+          const behaviorProfile = createAiBehaviorProfile(
+            `reranker-evaluation-${difficulty}-${fixture.id}-${seed}`,
+          );
           const request = {
-            behaviorProfile: createAiBehaviorProfile(
-              `reranker-evaluation-${difficulty}-${fixture.id}-${seed}`,
-            ),
+            behaviorProfile,
             diagnosticRootCandidateLimit: getLegalActions(
               fixture.state,
               ruleConfig,
@@ -131,28 +146,34 @@ async function main() {
             ...request,
             random: createSeededRandom(seed + 10_000),
           });
-          const candidate = chooseComputerAction({
-            ...request,
-            diagnosticAblation: {
-              rootStyleReranker: {
-                calibration: calibration[difficulty],
-                temperature,
-              },
-            },
+          const candidateAction = selectRootStyleTreatmentV1({
+            behaviorProfile,
+            calibration: calibration[difficulty],
+            difficulty,
             random: createSeededRandom(seed + 10_000),
+            result: baseline,
+            ruleConfig,
+            state: fixture.state,
+            temperature,
           });
           const baselineSelected = selectedCandidate(baseline);
-          const candidateSelected = selectedCandidate(candidate);
+          const candidateSelected = baseline.rootCandidates.find(
+            (candidate) =>
+              candidateAction &&
+              actionKey(candidate.action) === actionKey(candidateAction),
+          );
           samples.push({
             baselineAction: baseline.action ? actionKey(baseline.action) : null,
             baselineParticipation: baselineSelected?.participationDelta ?? null,
             baselineRegret: baseline.selectionRegret,
-            candidateAction: candidate.action
-              ? actionKey(candidate.action)
+            candidateAction: candidateAction
+              ? actionKey(candidateAction)
               : null,
             candidateParticipation:
               candidateSelected?.participationDelta ?? null,
-            candidateRegret: candidate.selectionRegret,
+            candidateRegret: candidateSelected
+              ? Math.max(0, baseline.bestSearchScore - candidateSelected.score)
+              : baseline.selectionRegret,
             difficulty,
             fixtureId: fixture.id,
             seed,
